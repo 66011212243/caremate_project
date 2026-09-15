@@ -1,4 +1,5 @@
 import 'package:caremate_application/page/break_status_job.dart';
+import 'package:caremate_application/page/details_job.dart';
 import 'package:caremate_application/page/login.dart';
 import 'package:caremate_application/page/myJob_povider.dart';
 import 'package:caremate_application/page/position_provider.dart';

@@ -164,7 +164,22 @@ class _HomepageProviderState extends State<HomepageProvider> {
                                         borderRadius: BorderRadius.circular(8),
                                       ),
                                     ),
-                                    onPressed: () {},
+                                    onPressed: () async {
+                                      print('กดปุ่มสมัครแล้ว');
+                                      print('job_id: ${job['job_id']}');
+                                      await applyJob(job['job_id']);
+
+                                      ScaffoldMessenger.of(
+                                        context,
+                                      ).showSnackBar(
+                                        SnackBar(
+                                          content: Text(
+                                            'สมัครงานเรียบร้อยแล้ว',
+                                          ),
+                                          duration: Duration(seconds: 2),
+                                        ),
+                                      );
+                                    },
                                     child: Text(
                                       "สมัคร",
                                       style: TextStyle(fontSize: 16),
@@ -209,16 +224,41 @@ class _HomepageProviderState extends State<HomepageProvider> {
           .where('job_status', isEqualTo: 0)
           .get();
 
-      allJobs = querySnapshot.docs.map((doc) => doc.data()).toList();
+      List<Map<String, dynamic>> tempList = [];
+
+      for (var doc in querySnapshot.docs) {
+        var data = doc.data();
+
+        var fullData = {...data, 'job_id': doc.id};
+
+        // print('Firestore doc.id = ${doc.id}');
+        // print('fullData = $fullData');
+
+        tempList.add(fullData);
+      }
+
+      allJobs = tempList;
 
       setState(() {
         isLoading = false;
       });
     } catch (e) {
       print("Error fetching jobs: $e");
+
       setState(() {
         isLoading = false;
       });
     }
+  }
+
+  Future<void> applyJob(String jobId) async {
+    var driverDoc = db.collection('all_drivers').doc();
+    var data = {
+      'provider_id': widget.pid,
+      'job_id': jobId,
+      'applied_at': FieldValue.serverTimestamp(),
+    };
+
+    await driverDoc.set(data);
   }
 }
