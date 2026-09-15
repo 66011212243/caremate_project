@@ -11,6 +11,7 @@ import 'package:caremate_application/page/homepage_provider.dart';
 import 'package:caremate_application/page/homepage_service.dart';
 import 'package:caremate_application/page/map_page.dart';
 import 'package:flutter/material.dart';
+import 'package:caremate_application/page/review.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -34,7 +35,7 @@ class MyApp extends StatelessWidget {
         //
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
       ),
-      home: BreakStatusJob(),
+      home: ReviewPage(),
     );
   }
 }
