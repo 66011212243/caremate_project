@@ -46,6 +46,7 @@ dependencies:
   google_sign_in: ^6.2.1
   firebase_auth: ^6.2.0
   fluttertoast: ^9.0.0
+  flutter_rating_bar: ^4.0.1 # ตัวช่วยทำระบบดาว
 
 dev_dependencies:
   flutter_test:
