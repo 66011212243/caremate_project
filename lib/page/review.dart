@@ -1,7 +1,60 @@
+import 'package:caremate_application/page/Report.dart';
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class ReviewPage extends StatelessWidget {
-  const ReviewPage({super.key});
+  final String jobId;
+  final String driverName;
+  final String driverId;
+  final String phoneNumber;
+  final String licensePlate;
+  final String promptPay;
+
+  ReviewPage({
+    super.key,
+    this.jobId = "001",
+    this.driverName = "พิชยกรณ์ ยามรัมย์",
+    this.driverId = "01",
+    this.phoneNumber = "095588291",
+    this.licensePlate = "กข1234",
+    this.promptPay = "1234567890",
+  });
+
+  //  2. สร้างตัวแปรเก็บข้อความ และ คะแนนดาว (ใช้ ValueNotifier แบบง่าย ไม่ต้องแปลงเป็น StatefulWidget)
+  final TextEditingController commentController = TextEditingController();
+  final ValueNotifier<int> ratingNotifier = ValueNotifier<int>(5);
+
+  //  3. ฟังก์ชันบันทึกลง Firebase
+  void _saveReview(BuildContext context) async {
+    if (commentController.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('กรุณากรอกรายละเอียดเพิ่มเติม')),
+      );
+      return;
+    }
+
+    try {
+      await FirebaseFirestore.instance.collection('review').add({
+        'jobId': jobId,
+        'driverId': driverId,
+        'rating': ratingNotifier.value,
+        'comment': commentController.text.trim(),
+      });
+
+      if (context.mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('บันทึกรีวิวสำเร็จ!')));
+        Navigator.pop(context);
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('เกิดข้อผิดพลาด: $e')));
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -9,7 +62,10 @@ class ReviewPage extends StatelessWidget {
       backgroundColor: Colors.white,
 
       appBar: AppBar(
-        leading: const Icon(Icons.arrow_back, color: Colors.black),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Colors.black),
+          onPressed: () => Navigator.pop(context),
+        ),
 
         title: const Text(
           'รีวิว',
@@ -42,7 +98,12 @@ class ReviewPage extends StatelessWidget {
                       elevation: 3,
                     ),
 
-                    onPressed: () {},
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (context) => ReportPage()),
+                      );
+                    },
 
                     child: const Text("รายงาน"),
                   ),
@@ -58,10 +119,7 @@ class ReviewPage extends StatelessWidget {
               /// หัวข้อคนขับ
               const Text(
                 "คนขับ",
-                style: TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.bold,
-                ),
+                style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
               ),
 
               const SizedBox(height: 20),
@@ -83,18 +141,16 @@ class ReviewPage extends StatelessWidget {
 
                   const SizedBox(width: 20),
 
-                  const Column(
+                  Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Row(
                         children: [
-                          Text(
+                          const Text(
                             "ชื่อ: ",
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                            ),
+                            style: TextStyle(fontWeight: FontWeight.bold),
                           ),
-                          Text("พิชยกรณ์ ยามรัมย์"),
+                          Text(driverName),
                         ],
                       ),
 
@@ -102,13 +158,11 @@ class ReviewPage extends StatelessWidget {
 
                       Row(
                         children: [
-                          Text(
+                          const Text(
                             "หมายเลขโทรศัพท์: ",
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                            ),
+                            style: TextStyle(fontWeight: FontWeight.bold),
                           ),
-                          Text("095588291"),
+                          Text(phoneNumber),
                         ],
                       ),
 
@@ -116,13 +170,11 @@ class ReviewPage extends StatelessWidget {
 
                       Row(
                         children: [
-                          Text(
+                          const Text(
                             "ทะเบียนรถ: ",
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                            ),
+                            style: TextStyle(fontWeight: FontWeight.bold),
                           ),
-                          Text("กข1234"),
+                          Text(licensePlate),
                         ],
                       ),
 
@@ -130,13 +182,11 @@ class ReviewPage extends StatelessWidget {
 
                       Row(
                         children: [
-                          Text(
+                          const Text(
                             "เลขบัญชี: ",
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                            ),
+                            style: TextStyle(fontWeight: FontWeight.bold),
                           ),
-                          Text("1234567890"),
+                          Text(promptPay),
                         ],
                       ),
                     ],
@@ -149,10 +199,7 @@ class ReviewPage extends StatelessWidget {
               /// ให้คะแนน
               const Text(
                 "ให้คะแนน",
-                style: TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.bold,
-                ),
+                style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
               ),
 
               const SizedBox(height: 20),
@@ -166,23 +213,28 @@ class ReviewPage extends StatelessWidget {
                   borderRadius: BorderRadius.circular(15),
                 ),
 
-                child: const Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(Icons.star_border, size: 35),
-                    SizedBox(width: 10),
-
-                    Icon(Icons.star_border, size: 35),
-                    SizedBox(width: 10),
-
-                    Icon(Icons.star_border, size: 35),
-                    SizedBox(width: 10),
-
-                    Icon(Icons.star_border, size: 35),
-                    SizedBox(width: 10),
-
-                    Icon(Icons.star_border, size: 35),
-                  ],
+                child: ValueListenableBuilder<int>(
+                  valueListenable: ratingNotifier,
+                  builder: (context, currentRating, child) {
+                    return Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: List.generate(5, (index) {
+                        final starIndex = index + 1;
+                        return IconButton(
+                          onPressed: () => ratingNotifier.value = starIndex,
+                          icon: Icon(
+                            starIndex <= currentRating
+                                ? Icons.star
+                                : Icons.star_border,
+                            size: 35,
+                            color: starIndex <= currentRating
+                                ? Colors.amber
+                                : Colors.grey,
+                          ),
+                        );
+                      }),
+                    );
+                  },
                 ),
               ),
 
@@ -191,10 +243,7 @@ class ReviewPage extends StatelessWidget {
               /// รายละเอียดเพิ่มเติม
               const Text(
                 "รายละเอียดเพิ่มเติม",
-                style: TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.bold,
-                ),
+                style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
               ),
 
               const SizedBox(height: 20),
@@ -204,6 +253,7 @@ class ReviewPage extends StatelessWidget {
                 height: 180,
 
                 child: TextField(
+                  controller: commentController, //  ผูก controller ดึงข้อความ
                   maxLines: null,
                   expands: true,
 
@@ -236,7 +286,7 @@ class ReviewPage extends StatelessWidget {
                       padding: const EdgeInsets.symmetric(vertical: 14),
                     ),
 
-                    onPressed: () {},
+                    onPressed: () => _saveReview(context),
 
                     child: const Text("รีวิว"),
                   ),
