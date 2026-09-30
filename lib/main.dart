@@ -1,6 +1,7 @@
 import 'package:caremate_application/page/Bank.dart';
 import 'package:caremate_application/page/Changepassword.dart';
 import 'package:caremate_application/page/break_status_job.dart';
+import 'package:caremate_application/page/details_job.dart';
 import 'package:caremate_application/page/login.dart';
 import 'package:caremate_application/page/myJob_povider.dart';
 import 'package:caremate_application/page/position_provider.dart';
@@ -15,6 +16,7 @@ import 'package:caremate_application/page/map_page.dart';
 import 'package:caremate_application/page/Setting_Provider.dart';
 import 'package:caremate_application/page/Changepassword.dart';
 import 'package:flutter/material.dart';
+import 'package:caremate_application/page/review.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();

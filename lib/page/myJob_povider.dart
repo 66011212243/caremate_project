@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:table_calendar/table_calendar.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class MyjobPovider extends StatefulWidget {
   const MyjobPovider({super.key});
@@ -8,6 +10,13 @@ class MyjobPovider extends StatefulWidget {
 }
 
 class _MyjobPoviderState extends State<MyjobPovider> {
+  int _selectedIndex = 1;
+  DateTime _focusedDay = DateTime.now();
+  DateTime? _selectedDay;
+
+  var db = FirebaseFirestore.instance;
+  List<Map<String, dynamic>> allJobs = [];
+  bool isLoading = true;
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -183,13 +192,73 @@ class _MyjobPoviderState extends State<MyjobPovider> {
                   ),
 
                   //tap 2
-                  Center(child: Text("ปฏิทิน")),
+                  Center(
+                    child: TableCalendar(
+                      firstDay: DateTime.utc(2010, 10, 16),
+                      lastDay: DateTime.utc(2030, 3, 14),
+                      focusedDay: DateTime.now(),
+
+                      selectedDayPredicate: (day) {
+                        return isSameDay(_selectedDay, day);
+                      },
+                      onDaySelected: (selectedDay, focusedDay) {
+                        setState(() {
+                          _selectedDay = selectedDay;
+                          _focusedDay =
+                              focusedDay; // update `_focusedDay` here as well
+                        });
+                      },
+                    ),
+                  ),
                 ],
               ),
             ),
           ],
         ),
       ),
+      bottomNavigationBar: BottomNavigationBar(
+        type: BottomNavigationBarType.fixed,
+        currentIndex: _selectedIndex,
+        selectedItemColor: Color.fromARGB(255, 255, 0, 0),
+        onTap: (index) {
+          setState(() {
+            _selectedIndex = index;
+          });
+        },
+        items: [
+          BottomNavigationBarItem(icon: Icon(Icons.home), label: "หน้าหลัก"),
+          BottomNavigationBarItem(icon: Icon(Icons.work), label: "งาน"),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.notifications),
+            label: "ข้อความ",
+          ),
+          BottomNavigationBarItem(icon: Icon(Icons.settings), label: "ตั้งค่า"),
+        ],
+      ),
     );
+  }
+
+  Future<void> queryJobData() async {
+    setState(() {
+      isLoading = true;
+    });
+
+    try {
+      var querySnapshot = await db
+          .collection('jobs')
+          .where('job_status', isEqualTo: 0)
+          .get();
+
+      allJobs = querySnapshot.docs.map((doc) => doc.data()).toList();
+
+      setState(() {
+        isLoading = false;
+      });
+    } catch (e) {
+      print("Error fetching jobs: $e");
+      setState(() {
+        isLoading = false;
+      });
+    }
   }
 }
