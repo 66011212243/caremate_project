@@ -1,3 +1,5 @@
+import 'package:caremate_application/page/Bank.dart';
+import 'package:caremate_application/page/Changepassword.dart';
 import 'package:caremate_application/page/break_status_job.dart';
 import 'package:caremate_application/page/details_job.dart';
 import 'package:caremate_application/page/login.dart';
@@ -11,6 +13,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:caremate_application/page/homepage_provider.dart';
 import 'package:caremate_application/page/homepage_service.dart';
 import 'package:caremate_application/page/map_page.dart';
+import 'package:caremate_application/page/Setting_Provider.dart';
+import 'package:caremate_application/page/Changepassword.dart';
 import 'package:flutter/material.dart';
 import 'package:caremate_application/page/review.dart';
 
@@ -25,6 +29,7 @@ Future<void> main() async {
 
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
+  
 
   // This widget is the root of your application.
   @override
@@ -36,7 +41,7 @@ class MyApp extends StatelessWidget {
         //
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
       ),
-      home: ReviewPage(),
+      home: LoginPage(),
     );
   }
 }
