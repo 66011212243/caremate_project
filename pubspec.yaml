@@ -48,6 +48,8 @@ dependencies:
   fluttertoast: ^9.0.0
   table_calendar: ^3.2.1
   flutter_rating_bar: ^4.0.1 # ตัวช่วยทำระบบดาว
+  http: ^1.2.2
+  firebase_messaging: ^16.7.0
 
 dev_dependencies:
   flutter_test:

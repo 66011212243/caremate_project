@@ -35,14 +35,13 @@ Future<void> registerWithGoogle(BuildContext context) async {
         "username": user.displayName,
         "name": user.displayName,
         "email": user.email,
-        
       });
 
       Fluttertoast.showToast(msg: "สมัครสมาชิกสำเร็จ");
 
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(builder: (context) => HomepageService(sid: user.uid)),
+        MaterialPageRoute(builder: (context) => HomepageService(uid: user.uid)),
       );
     }
   } catch (e) {

@@ -1,9 +1,15 @@
+import 'package:caremate_application/page/address_service_page.dart';
 import 'package:caremate_application/page/break_status_job.dart';
+import 'package:caremate_application/page/calendar_page.dart';
 import 'package:caremate_application/page/details_job.dart';
+import 'package:caremate_application/page/details_job_service.dart';
+import 'package:caremate_application/page/history_job_provider.dart';
+import 'package:caremate_application/page/history_job_service.dart';
 import 'package:caremate_application/page/login.dart';
 import 'package:caremate_application/page/myJob_povider.dart';
 import 'package:caremate_application/page/position_provider.dart';
 import 'package:caremate_application/page/register_provider.dart';
+import 'package:caremate_application/page/register_service.dart';
 import 'package:caremate_application/page/status_job.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
@@ -36,7 +42,10 @@ class MyApp extends StatelessWidget {
         //
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
       ),
-      home: ReviewPage(),
+      //home: HomepageService(sid: 'naw5Oe3VyaVwj89isnzB'),
+      //home: HomepageProvider(pid: 'Pm19n114N95SzUFg78Al'),
+      //home: AddressServicePage(sid: 'naw5Oe3VyaVwj89isnzB'),
+      home: LoginPage(),
     );
   }
 }

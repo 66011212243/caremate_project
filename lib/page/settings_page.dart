@@ -6,32 +6,32 @@ class SettingsPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        automaticallyImplyLeading: false,
-        backgroundColor: Colors.red,
-        title: const Text('การตั้งค่า', style: TextStyle(color: Colors.white)),
-      ),
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: 3, // ตอนนี้อยู่หน้า "ตั้งค่า"
-        type: BottomNavigationBarType.fixed,
-        selectedItemColor: Colors.red,
-        unselectedItemColor: Colors.grey,
-        items: const [
-          BottomNavigationBarItem(
-            icon: Icon(Icons.home_outlined),
-            label: 'หน้าหลัก',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.calendar_today_outlined),
-            label: 'ปฏิทิน',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.notifications_none),
-            label: 'ข้อความ',
-          ),
-          BottomNavigationBarItem(icon: Icon(Icons.settings), label: 'ตั้งค่า'),
-        ],
-      ),
+      // appBar: AppBar(
+      //   automaticallyImplyLeading: false,
+      //   backgroundColor: Colors.red,
+      //   title: const Text('การตั้งค่า', style: TextStyle(color: Colors.white)),
+      // ),
+      // bottomNavigationBar: BottomNavigationBar(
+      //   currentIndex: 3, // ตอนนี้อยู่หน้า "ตั้งค่า"
+      //   type: BottomNavigationBarType.fixed,
+      //   selectedItemColor: Colors.red,
+      //   unselectedItemColor: Colors.grey,
+      //   items: const [
+      //     BottomNavigationBarItem(
+      //       icon: Icon(Icons.home_outlined),
+      //       label: 'หน้าหลัก',
+      //     ),
+      //     BottomNavigationBarItem(
+      //       icon: Icon(Icons.calendar_today_outlined),
+      //       label: 'ปฏิทิน',
+      //     ),
+      //     BottomNavigationBarItem(
+      //       icon: Icon(Icons.notifications_none),
+      //       label: 'ข้อความ',
+      //     ),
+      //     BottomNavigationBarItem(icon: Icon(Icons.settings), label: 'ตั้งค่า'),
+      //   ],
+      // ),
       body: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
