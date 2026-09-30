@@ -1,46 +1,48 @@
-import 'dart:developer';
-
+import 'package:caremate_application/page/details_provider.dart';
+import 'package:caremate_application/page/drivers_page.dart';
+import 'package:caremate_application/page/edit_job.dart';
 import 'package:caremate_application/page/map_details_page.dart';
-import 'package:caremate_application/page/myJob_povider.dart';
+import 'package:caremate_application/page/map_page.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:longdo_maps_api3_flutter/longdo_maps_api3_flutter.dart';
 
-class DetailsJob extends StatefulWidget {
-  String pid = '';
+class DetailsJobService extends StatefulWidget {
   String jobId = '';
-  DetailsJob({super.key, required this.jobId, required this.pid});
+  DetailsJobService({super.key, required this.jobId});
 
   @override
-  State<DetailsJob> createState() => _DetailsJobState();
+  State<DetailsJobService> createState() => _DetailsJobServiceState();
 }
 
-class _DetailsJobState extends State<DetailsJob> {
+class _DetailsJobServiceState extends State<DetailsJobService> {
+  bool isLoading = true;
   var db = FirebaseFirestore.instance;
   Map<String, dynamic> detailsJob = {};
-  int? statusDrivers;
-  bool isLoading = true;
+  double? latitudeLocation;
+  double? longitudeLocation;
+  bool isEdited = false;
 
-  bool isApplied = false;
-  bool isApplying = false;
-
+  final _map = GlobalKey<LongdoMapState>();
+  bool _ready = false;
   @override
   void initState() {
     // TODO: implement initState
     super.initState();
-    queryJobData();
-    checkApplied();
+    queryJobDetails();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Color.fromARGB(255, 255, 255, 255),
       appBar: AppBar(
         title: Row(
           children: [
             TextButton.icon(
               onPressed: () {
-                Navigator.pop(context);
+                //Navigator.pop(context, isEdited);
+                Navigator.pop(context, 'edited');
               },
               label: Icon(Icons.arrow_back_ios, color: Colors.black),
             ),
@@ -55,6 +57,7 @@ class _DetailsJobState extends State<DetailsJob> {
         ),
         toolbarHeight: 70,
         automaticallyImplyLeading: false,
+        backgroundColor: Color.fromARGB(255, 255, 255, 255),
       ),
 
       body: isLoading
@@ -147,6 +150,7 @@ class _DetailsJobState extends State<DetailsJob> {
                           ),
                         ),
                       ),
+
                       Row(
                         children: [
                           Text(
@@ -286,274 +290,284 @@ class _DetailsJobState extends State<DetailsJob> {
                           ],
                         ),
                       SizedBox(height: 30),
-                      Column(
-                        children: [
-                          Center(
-                            child: TextButton(
-                              style: TextButton.styleFrom(
-                                backgroundColor: isApplying
-                                    ? const Color.fromARGB(255, 110, 110, 110)
-                                    : statusDrivers == null
-                                    ? Color.fromARGB(255, 255, 0, 0)
-                                    : statusDrivers == 0
-                                    ? const Color.fromARGB(255, 110, 110, 110)
-                                    : statusDrivers == 1
-                                    ? Color.fromARGB(255, 15, 221, 0)
-                                    : statusDrivers == 2
-                                    ? const Color.fromARGB(255, 220, 109, 102)
-                                    : Colors.black,
 
-                                foregroundColor: Colors.white,
+                      const SizedBox(height: 30),
 
-                                disabledBackgroundColor: isApplying
-                                    ? const Color.fromARGB(255, 110, 110, 110)
-                                    : statusDrivers == 0
-                                    ? const Color.fromARGB(255, 110, 110, 110)
-                                    : statusDrivers == 1
-                                    ? Color.fromARGB(255, 15, 221, 0)
-                                    : statusDrivers == 2
-                                    ? const Color.fromARGB(255, 220, 109, 102)
-                                    : const Color.fromARGB(255, 110, 110, 110),
+                      // ส่วนจัดการประกาศงาน
+                      Container(
+                        width: double.infinity,
+                        margin: const EdgeInsets.only(right: 30),
+                        padding: const EdgeInsets.all(18),
+                        decoration: BoxDecoration(
+                          color: Colors.grey.shade50,
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: Colors.grey.shade300),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              "จัดการประกาศงาน",
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
 
-                                disabledForegroundColor: Colors.white,
+                            const SizedBox(height: 15),
 
-                                padding: EdgeInsets.symmetric(
-                                  horizontal: 30,
-                                  vertical: 10,
-                                ),
+                            // ดูผู้สมัคร / ดูผู้ให้บริการ
+                            if (detailsJob['job_status'] == 0)
+                              SizedBox(
+                                width: double.infinity,
+                                height: 48,
+                                child: ElevatedButton.icon(
+                                  onPressed: () async {
+                                    final result = await Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (context) =>
+                                            DriversPage(JobId: widget.jobId),
+                                      ),
+                                    );
 
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12),
+                                    if (result == true) {
+                                      await queryJobDetails();
+                                    }
+                                  },
+                                  icon: const Icon(
+                                    Icons.people_outline,
+                                    size: 22,
+                                  ),
+                                  label: const Text(
+                                    "ดูผู้สมัครงาน",
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: Colors.red,
+                                    foregroundColor: Colors.white,
+                                    elevation: 0,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
+                                  ),
                                 ),
                               ),
 
-                              onPressed: isApplying || statusDrivers != null
-                                  ? null
-                                  : () async {
-                                      setState(() {
-                                        isApplying = true;
-                                      });
+                            if (detailsJob['job_status'] == 1)
+                              SizedBox(
+                                width: double.infinity,
+                                height: 48,
+                                child: ElevatedButton.icon(
+                                  onPressed: () async {
+                                    print("ดูข้อมูลผู้ให้บริการ");
 
-                                      await applyJob(widget.jobId);
+                                    String? providerId = await queryDriver();
 
-                                      setState(() {
-                                        isApplying = false;
-                                        statusDrivers = 0;
-                                      });
-                                    },
+                                    if (providerId == null) {
+                                      print("ไม่พบผู้ให้บริการ");
+                                      return;
+                                    }
 
-                              child: isApplying
-                                  ? SizedBox(
-                                      width: 22,
-                                      height: 22,
-                                      child: CircularProgressIndicator(
-                                        strokeWidth: 2.5,
-                                        color: Colors.white,
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (context) => DetailsProvider(
+                                          pid: providerId,
+                                          vehicle_type:
+                                              detailsJob['vehicle_type'],
+                                        ),
                                       ),
-                                    )
-                                  : Text(
-                                      statusDrivers == null
-                                          ? "สมัครงาน"
-                                          : statusDrivers == 0
-                                          ? "รอคัดเลือก"
-                                          : statusDrivers == 1
-                                          ? "ได้รับงานแล้ว"
-                                          : statusDrivers == 2
-                                          ? "ตำแหน่งเต็ม"
-                                          : "ไม่ทราบสถานะ",
-                                      style: TextStyle(fontSize: 18),
-                                    ),
-                            ),
-                          ),
-                          if (statusDrivers == 0)
-                            Padding(
-                              padding: const EdgeInsets.all(8.0),
-                              child: Center(
-                                child: TextButton(
-                                  style: TextButton.styleFrom(
-                                    backgroundColor: Color.fromARGB(
-                                      255,
-                                      255,
-                                      65,
-                                      65,
-                                    ),
-
-                                    foregroundColor: Colors.white,
-
-                                    disabledForegroundColor: Colors.white,
-
-                                    padding: EdgeInsets.symmetric(
-                                      horizontal: 30,
-                                      vertical: 10,
-                                    ),
-
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(12),
-                                    ),
-                                  ),
-
-                                  onPressed: () {
-                                    showDialog(
-                                      context: context,
-                                      builder: (BuildContext context) {
-                                        return AlertDialog(
-                                          title: Text("ยกเลิกการสมัครงาน"),
-                                          content: Text(
-                                            "คุณต้องการยกเลิกการสมัครงานนี้หรือไม่?",
-                                          ),
-                                          actions: [
-                                            TextButton(
-                                              onPressed: () {
-                                                Navigator.pop(context);
-                                              },
-                                              child: Text(
-                                                "ยกเลิก",
-                                                style: TextStyle(
-                                                  color: Colors.grey,
-                                                ),
-                                              ),
-                                            ),
-
-                                            TextButton(
-                                              onPressed: () async {
-                                                await cancelApplyJob();
-                                                Navigator.of(context).pop();
-                                              },
-                                              child: Text(
-                                                "ยืนยัน",
-                                                style: TextStyle(
-                                                  color: Colors.red,
-                                                ),
-                                              ),
-                                            ),
-                                          ],
-                                        );
-                                      },
                                     );
                                   },
-                                  child: Text(
-                                    "ยกเลิกสมัครงาน",
-                                    style: TextStyle(fontSize: 18),
+                                  icon: const Icon(
+                                    Icons.person_outline,
+                                    size: 22,
+                                  ),
+                                  label: const Text(
+                                    "ดูข้อมูลผู้ให้บริการ",
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: Colors.red,
+                                    foregroundColor: Colors.white,
+                                    elevation: 0,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
                                   ),
                                 ),
                               ),
-                            ),
-                          if (statusDrivers == 1)
-                            Padding(
-                              padding: const EdgeInsets.all(8.0),
-                              child: Center(
-                                child: TextButton(
-                                  style: TextButton.styleFrom(
-                                    backgroundColor: Color.fromARGB(
-                                      255,
-                                      255,
-                                      65,
-                                      65,
-                                    ),
 
-                                    foregroundColor: Colors.white,
+                            const SizedBox(height: 12),
 
-                                    disabledForegroundColor: Colors.white,
-
-                                    padding: EdgeInsets.symmetric(
-                                      horizontal: 30,
-                                      vertical: 10,
-                                    ),
-
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(12),
-                                    ),
-                                  ),
-
-                                  onPressed: () {
-                                    final pageContext = context;
-
-                                    showDialog(
-                                      context: pageContext,
-                                      builder: (dialogContext) {
-                                        return AlertDialog(
-                                          title: Text(
-                                            "ยืนยันการยกเลิกงาน",
-                                            style: TextStyle(
-                                              fontSize: 22,
-                                              fontWeight: FontWeight.bold,
+                            // แก้ไข / ลบ
+                            Row(
+                              children: [
+                                // ปุ่มแก้ไข
+                                Expanded(
+                                  child: OutlinedButton.icon(
+                                    onPressed: () async {
+                                      print("แก้ไขงาน ${widget.jobId}");
+                                      if (detailsJob['job_status'] != 0) {
+                                        ScaffoldMessenger.of(
+                                          context,
+                                        ).showSnackBar(
+                                          const SnackBar(
+                                            content: Text(
+                                              "ไม่สามารถแก้ไขงานได้ เนื่องจากงานอยู่ระหว่างดำเนินการ",
                                             ),
                                           ),
-                                          content: RichText(
-                                            text: TextSpan(
-                                              style: TextStyle(
-                                                color: Colors.black,
-                                                fontSize: 16,
-                                              ),
-                                              children: [
-                                                TextSpan(
-                                                  text:
-                                                      "ในแต่ละเดือนสามารถยกเลิกงานได้สูงสุด 3 งาน (0/3)\n\n",
-                                                ),
-                                                TextSpan(
-                                                  text:
-                                                      "คุณต้องการยกเลิกงานนี้หรือไม่?",
+                                        );
+
+                                        return;
+                                      }
+
+                                      final result = await Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (context) => EditJob(
+                                            sid: detailsJob['service_id']
+                                                .toString(),
+                                            jobId: widget.jobId,
+                                          ),
+                                        ),
+                                      );
+
+                                      // ถ้าแก้ไขสำเร็จ ให้โหลดข้อมูลใหม่
+                                      if (result == 'edited') {
+                                        
+                                        queryJobDetails();
+                                      }
+                                    },
+                                    icon: const Icon(
+                                      Icons.edit_outlined,
+                                      size: 20,
+                                    ),
+                                    label: const Text(
+                                      "แก้ไขงาน",
+                                      style: TextStyle(
+                                        fontSize: 15,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                    style: OutlinedButton.styleFrom(
+                                      foregroundColor: Colors.black87,
+                                      side: const BorderSide(
+                                        color: Colors.grey,
+                                      ),
+                                      padding: const EdgeInsets.symmetric(
+                                        vertical: 12,
+                                      ),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(10),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+
+                                const SizedBox(width: 10),
+
+                                // ปุ่มลบ
+                                Expanded(
+                                  child: OutlinedButton.icon(
+                                    onPressed: () {
+                                      print("ลบงาน ${widget.jobId}");
+                                      if (detailsJob['job_status'] != 0) {
+                                        ScaffoldMessenger.of(
+                                          context,
+                                        ).showSnackBar(
+                                          const SnackBar(
+                                            content: Text(
+                                              "ไม่สามารถลบงานได้ เนื่องจากงานอยู่ระหว่างดำเนินการ",
+                                            ),
+                                          ),
+                                        );
+
+                                        return;
+                                      }
+
+                                      // ถ้า status == 0 ค่อยเปิด Popup ยืนยัน
+                                      showDialog(
+                                        context: context,
+                                        builder: (context) {
+                                          return AlertDialog(
+                                            title: const Text("ยืนยันการลบงาน"),
+                                            content: const Text(
+                                              "คุณต้องการลบประกาศงานนี้ใช่หรือไม่?",
+                                            ),
+                                            actions: [
+                                              TextButton(
+                                                onPressed: () {
+                                                  Navigator.pop(context);
+                                                },
+                                                child: const Text(
+                                                  "ยกเลิก",
                                                   style: TextStyle(
+                                                    color: Colors.grey,
+                                                  ),
+                                                ),
+                                              ),
+
+                                              TextButton(
+                                                onPressed: () {
+                                                  Navigator.pop(context);
+
+                                                  print(
+                                                    "ยืนยันลบงาน ${widget.jobId}",
+                                                  );
+
+                                                  deleteJob(widget.jobId);
+                                                },
+                                                child: const Text(
+                                                  "ยืนยันการลบ",
+                                                  style: TextStyle(
+                                                    color: Colors.red,
                                                     fontWeight: FontWeight.bold,
                                                   ),
                                                 ),
-                                              ],
-                                            ),
-                                          ),
-                                          actions: [
-                                            TextButton(
-                                              onPressed: () {
-                                                Navigator.of(
-                                                  dialogContext,
-                                                ).pop();
-                                              },
-                                              child: Text(
-                                                "ยกเลิก",
-                                                style: TextStyle(
-                                                  color: Colors.grey,
-                                                ),
                                               ),
-                                            ),
-
-                                            TextButton(
-                                              onPressed: () async {
-                                                // ปิด Dialog ก่อน
-                                                Navigator.of(
-                                                  dialogContext,
-                                                ).pop();
-
-                                                // ลบงาน
-                                                await cancelJob();
-
-                                                if (!mounted) return;
-
-                                                // ปิด DetailsJob และกลับไป MyjobPovider
-                                                Navigator.of(
-                                                  pageContext,
-                                                ).pop(true);
-                                              },
-                                              child: Text(
-                                                "ยืนยัน",
-                                                style: TextStyle(
-                                                  color: Colors.red,
-                                                ),
-                                              ),
-                                            ),
-                                          ],
-                                        );
-                                      },
-                                    );
-                                  },
-                                  child: Text(
-                                    "ยกเลิกงาน",
-                                    style: TextStyle(fontSize: 18),
+                                            ],
+                                          );
+                                        },
+                                      );
+                                    },
+                                    icon: const Icon(
+                                      Icons.delete_outline,
+                                      size: 20,
+                                    ),
+                                    label: const Text(
+                                      "ลบงาน",
+                                      style: TextStyle(
+                                        fontSize: 15,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                    style: OutlinedButton.styleFrom(
+                                      foregroundColor: Colors.red,
+                                      side: const BorderSide(color: Colors.red),
+                                      padding: const EdgeInsets.symmetric(
+                                        vertical: 12,
+                                      ),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(10),
+                                      ),
+                                    ),
                                   ),
                                 ),
-                              ),
+                              ],
                             ),
-                        ],
+                          ],
+                        ),
                       ),
-                      SizedBox(height: 50),
+
+                      const SizedBox(height: 20),
                     ],
                   ),
                 ),
@@ -562,7 +576,7 @@ class _DetailsJobState extends State<DetailsJob> {
     );
   }
 
-  Future<void> queryJobData() async {
+  Future<void> queryJobDetails() async {
     setState(() {
       isLoading = true;
     });
@@ -591,77 +605,32 @@ class _DetailsJobState extends State<DetailsJob> {
     }
   }
 
-  Future<void> applyJob(String jobId) async {
-    var driverDoc = db.collection('all_drivers').doc();
-    var data = {
-      'provider_id': widget.pid,
-      'job_id': jobId,
-      'applied_at': FieldValue.serverTimestamp(),
-      'status_drivers': 0,
-    };
-    log("data ที่กำลังบันทึก: $data");
-
-    await driverDoc.set(data);
-  }
-
-  Future<void> checkApplied() async {
+  Future<String?> queryDriver() async {
     var snapshot = await db
         .collection('all_drivers')
-        .where('provider_id', isEqualTo: widget.pid)
         .where('job_id', isEqualTo: widget.jobId)
+        .where('status_drivers', isEqualTo: 1)
         .get();
-
-    print("จำนวนเอกสาร: ${snapshot.docs.length}");
 
     if (snapshot.docs.isNotEmpty) {
       var data = snapshot.docs.first.data();
 
       print("ข้อมูล: $data");
 
-      setState(() {
-        isApplied = true;
-        statusDrivers = data['status_drivers'];
-        print("statusDrivers ตอนสร้างปุ่ม: $statusDrivers");
-        print("isApplying: $isApplying");
-      });
+      return data['provider_id'];
     }
+
+    return null;
   }
 
-  Future<void> cancelApplyJob() async {
-    var snapshot = await db
-        .collection('all_drivers')
-        .where('provider_id', isEqualTo: widget.pid)
-        .where('job_id', isEqualTo: widget.jobId)
-        .get();
+  Future<void> deleteJob(String addressId) async {
+    try {
+      await db.collection('jobs').doc(addressId).delete();
+      if (!mounted) return;
 
-    if (snapshot.docs.isNotEmpty) {
-      var docId = snapshot.docs.first.id;
-
-      await db.collection('all_drivers').doc(docId).delete();
-
-      setState(() {
-        isApplied = false;
-        statusDrivers = null;
-      });
-    }
-  }
-
-  Future<void> cancelJob() async {
-    var snapshot = await db
-        .collection('all_drivers')
-        .where('job_id', isEqualTo: widget.jobId)
-        .get();
-
-    for (var doc in snapshot.docs) {
-      var data = doc.data();
-
-      if (data['provider_id'] == widget.pid) {
-        // คนที่ได้งาน → ยกเลิกและลบ application
-        await doc.reference.delete();
-      } else if (data['status_drivers'] == 2) {
-        // คนที่ตำแหน่งเต็ม → ลบออก
-        await doc.reference.delete();
-      }
+      Navigator.pop(context, true);
+    } catch (e) {
+      print("Error deleting address: $e");
     }
   }
 }

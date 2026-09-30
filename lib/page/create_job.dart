@@ -1,5 +1,4 @@
 import 'dart:developer';
-
 import 'package:caremate_application/page/homepage_service.dart';
 import 'package:caremate_application/page/map_page.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -7,8 +6,10 @@ import 'package:longdo_maps_api3_flutter/longdo_maps_api3_flutter.dart';
 import 'package:flutter/material.dart';
 
 class CreateJob extends StatefulWidget {
-  String sid = '';
-  CreateJob({super.key, required this.sid});
+  final String sid;
+  final String uid;
+
+  const CreateJob({super.key, required this.sid, required this.uid});
 
   @override
   State<CreateJob> createState() => _CreateJobState();
@@ -41,6 +42,8 @@ class _CreateJobState extends State<CreateJob> {
   String mainAddress = "";
   String address_id = "";
 
+  bool isCreatingJob = false;
+
   @override
   void initState() {
     // TODO: implement initState
@@ -51,12 +54,13 @@ class _CreateJobState extends State<CreateJob> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Color.fromARGB(255, 255, 255, 255),
       appBar: AppBar(
         title: Row(
           children: [
             TextButton.icon(
               onPressed: () {
-                Navigator.pop(context, HomepageService(sid: widget.sid));
+                Navigator.pop(context);
               },
               label: Icon(Icons.arrow_back_ios, color: Colors.black),
             ),
@@ -71,6 +75,7 @@ class _CreateJobState extends State<CreateJob> {
         ),
         toolbarHeight: 70,
         automaticallyImplyLeading: false,
+        backgroundColor: Color.fromARGB(255, 255, 255, 255),
       ),
 
       body: SingleChildScrollView(
@@ -83,7 +88,7 @@ class _CreateJobState extends State<CreateJob> {
                 Container(
                   width: 350,
                   // height: 70,
-                  color: Colors.white,
+                  color: Colors.grey.shade50,
                   child: Padding(
                     padding: const EdgeInsets.all(10.0),
                     child: Column(
@@ -106,7 +111,7 @@ class _CreateJobState extends State<CreateJob> {
                     Text(
                       "สถานที่ :",
                       style: TextStyle(
-                        fontSize: 16,
+                        fontSize: 18,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
@@ -123,53 +128,109 @@ class _CreateJobState extends State<CreateJob> {
                   ],
                 ),
 
-                GestureDetector(
-                  onTap: () async {
-                    print("Container Clicked");
-                    final result = await Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (context) => const MapPage()),
-                    );
+                const SizedBox(height: 15),
 
-                    if (result != null) {
-                      setState(() {
-                        latitudeLocation = result['lat'];
-                        longitudeLocation = result['lon'];
-                      });
-
-                      print("LatfromMap: $latitudeLocation");
-                      print("LonfromMap: $longitudeLocation");
-                    }
-                  },
-                  child: Padding(
-                    padding: const EdgeInsets.only(bottom: 30, top: 30),
-                    child: Center(
-                      child: Container(
-                        height: 150,
-                        width: 300,
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.all(Radius.circular(16)),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.grey.withOpacity(0.5),
-                              blurRadius: 3,
-                              offset: Offset(0, 5),
-                            ),
-                          ],
+                Container(
+                  //width: double.infinity,
+                  width: 360,
+                  padding: const EdgeInsets.all(15),
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade50,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.grey.shade300),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        "พิกัดที่อยู่",
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
                         ),
+                      ),
 
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(16),
-                          child: Image.asset(
-                            "assets/images/map_preview.png",
-                            fit: BoxFit.cover,
+                      const SizedBox(height: 12),
+
+                      Row(
+                        children: [
+                          const Icon(
+                            Icons.location_on,
+                            color: Colors.red,
+                            size: 28,
+                          ),
+
+                          const SizedBox(width: 10),
+
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  latitudeLocation != null
+                                      ? "ละติจูด: $latitudeLocation"
+                                      : "ยังไม่ได้เลือกพิกัด",
+                                  style: const TextStyle(fontSize: 15),
+                                ),
+
+                                const SizedBox(height: 5),
+
+                                Text(
+                                  longitudeLocation != null
+                                      ? "ลองจิจูด: $longitudeLocation"
+                                      : "ยังไม่ได้เลือกพิกัด",
+                                  style: const TextStyle(fontSize: 15),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+
+                      const SizedBox(height: 12),
+
+                      SizedBox(
+                        width: double.infinity,
+                        child: OutlinedButton.icon(
+                          onPressed: () async {
+                            final result = await Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => const MapPage(),
+                              ),
+                            );
+                            if (result != null) {
+                              setState(() {
+                                latitudeLocation = result['lat'];
+                                longitudeLocation = result['lon'];
+                              });
+
+                              print("LatfromMap: $latitudeLocation");
+                              print("LonfromMap: $longitudeLocation");
+                            }
+                          },
+                          icon: const Icon(Icons.map, color: Colors.red),
+                          label: const Text(
+                            "เพิ่มพิกัดที่อยู่",
+                            style: TextStyle(
+                              color: Colors.red,
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          style: OutlinedButton.styleFrom(
+                            side: const BorderSide(color: Colors.red),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            padding: const EdgeInsets.symmetric(vertical: 12),
                           ),
                         ),
                       ),
-                    ),
+                    ],
                   ),
                 ),
+                const SizedBox(height: 15),
                 Row(
                   children: [
                     Text(
@@ -460,8 +521,29 @@ class _CreateJobState extends State<CreateJob> {
                         borderRadius: BorderRadius.circular(12), // มุมมน
                       ),
                     ),
-                    onPressed: addJobData,
-                    child: Text("สร้างงาน", style: TextStyle(fontSize: 18)),
+                    onPressed: isCreatingJob ? null : addJobData,
+                    child: isCreatingJob
+                        ? const Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              SizedBox(
+                                height: 20,
+                                width: 20,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                ),
+                              ),
+                              SizedBox(width: 10),
+                              Text(
+                                "กำลังสร้างงาน...",
+                                style: TextStyle(fontSize: 18),
+                              ),
+                            ],
+                          )
+                        : const Text(
+                            "สร้างงาน",
+                            style: TextStyle(fontSize: 18),
+                          ),
                   ),
                 ),
                 SizedBox(height: 50),
@@ -473,7 +555,10 @@ class _CreateJobState extends State<CreateJob> {
     );
   }
 
-  void addJobData() async {
+  Future<void> addJobData() async {
+    // ป้องกันการกดซ้ำ
+    if (isCreatingJob) return;
+
     if (placeNameController.text.isEmpty ||
         latitudeLocation == null ||
         longitudeLocation == null ||
@@ -484,34 +569,60 @@ class _CreateJobState extends State<CreateJob> {
         vehicle == null ||
         jobTypeController.text.isEmpty ||
         address_id == null) {
-      // ถ้าเจอช่องว่างหรือ null
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text("กรุณากรอกข้อมูลให้ครบทุกช่อง")));
-      return; // ไม่บันทึก
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("กรุณากรอกข้อมูลให้ครบทุกช่อง")),
+      );
+      return;
     }
-    var docRef = db.collection('jobs').doc();
-    var data = {
-      'service_id': widget.sid,
-      'place_name': placeNameController.text,
-      'latitude': latitudeLocation,
-      'longitude': longitudeLocation,
-      'date': dateController.text,
-      'start_time': timeStartController.text,
-      'end_time': timeEndController.text,
-      'service_fee': priceController.text,
-      'vehicle_type': vehicle,
-      'job_type': jobTypeController.text,
-      'additional_info': additionalInfo,
-      'job_status': 0,
-      'address_id': address_id,
-    };
-    await docRef.set(data);
-    log("Job data added with ID: ${docRef.id}");
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(builder: (context) => HomepageService(sid: widget.sid)),
-    );
+
+    setState(() {
+      isCreatingJob = true;
+    });
+
+    try {
+      var docRef = db.collection('jobs').doc();
+
+      var data = {
+        'service_id': widget.sid,
+        'place_name': placeNameController.text,
+        'latitude': latitudeLocation,
+        'longitude': longitudeLocation,
+        'date': dateController.text,
+        'start_time': timeStartController.text,
+        'end_time': timeEndController.text,
+        'service_fee': priceController.text,
+        'vehicle_type': vehicle,
+        'job_type': jobTypeController.text,
+        'additional_info': additionalInfo,
+        'job_status': 0,
+        'address_id': address_id,
+      };
+
+      await docRef.set(data);
+
+      log("Job data added with ID: ${docRef.id}");
+
+      if (!mounted) return;
+
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (context) => HomepageService(uid: widget.uid),
+        ),
+      );
+    } catch (e) {
+      log("Error adding job: $e");
+
+      if (!mounted) return;
+
+      setState(() {
+        isCreatingJob = false;
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("เกิดข้อผิดพลาดในการสร้างงาน: $e")),
+      );
+    }
   }
 
   void readAddress() async {
