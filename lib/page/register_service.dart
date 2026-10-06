@@ -225,13 +225,13 @@ class _RegisterServiceState extends State<RegisterService> {
         );
         return;
       }
-      var docRef = db.collection('service').doc();
+      var docRef = db.collection('user').doc();
 
       final hashedPassword = BCrypt.hashpw(passwordCtl.text, BCrypt.gensalt());
 
       var data = {
-        'nickname': usernameCtl.text,
-        'name': fullnameCtl.text,
+        'username': usernameCtl.text,
+        'realname': fullnameCtl.text,
         'email': emailCtl.text,
         'password': hashedPassword,
       };

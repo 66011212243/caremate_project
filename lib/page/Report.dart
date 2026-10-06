@@ -2,14 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 class ReportPage extends StatelessWidget {
-  final String jobId;
+  final String job_id;
   final String reporter_id;
   final String status_re;
   final String reported_provider_id;
   
   ReportPage({
     super.key,
-    this.jobId = "001",
+    this.job_id = "001",
     this.reporter_id = "01",
     this.status_re = "1",
     this.reported_provider_id = "01",
@@ -30,7 +30,7 @@ class ReportPage extends StatelessWidget {
 
     try {
       await FirebaseFirestore.instance.collection('reports').add({
-        'jobId': jobId,
+        'job_id': job_id,
         'reporter_id': reporter_id,
         'status_re': status_re,
         'description': commentController.text.trim(),

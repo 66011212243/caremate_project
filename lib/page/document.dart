@@ -11,7 +11,7 @@ import 'package:http/http.dart' as http;
 //import 'package:firebase_storage/firebase_storage.dart';
 
 class DocumentPage extends StatefulWidget {
-  final String username;
+  final String username ;
   final String fullname;
   final String email;
   final String password;
@@ -83,32 +83,61 @@ class _DocumentPageState extends State<DocumentPage> {
             children: [
               Row(
                 children: [
-                  const Text(
-                    "ประเภทรถ : ",
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  Expanded(
+                    child: GestureDetector(
+                      onTap: () {
+                        setState(() {
+                          vehicleType = 1; // 1 = Car
+                        });
+                      },
+                      child: Column(
+                        children: [
+                          Text(
+                            "Car",
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              color: vehicleType == 1 ? Colors.black : Colors.grey,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Container(
+                            height: 3,
+                            color: vehicleType == 1 ? Colors.red : Colors.transparent,
+                          ),
+                        ],
+                      ),
+                    ),
                   ),
-                  Radio<int>(
-                    value: 1,
-                    groupValue: vehicleType,
-                    onChanged: (value) {
-                      setState(() {
-                        vehicleType = value!;
-                      });
-                    },
+                  Expanded(
+                    child: GestureDetector(
+                      onTap: () {
+                        setState(() {
+                          vehicleType = 0; // 0 = Bike
+                        });
+                      },
+                      child: Column(
+                        children: [
+                          Text(
+                            "Bike",
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              color: vehicleType == 0 ? Colors.black : Colors.grey,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Container(
+                            height: 3,
+                            color: vehicleType == 0 ? Colors.red : Colors.transparent,
+                          ),
+                        ],
+                      ),
+                    ),
                   ),
-                  const Text("Car"),
-                  Radio<int>(
-                    value: 0,
-                    groupValue: vehicleType,
-                    onChanged: (value) {
-                      setState(() {
-                        vehicleType = value!;
-                      });
-                    },
-                  ),
-                  const Text("Bike"),
                 ],
               ),
+              const SizedBox(height: 20),
 
               const Divider(
                 color: Colors.grey,

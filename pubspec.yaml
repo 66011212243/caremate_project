@@ -74,6 +74,11 @@ flutter:
   assets:
       - assets/images/map_preview.png
       - assets/images/caremateV2.png
+      - assets/images/car.png
+      - assets/images/payment.png
+      - assets/images/calendar.png
+      - assets/images/map.png
+      - assets/images/care.png
   #   - images/a_dot_burr.jpeg
   #   - images/a_dot_ham.jpeg
 
