@@ -1,6 +1,5 @@
 import 'dart:developer';
 
-import 'package:caremate_application/page/register_provider.dart';
 import 'package:flutter/material.dart';
 import 'dart:io';
 import 'dart:convert';
