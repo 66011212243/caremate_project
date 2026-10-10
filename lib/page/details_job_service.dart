@@ -3,6 +3,7 @@ import 'package:caremate_application/page/drivers_page.dart';
 import 'package:caremate_application/page/edit_job.dart';
 import 'package:caremate_application/page/map_details_page.dart';
 import 'package:caremate_application/page/map_page.dart';
+import 'package:caremate_application/page/position_provider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:longdo_maps_api3_flutter/longdo_maps_api3_flutter.dart';
@@ -210,6 +211,27 @@ class _DetailsJobServiceState extends State<DetailsJobService> {
                       Row(
                         children: [
                           Text(
+                            "ระยะทาง:",
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          SizedBox(width: 10),
+                          SizedBox(
+                            width: 120,
+                            child: Text(
+                              "${detailsJob['distance_km'] ?? '-'} กิโลเมตร",
+                              style: TextStyle(fontSize: 16),
+                            ),
+                          ),
+                        ],
+                      ),
+
+                      SizedBox(height: 15),
+                      Row(
+                        children: [
+                          Text(
                             "เรทค่าบริการ:",
                             style: TextStyle(
                               fontSize: 16,
@@ -357,7 +379,8 @@ class _DetailsJobServiceState extends State<DetailsJobService> {
                                 ),
                               ),
 
-                            if (detailsJob['job_status'] == 1)
+                            if (detailsJob['job_status'] == 1 ||
+                                detailsJob['job_status'] == 2)
                               SizedBox(
                                 width: double.infinity,
                                 height: 48,
@@ -389,6 +412,46 @@ class _DetailsJobServiceState extends State<DetailsJobService> {
                                   ),
                                   label: const Text(
                                     "ดูข้อมูลผู้ให้บริการ",
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: Colors.red,
+                                    foregroundColor: Colors.white,
+                                    elevation: 0,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
+                                  ),
+                                ),
+                              ),
+
+                            const SizedBox(height: 12),
+
+                            if (detailsJob['job_status'] >= 3 &&
+                                detailsJob['job_status'] <= 9)
+                              SizedBox(
+                                width: double.infinity,
+                                height: 48,
+                                child: ElevatedButton.icon(
+                                  onPressed: () async {
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (context) => PositionProvider(
+                                          jobId: widget.jobId,
+                                        ),
+                                      ),
+                                    );
+                                  },
+                                  icon: const Icon(
+                                    Icons.person_outline,
+                                    size: 22,
+                                  ),
+                                  label: const Text(
+                                    "ดูพิกัดผู้ให้บริการ",
                                     style: TextStyle(
                                       fontSize: 16,
                                       fontWeight: FontWeight.bold,
@@ -442,7 +505,6 @@ class _DetailsJobServiceState extends State<DetailsJobService> {
 
                                       // ถ้าแก้ไขสำเร็จ ให้โหลดข้อมูลใหม่
                                       if (result == 'edited') {
-                                        
                                         queryJobDetails();
                                       }
                                     },

@@ -2,7 +2,9 @@ import 'package:caremate_application/page/calendar_service_page.dart';
 import 'package:caremate_application/page/create_job.dart';
 import 'package:caremate_application/page/details_job_service.dart';
 import 'package:caremate_application/page/notification_system.dart';
+import 'package:caremate_application/page/notifications_page.dart';
 import 'package:caremate_application/page/search_location_page.dart';
+import 'package:caremate_application/page/settings_service.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 
@@ -22,6 +24,7 @@ class _HomepageServiceState extends State<HomepageService> {
   bool isLoading = true;
 
   int _selectedIndex = 0;
+  bool isServiceDataComplete = false;
 
   @override
   void initState() {
@@ -37,56 +40,22 @@ class _HomepageServiceState extends State<HomepageService> {
       Container(),
       CalendarServicePage(sid: sid),
       //MyjobPovider(pid: widget.pid),
-      // NotificationsPage(),
-      // SettingsPage(),
+      NotificationsPage(),
+      SettingsService(sid: sid),
     ];
     return Scaffold(
       backgroundColor: Color.fromARGB(255, 255, 255, 255),
       appBar: AppBar(
-        title: _selectedIndex == 0
-            ? GestureDetector(
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const SearchLocationPage(),
-                    ),
-                  );
-                },
-                child: Container(
-                  width: 380,
-                  height: 50,
-                  decoration: BoxDecoration(
-                    border: Border.all(color: Colors.white),
-                    borderRadius: BorderRadius.circular(25),
-                  ),
-                  child: const Row(
-                    children: [
-                      SizedBox(width: 12),
-
-                      Icon(Icons.search, color: Colors.white),
-
-                      SizedBox(width: 10),
-
-                      Text(
-                        "ไปที่ไหน ?",
-                        style: TextStyle(color: Colors.white, fontSize: 16),
-                      ),
-                    ],
-                  ),
-                ),
-              )
-            : Text(
-                _selectedIndex == 1
-                    ? "ปฏิทินงาน"
-                    : _selectedIndex == 2
-                    ? "ข้อความ"
-                    : "ตั้งค่า",
-                style: TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
+        title: Text(
+          _selectedIndex == 0
+              ? "หน้าหลัก"
+              : _selectedIndex == 1
+              ? "ปฏิทินงาน"
+              : _selectedIndex == 2
+              ? "ข้อความ"
+              : "ตั้งค่า",
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+        ),
 
         backgroundColor: Color.fromARGB(255, 255, 0, 0),
         toolbarHeight: 90,
@@ -118,7 +87,7 @@ class _HomepageServiceState extends State<HomepageService> {
                           child: Text(
                             "งานของฉัน",
                             style: TextStyle(
-                              fontSize: 25,
+                              fontSize: 20,
                               fontWeight: FontWeight.bold,
                             ),
                           ),
@@ -162,95 +131,112 @@ class _HomepageServiceState extends State<HomepageService> {
                                       await queryJobData();
                                     }
                                   },
-                                  child: Container(
-                                    height: 170,
-                                    width: 380,
-                                    decoration: BoxDecoration(
-                                      color: Colors.white,
-                                      borderRadius: BorderRadius.all(
-                                        Radius.circular(16),
-                                      ),
-                                      boxShadow: [
-                                        BoxShadow(
-                                          color: Colors.grey.withOpacity(0.5),
-                                          blurRadius: 3,
-                                          offset: Offset(0, 5),
-                                        ),
-                                      ],
+                                  child: Padding(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 20,
                                     ),
-                                    child: Padding(
-                                      padding: const EdgeInsets.only(
-                                        top: 15,
-                                        left: 30,
-                                      ),
-                                      child: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          Text(
-                                            job['place_name'],
-                                            style: TextStyle(
-                                              fontSize: 22,
-                                              fontWeight: FontWeight.bold,
-                                            ),
-                                          ),
-                                          SizedBox(height: 10),
-                                          Row(
-                                            children: [
-                                              Icon(Icons.calendar_month),
-                                              SizedBox(width: 5),
-                                              Text(
-                                                job['date'],
-                                                style: TextStyle(fontSize: 16),
-                                              ),
-
-                                              SizedBox(width: 40),
-
-                                              Icon(Icons.access_time),
-                                              SizedBox(width: 5),
-                                              Text(
-                                                job['start_time'],
-                                                style: TextStyle(fontSize: 16),
-                                              ),
-                                              Text(
-                                                " - ",
-                                                style: TextStyle(fontSize: 16),
-                                              ),
-                                              Text(
-                                                job['end_time'],
-                                                style: TextStyle(fontSize: 16),
-                                              ),
-                                            ],
-                                          ),
-                                          SizedBox(height: 10),
-                                          Row(
-                                            children: [
-                                              Icon(
-                                                job['vehicle_type'] == 0
-                                                    ? Icons.motorcycle
-                                                    : Icons.time_to_leave,
-                                              ),
-                                              SizedBox(width: 5),
-                                              Text(
-                                                job['vehicle_type'] == 1
-                                                    ? "Car"
-                                                    : "Bike",
-                                                style: TextStyle(fontSize: 16),
-                                              ),
-                                            ],
-                                          ),
-                                          SizedBox(height: 10),
-                                          Row(
-                                            children: [
-                                              Icon(Icons.money),
-                                              SizedBox(width: 5),
-                                              Text(
-                                                " ${job['service_fee']} บาท",
-                                                style: TextStyle(fontSize: 16),
-                                              ),
-                                            ],
+                                    child: Container(
+                                      height: 170,
+                                      width: double.infinity,
+                                      decoration: BoxDecoration(
+                                        color: Colors.white,
+                                        borderRadius: BorderRadius.all(
+                                          Radius.circular(16),
+                                        ),
+                                        boxShadow: [
+                                          BoxShadow(
+                                            color: Colors.grey.withOpacity(0.5),
+                                            blurRadius: 3,
+                                            offset: Offset(0, 5),
                                           ),
                                         ],
+                                      ),
+                                      child: Padding(
+                                        padding: const EdgeInsets.only(
+                                          top: 15,
+                                          left: 30,
+                                        ),
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              job['place_name'],
+                                              style: TextStyle(
+                                                fontSize: 18,
+                                                fontWeight: FontWeight.bold,
+                                              ),
+                                            ),
+                                            SizedBox(height: 10),
+                                            Row(
+                                              children: [
+                                                Icon(Icons.calendar_month),
+                                                SizedBox(width: 5),
+                                                Text(
+                                                  job['date'],
+                                                  style: TextStyle(
+                                                    fontSize: 14,
+                                                  ),
+                                                ),
+
+                                                SizedBox(width: 20),
+
+                                                Icon(Icons.access_time),
+                                                SizedBox(width: 5),
+                                                Text(
+                                                  job['start_time'],
+                                                  style: TextStyle(
+                                                    fontSize: 14,
+                                                  ),
+                                                ),
+                                                Text(
+                                                  " - ",
+                                                  style: TextStyle(
+                                                    fontSize: 14,
+                                                  ),
+                                                ),
+                                                Text(
+                                                  job['end_time'],
+                                                  style: TextStyle(
+                                                    fontSize: 14,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                            SizedBox(height: 10),
+                                            Row(
+                                              children: [
+                                                Icon(
+                                                  job['vehicle_type'] == 0
+                                                      ? Icons.motorcycle
+                                                      : Icons.time_to_leave,
+                                                ),
+                                                SizedBox(width: 5),
+                                                Text(
+                                                  job['vehicle_type'] == 1
+                                                      ? "Car"
+                                                      : "Bike",
+                                                  style: TextStyle(
+                                                    fontSize: 14,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                            SizedBox(height: 10),
+                                            Row(
+                                              children: [
+                                                Icon(Icons.money),
+                                                SizedBox(width: 5),
+                                                Text(
+                                                  " ${job['service_fee']} บาท",
+                                                  style: TextStyle(
+                                                    fontSize: 14,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ],
+                                        ),
                                       ),
                                     ),
                                   ),
@@ -263,23 +249,60 @@ class _HomepageServiceState extends State<HomepageService> {
                     },
                   )
           : pages[_selectedIndex],
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          if (sid.isEmpty) {
-            print('ยังไม่มี sid');
-            return;
-          }
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => CreateJob(sid: sid, uid: widget.uid),
-            ),
-          );
-        },
-        backgroundColor: Color.fromARGB(255, 255, 0, 0),
-        shape: CircleBorder(),
-        child: Icon(Icons.add, color: Colors.white),
-      ),
+      floatingActionButton: _selectedIndex == 0
+          ? FloatingActionButton(
+              onPressed: () {
+                // ยังไม่มี sid
+                if (sid.isEmpty) {
+                  print('ยังไม่มี sid');
+                  return;
+                }
+
+                // ข้อมูลยังไม่ครบ
+                if (!isServiceDataComplete) {
+                  showDialog(
+                    context: context,
+                    builder: (context) {
+                      return AlertDialog(
+                        title: const Text(
+                          'กรุณากรอกข้อมูลให้ครบ',
+                          style: TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                        content: const Text(
+                          'ก่อนสร้างงาน กรุณากรอกข้อมูลต่อไปนี้ให้ครบถ้วน\n\n'
+                          '• เบอร์โทรศัพท์\n'
+                          '• เพศ\n'
+                          '• ที่อยู่หลักสำหรับรับบริการ\n\n'
+                          'เมื่อกรอกข้อมูลครบแล้ว จึงจะสามารถสร้างงานได้',
+                        ),
+                        actions: [
+                          TextButton(
+                            onPressed: () {
+                              Navigator.pop(context);
+                            },
+                            child: const Text('ตกลง'),
+                          ),
+                        ],
+                      );
+                    },
+                  );
+
+                  return;
+                }
+
+                // ข้อมูลครบ → ไปหน้าสร้างงาน
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => CreateJob(sid: sid, uid: widget.uid),
+                  ),
+                );
+              },
+              backgroundColor: const Color.fromARGB(255, 255, 0, 0),
+              shape: const CircleBorder(),
+              child: const Icon(Icons.add, color: Colors.white),
+            )
+          : null,
 
       bottomNavigationBar: BottomNavigationBar(
         type: BottomNavigationBarType.fixed,
@@ -348,6 +371,7 @@ class _HomepageServiceState extends State<HomepageService> {
         print("ไม่พบข้อมูล service ของ uid: ${widget.uid}");
 
         setState(() {
+          isServiceDataComplete = false;
           isLoading = false;
         });
 
@@ -356,18 +380,45 @@ class _HomepageServiceState extends State<HomepageService> {
 
       final serviceDoc = result.docs.first;
 
-      // นี่คือ sid
+      // sid = Document ID ของ service
       sid = serviceDoc.id;
+
+      // ข้อมูล service ทั้งหมด
+      final data = serviceDoc.data();
+
+      // เช็คข้อมูล service ที่จำเป็น
+      final isServiceComplete =
+          data['phone'] != null &&
+          data['phone'].toString().trim().isNotEmpty &&
+          data['gender'] != null;
+
+      // เช็คว่ามีที่อยู่หลักหรือไม่
+      final address = await db
+          .collection('address')
+          .where('service_id', isEqualTo: sid)
+          .where('main_ad_status', isEqualTo: 1)
+          .limit(1)
+          .get();
+
+      final isAddressComplete = address.docs.isNotEmpty;
+
+      // ต้องครบทั้งข้อมูล service และที่อยู่
+      setState(() {
+        isServiceDataComplete = isServiceComplete && isAddressComplete;
+      });
 
       print("uid: ${widget.uid}");
       print("sid: $sid");
+      print("ข้อมูล service ครบ: $isServiceComplete");
+      print("มีที่อยู่หลัก: $isAddressComplete");
+      print("ข้อมูลทั้งหมดครบ: $isServiceDataComplete");
 
-      // โหลดงานของ service คนนี้
       await queryJobData();
     } catch (e) {
       print("Error loading service data: $e");
 
       setState(() {
+        isServiceDataComplete = false;
         isLoading = false;
       });
     }

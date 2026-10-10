@@ -1,8 +1,12 @@
 import 'dart:developer';
 
+import 'package:caremate_application/page/break_status_job.dart';
 import 'package:caremate_application/page/calendar_page.dart';
 import 'package:caremate_application/page/details_job.dart';
+import 'package:caremate_application/page/status_job.dart';
+import 'package:caremate_application/page/status_return_job.dart';
 import 'package:flutter/material.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:table_calendar/table_calendar.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
@@ -241,7 +245,19 @@ class _MyjobPoviderState extends State<MyjobPovider> {
                                                       109,
                                                       102,
                                                     )
-                                                  : Colors.black,
+                                                  : job['status_drivers'] == 3
+                                                  ? Color.fromARGB(
+                                                      255,
+                                                      15,
+                                                      221,
+                                                      0,
+                                                    )
+                                                  : Color.fromARGB(
+                                                      255,
+                                                      15,
+                                                      221,
+                                                      0,
+                                                    ),
                                               foregroundColor: Colors.white,
                                               padding: EdgeInsets.symmetric(
                                                 horizontal: 20,
@@ -252,8 +268,92 @@ class _MyjobPoviderState extends State<MyjobPovider> {
                                                     BorderRadius.circular(8),
                                               ),
                                             ),
-                                            onPressed: () {
-                                              print("ได้งาน: ${job['job_id']}");
+                                            onPressed: () async {
+                                              //print("ได้งาน: ${job['job_id']}");
+
+                                              if (job['status_drivers'] == 3) {
+                                                await updateStatusJobs(
+                                                  job['job_id'],
+                                                  job['all_driver_id'],
+                                                );
+
+                                                print(
+                                                  "เริ่มทำงาน: ${job['job_id']}",
+                                                );
+
+                                                await Navigator.push(
+                                                  context,
+                                                  MaterialPageRoute(
+                                                    builder: (context) =>
+                                                        StatusJob(
+                                                          jobId: job['job_id'],
+                                                          pid: widget.pid,
+                                                        ),
+                                                  ),
+                                                );
+
+                                                if (!mounted) return;
+
+                                                await queryMyJobs();
+                                              }
+
+                                              if (job['status_drivers'] == 4) {
+                                                if (job['job_status'] == 3 ||
+                                                    job['job_status'] == 4 ||
+                                                    job['job_status'] == 5) {
+                                                  await Navigator.push(
+                                                    context,
+                                                    MaterialPageRoute(
+                                                      builder: (context) =>
+                                                          StatusJob(
+                                                            jobId:
+                                                                job['job_id'],
+                                                            pid: widget.pid,
+                                                          ),
+                                                    ),
+                                                  );
+
+                                                  if (!mounted) return;
+
+                                                  await queryMyJobs();
+                                                } else if (job['job_status'] ==
+                                                    6) {
+                                                  await Navigator.push(
+                                                    context,
+                                                    MaterialPageRoute(
+                                                      builder: (context) =>
+                                                          BreakStatusJob(
+                                                            jobId:
+                                                                job['job_id'],
+                                                            pid: widget.pid,
+                                                          ),
+                                                    ),
+                                                  );
+
+                                                  if (!mounted) return;
+
+                                                  await queryMyJobs();
+                                                } else if (job['job_status'] ==
+                                                        7 ||
+                                                    job['job_status'] == 8 ||
+                                                    job['job_status'] == 9) {
+                                                  await Navigator.push(
+                                                    context,
+                                                    MaterialPageRoute(
+                                                      builder: (context) =>
+                                                          StatusReturnJob(
+                                                            jobId:
+                                                                job['job_id'],
+                                                            pid: widget.pid,
+                                                          ),
+                                                    ),
+                                                  );
+
+                                                  if (!mounted) return;
+
+                                                  await queryMyJobs();
+                                                }
+                                              }
                                             },
                                             child: Text(
                                               job['status_drivers'] == 0
@@ -262,7 +362,9 @@ class _MyjobPoviderState extends State<MyjobPovider> {
                                                   ? "ได้รับงานแล้ว"
                                                   : job['status_drivers'] == 2
                                                   ? "ตำแหน่งเต็ม"
-                                                  : "ผิดพลาด",
+                                                  : job['status_drivers'] == 3
+                                                  ? "เริ่มทำงาน"
+                                                  : "ทำงานต่อ",
                                               style: TextStyle(fontSize: 16),
                                             ),
                                           ),
@@ -293,7 +395,7 @@ class _MyjobPoviderState extends State<MyjobPovider> {
     });
 
     try {
-      // 1. หางานที่ provider คนนี้สมัคร
+      // 1. หางานทั้งหมดที่ provider คนนี้สมัคร
       var applicationSnapshot = await db
           .collection('all_drivers')
           .where('provider_id', isEqualTo: widget.pid)
@@ -305,21 +407,35 @@ class _MyjobPoviderState extends State<MyjobPovider> {
       for (var doc in applicationSnapshot.docs) {
         var applicationData = doc.data();
 
+        // แปลง status_drivers ให้เป็น int
+        final statusDrivers =
+            int.tryParse('${applicationData['status_drivers']}') ?? 0;
+
+        // ไม่เอางานที่ status_drivers = 6
+        if (statusDrivers == 6) {
+          continue;
+        }
+
         String jobId = applicationData['job_id'];
 
         var jobDoc = await db.collection('jobs').doc(jobId).get();
+
         log("jobDoc for jobId $jobId: ${jobDoc.data()}");
+        log("applicationData for jobId $jobId: $applicationData");
 
         // 3. ถ้ามีงานนี้อยู่
         if (jobDoc.exists) {
           var jobData = jobDoc.data()!;
 
-          tempList.add({
-            ...jobData,
-            'job_id': jobDoc.id,
-            //'applied_at': applicationData['applied_at'],
-            'status_drivers': applicationData['status_drivers'],
-          });
+          // ไม่เอางานที่ job_status = 9 (ยกเลิก/เสร็จตาม logic ที่กำหนด)
+          if (jobData['job_status'] != 9) {
+            tempList.add({
+              ...jobData,
+              'job_id': jobDoc.id,
+              'all_driver_id': doc.id,
+              'status_drivers': statusDrivers,
+            });
+          }
         }
       }
 
@@ -333,6 +449,20 @@ class _MyjobPoviderState extends State<MyjobPovider> {
       setState(() {
         isLoading = false;
       });
+    }
+  }
+
+  Future<void> updateStatusJobs(String jobId, String statusId) async {
+    try {
+      await db.collection('jobs').doc(jobId).update({'job_status': 3});
+
+      await db.collection('all_drivers').doc(statusId).update({
+        'status_drivers': 4,
+      });
+
+      print("อัปเดตสถานะงานสำเร็จ");
+    } catch (e) {
+      print("เกิดข้อผิดพลาด: $e");
     }
   }
 }

@@ -318,7 +318,11 @@ class _RegisterUsersState extends State<RegisterUsers> {
       if (widget.role == 1) {
         final providerRef = db.collection('provider').doc();
 
-        await providerRef.set({'provider_uid': userRef.id});
+        await providerRef.set({
+          'provider_uid': userRef.id,
+          'cancel_job': 0,
+          'reports_num': 0,
+        });
 
         log("Provider created: ${providerRef.id}");
       }
@@ -437,7 +441,7 @@ class _RegisterUsersState extends State<RegisterUsers> {
 
       await userRef.set({
         'username': user.displayName ?? '',
-        'name': user.displayName ?? '',
+        'realname': user.displayName ?? '',
         'email': user.email ?? '',
         'role': widget.role,
         'status_account': statusAccount,
@@ -480,7 +484,11 @@ class _RegisterUsersState extends State<RegisterUsers> {
 
         final providerRef = db.collection('provider').doc();
 
-        await providerRef.set({'provider_uid': user.uid});
+        await providerRef.set({
+          'provider_uid': user.uid,
+          'cancel_job': 0,
+          'reports_num': 0,
+        });
 
         log("สร้าง provider สำเร็จ");
         log("pid: ${providerRef.id}");
