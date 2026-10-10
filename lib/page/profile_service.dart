@@ -32,39 +32,69 @@ class _ProfilePageState extends State<ProfileService> {
   // ดึงข้อมูลครั้งแรกจาก Firebase
   Future<void> _fetchUserData() async {
     try {
-      DocumentSnapshot userDoc = await FirebaseFirestore.instance
-          .collection('user')
-          .doc(widget.sid)
-          .get();
-
+      // 1. ใช้ sid ค้นหา service ก่อน
       DocumentSnapshot serviceDoc = await FirebaseFirestore.instance
           .collection('service')
           .doc(widget.sid)
           .get();
 
-      // เอาไว้ดูใน Console ว่าหาข้อมูลเจอไหม
       debugPrint('SID = ${widget.sid}');
-      debugPrint('USER EXISTS = ${userDoc.exists}');
-      debugPrint('USER DATA = ${userDoc.data()}');
       debugPrint('SERVICE EXISTS = ${serviceDoc.exists}');
       debugPrint('SERVICE DATA = ${serviceDoc.data()}');
 
-      Map<String, dynamic> data = {};
+      if (!serviceDoc.exists || serviceDoc.data() == null) {
+        debugPrint('ไม่พบข้อมูล service');
+
+        if (mounted) {
+          setState(() {
+            isLoading = false;
+          });
+        }
+        return;
+      }
+
+      // 2. ดึง service_uid จาก service
+      Map<String, dynamic> serviceData =
+          serviceDoc.data() as Map<String, dynamic>;
+
+      String serviceUid = serviceData['service_uid']?.toString() ?? '';
+
+      debugPrint('SERVICE UID = $serviceUid');
+
+      if (serviceUid.isEmpty) {
+        debugPrint('ไม่พบ service_uid ใน service');
+
+        if (mounted) {
+          setState(() {
+            isLoading = false;
+          });
+        }
+        return;
+      }
+
+      // 3. ใช้ service_uid ไปค้น users
+      DocumentSnapshot userDoc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(serviceUid)
+          .get();
+
+      debugPrint('USER EXISTS = ${userDoc.exists}');
+      debugPrint('USER DATA = ${userDoc.data()}');
+
+      Map<String, dynamic> userData = {};
 
       if (userDoc.exists && userDoc.data() != null) {
-        data = userDoc.data() as Map<String, dynamic>;
+        userData = userDoc.data() as Map<String, dynamic>;
       }
 
-      Map<String, dynamic> serviceData = {};
-
-      if (serviceDoc.exists && serviceDoc.data() != null) {
-        serviceData = serviceDoc.data() as Map<String, dynamic>;
-      }
-
+      // 4. เอาข้อมูลไปแสดง
       if (mounted) {
         setState(() {
-          realname = data['realname'] ?? '';
-          username = data['username'] ?? '';
+          // ข้อมูลจาก users
+          realname = userData['realname'] ?? '';
+          username = userData['username'] ?? '';
+
+          // ข้อมูลจาก service
           phone = serviceData['phone'] ?? '';
           gender = serviceData['gender'] ?? '';
           address = serviceData['address'] ?? '';
@@ -76,8 +106,8 @@ class _ProfilePageState extends State<ProfileService> {
         });
       }
     } catch (e, stackTrace) {
-      debugPrint(' ERROR = $e');
-      debugPrint(' STACK = $stackTrace');
+      debugPrint('ERROR = $e');
+      debugPrint('STACK = $stackTrace');
 
       if (mounted) {
         setState(() {
@@ -116,15 +146,17 @@ class _ProfilePageState extends State<ProfileService> {
               ),
               child: Stack(
                 children: [
-                  CircleAvatar(
-                    radius: 28,
-                    backgroundImage:
-                        profileImage != null && profileImage!.isNotEmpty
-                        ? NetworkImage(profileImage!)
-                        : null,
-                    child: profileImage == null || profileImage!.isEmpty
-                        ? const Icon(Icons.person)
-                        : null,
+                  Center(
+                    child: CircleAvatar(
+                      radius: 28,
+                      backgroundImage:
+                          profileImage != null && profileImage!.isNotEmpty
+                          ? NetworkImage(profileImage!)
+                          : null,
+                      child: profileImage == null || profileImage!.isEmpty
+                          ? const Icon(Icons.person)
+                          : null,
+                    ),
                   ),
                   Positioned(
                     right: 10,

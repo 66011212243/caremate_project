@@ -11,18 +11,7 @@ import 'package:http/http.dart' as http;
 //import 'package:firebase_storage/firebase_storage.dart';
 
 class DocumentPage extends StatefulWidget {
-  final String username;
-  final String fullname;
-  final String email;
-  final String password;
-
-  const DocumentPage({
-    super.key,
-    required this.username,
-    required this.fullname,
-    required this.email,
-    required this.password,
-  });
+  const DocumentPage({super.key});
 
   @override
   State<DocumentPage> createState() => _DocumentPageState();
@@ -346,7 +335,7 @@ class _DocumentPageState extends State<DocumentPage> {
                     padding: const EdgeInsets.symmetric(vertical: 16),
                   ),
                   onPressed: () {
-                    saveProvider();
+                    //saveProvider();
                   },
                   child: const Text("บันทึก"),
                 ),
@@ -379,91 +368,91 @@ class _DocumentPageState extends State<DocumentPage> {
   //   }
   // }
 
-  Future<void> saveProvider() async {
-    // ป้องกันการกดซ้ำ
-    if (isLoading) return;
+  // Future<void> saveProvider() async {
+  //   // ป้องกันการกดซ้ำ
+  //   if (isLoading) return;
 
-    // ตรวจสอบข้อมูลก่อนเริ่มทำงาน
-    if (idCardImage == null ||
-        licenseImage == null ||
-        vehicleBookImage == null ||
-        insuranceImage == null ||
-        plateCtl.text.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("กรุณากรอกข้อมูลและแนบเอกสารให้ครบ")),
-      );
-      return;
-    }
+  //   // ตรวจสอบข้อมูลก่อนเริ่มทำงาน
+  //   if (idCardImage == null ||
+  //       licenseImage == null ||
+  //       vehicleBookImage == null ||
+  //       insuranceImage == null ||
+  //       plateCtl.text.isEmpty) {
+  //     ScaffoldMessenger.of(context).showSnackBar(
+  //       const SnackBar(content: Text("กรุณากรอกข้อมูลและแนบเอกสารให้ครบ")),
+  //     );
+  //     return;
+  //   }
 
-    setState(() {
-      isLoading = true; // เริ่มแสดง Loading
-    });
+  //   setState(() {
+  //     isLoading = true; // เริ่มแสดง Loading
+  //   });
 
-    try {
-      // 2. ทยอยอัปโหลดทีละไฟล์และเก็บ URL
-      // วิธีนี้จะช่วยให้แน่ใจว่าไฟล์ถูกอัปโหลดเสร็จก่อนไปทำขั้นตอนถัดไป
-      String? idCardUrl = await uploadToCloudinary(File(idCardImage!.path));
-      String? licenseUrl = await uploadToCloudinary(File(licenseImage!.path));
-      String? vehicleUrl = await uploadToCloudinary(
-        File(vehicleBookImage!.path),
-      );
-      String? insuranceUrl = await uploadToCloudinary(
-        File(insuranceImage!.path),
-      );
+  //   try {
+  //     // 2. ทยอยอัปโหลดทีละไฟล์และเก็บ URL
+  //     // วิธีนี้จะช่วยให้แน่ใจว่าไฟล์ถูกอัปโหลดเสร็จก่อนไปทำขั้นตอนถัดไป
+  //     String? idCardUrl = await uploadToCloudinary(File(idCardImage!.path));
+  //     String? licenseUrl = await uploadToCloudinary(File(licenseImage!.path));
+  //     String? vehicleUrl = await uploadToCloudinary(
+  //       File(vehicleBookImage!.path),
+  //     );
+  //     String? insuranceUrl = await uploadToCloudinary(
+  //       File(insuranceImage!.path),
+  //     );
 
-      // 3. เข้ารหัส Password
-      final hashedPassword = BCrypt.hashpw(widget.password, BCrypt.gensalt());
+  //     // 3. เข้ารหัส Password
+  //     final hashedPassword = BCrypt.hashpw(widget.password, BCrypt.gensalt());
 
-      var docRef = db.collection('provider').doc();
-      var dataprovider = {
-        'providername': widget.username,
-        'realname': widget.fullname,
-        'email': widget.email,
-        'password': hashedPassword,
-        'verification_status': 0,
-        'rating_avg': 0.0,
-      };
-      await docRef.set(dataprovider);
-      log("dataprovider data added with ID: ${docRef.id}");
+  //     var docRef = db.collection('provider').doc();
+  //     var dataprovider = {
+  //       'providername': widget.username,
+  //       'realname': widget.fullname,
+  //       'email': widget.email,
+  //       'password': hashedPassword,
+  //       'verification_status': 0,
+  //       'rating_avg': 0.0,
+  //     };
+  //     await docRef.set(dataprovider);
+  //     log("dataprovider data added with ID: ${docRef.id}");
 
-      var docPro = db.collection('document').doc();
-      var datadocprovider = {
-        'pid': docRef.id,
-        'vehicle_type': vehicleType,
-        'vehicle_Registration': plateCtl.text,
-        'IdCard': idCardUrl,
-        'drivinglicense': licenseUrl,
-        'vehicle_reg_book': vehicleUrl,
-        'vehicle_insurance_file': insuranceUrl,
-      };
-      await docPro.set(datadocprovider);
-      log("datadocprovider data added with ID: ${docPro.id}");
+  //     var docPro = db.collection('document').doc();
+  //     var datadocprovider = {
+  //       'pid': docRef.id,
+  //       'vehicle_type': vehicleType,
+  //       'vehicle_Registration': plateCtl.text,
+  //       'IdCard': idCardUrl,
+  //       'drivinglicense': licenseUrl,
+  //       'vehicle_reg_book': vehicleUrl,
+  //       'vehicle_insurance_file': insuranceUrl,
+  //     };
+  //     await docPro.set(datadocprovider);
+  //     log("datadocprovider data added with ID: ${docPro.id}");
 
-      if (!mounted) return;
+  //     if (!mounted) return;
 
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text("สมัครสมาชิกสำเร็จ")));
+  //     ScaffoldMessenger.of(
+  //       context,
+  //     ).showSnackBar(const SnackBar(content: Text("สมัครสมาชิกสำเร็จ")));
 
-      // ย้ายไปหน้า Login
-      Navigator.pushAndRemoveUntil(
-        context,
-        MaterialPageRoute(builder: (context) => RegisterProvider()),
-        (route) => false, // ล้าง Stack หน้าเดิมทิ้งทั้งหมด
-      );
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text("เกิดข้อผิดพลาด: $e")));
-    } finally {
-      if (mounted) {
-        setState(() {
-          isLoading = false; // ปิด Loading ไม่ว่าจะสำเร็จหรือไม่ก็ตาม
-        });
-      }
-    }
-  }
+  //     // ย้ายไปหน้า Login
+  //     Navigator.pushAndRemoveUntil(
+  //       context,
+  //       MaterialPageRoute(builder: (context) => RegisterProvider()),
+  //       (route) => false, // ล้าง Stack หน้าเดิมทิ้งทั้งหมด
+  //     );
+  //   } catch (e) {
+  //     if (!mounted) return;
+  //     ScaffoldMessenger.of(
+  //       context,
+  //     ).showSnackBar(SnackBar(content: Text("เกิดข้อผิดพลาด: $e")));
+  //   } finally {
+  //     if (mounted) {
+  //       setState(() {
+  //         isLoading = false; // ปิด Loading ไม่ว่าจะสำเร็จหรือไม่ก็ตาม
+  //       });
+  //     }
+  //   }
+  // }
 
   Future<String?> uploadToCloudinary(File imageFile) async {
     try {

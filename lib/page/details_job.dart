@@ -5,6 +5,7 @@ import 'package:caremate_application/page/myJob_povider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:longdo_maps_api3_flutter/longdo_maps_api3_flutter.dart';
+import '../functions/details_job_functions.dart';
 
 class DetailsJob extends StatefulWidget {
   String pid = '';
@@ -18,11 +19,15 @@ class DetailsJob extends StatefulWidget {
 class _DetailsJobState extends State<DetailsJob> {
   var db = FirebaseFirestore.instance;
   Map<String, dynamic> detailsJob = {};
+
   int? statusDrivers;
   bool isLoading = true;
 
   bool isApplied = false;
   bool isApplying = false;
+
+  bool isProviderDataComplete = false;
+  bool isCheckingProvider = true;
 
   @override
   void initState() {
@@ -76,6 +81,99 @@ class _DetailsJobState extends State<DetailsJob> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      Container(
+                        width: 350,
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(16),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.05),
+                              blurRadius: 10,
+                              offset: const Offset(0, 3),
+                            ),
+                          ],
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // หัวข้อการ์ด
+                            Row(
+                              children: [
+                                Container(
+                                  width: 40,
+                                  height: 40,
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFFFDE8E8),
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  child: const Icon(
+                                    Icons.location_on,
+                                    color: Colors.red,
+                                    size: 20,
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        'จุดรับผู้รับบริการ',
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          color: Colors.grey,
+                                        ),
+                                      ),
+                                      SizedBox(height: 3),
+                                      Text(
+                                        'อ.${detailsJob['district'] ?? '-'} จ.${detailsJob['province'] ?? '-'}',
+                                        style: TextStyle(
+                                          fontSize: 14,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+
+                            const SizedBox(height: 5),
+
+                            // ข้อความแนะนำ
+                            Container(
+                              width: double.infinity,
+                              padding: const EdgeInsets.all(10),
+                              decoration: BoxDecoration(
+                                color: Colors.grey.shade50,
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: const Row(
+                                children: [
+                                  Icon(
+                                    Icons.info_outline,
+                                    size: 15,
+                                    color: Colors.grey,
+                                  ),
+                                  SizedBox(width: 8),
+                                  Expanded(
+                                    child: Text(
+                                      'ตรวจสอบพื้นที่รับงานก่อนตัดสินใจสมัครงาน',
+                                      style: TextStyle(
+                                        fontSize: 10,
+                                        color: Colors.black54,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
                       SizedBox(height: 15),
                       Row(
                         children: [
@@ -206,6 +304,26 @@ class _DetailsJobState extends State<DetailsJob> {
                       Row(
                         children: [
                           Text(
+                            "ระยะทาง:",
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          SizedBox(width: 10),
+                          SizedBox(
+                            width: 120,
+                            child: Text(
+                              "${detailsJob['distance_km'] ?? '-'} กิโลเมตร",
+                              style: TextStyle(fontSize: 16),
+                            ),
+                          ),
+                        ],
+                      ),
+                      SizedBox(height: 15),
+                      Row(
+                        children: [
+                          Text(
                             "เรทค่าบริการ:",
                             style: TextStyle(
                               fontSize: 16,
@@ -301,6 +419,8 @@ class _DetailsJobState extends State<DetailsJob> {
                                     ? Color.fromARGB(255, 15, 221, 0)
                                     : statusDrivers == 2
                                     ? const Color.fromARGB(255, 220, 109, 102)
+                                    : statusDrivers == 6
+                                    ? const Color.fromARGB(255, 220, 109, 102)
                                     : Colors.black,
 
                                 foregroundColor: Colors.white,
@@ -313,7 +433,9 @@ class _DetailsJobState extends State<DetailsJob> {
                                     ? Color.fromARGB(255, 15, 221, 0)
                                     : statusDrivers == 2
                                     ? const Color.fromARGB(255, 220, 109, 102)
-                                    : const Color.fromARGB(255, 110, 110, 110),
+                                    : statusDrivers == 6
+                                    ? const Color.fromARGB(255, 220, 109, 102)
+                                    : const Color.fromARGB(255, 15, 221, 0),
 
                                 disabledForegroundColor: Colors.white,
 
@@ -333,6 +455,41 @@ class _DetailsJobState extends State<DetailsJob> {
                                       setState(() {
                                         isApplying = true;
                                       });
+
+                                      final complete =
+                                          await checkProviderDataComplete();
+                                      if (!mounted) return;
+
+                                      if (!complete) {
+                                        setState(() => isApplying = false);
+                                        showProviderIncompleteDialog(context);
+                                        return;
+                                      }
+
+                                      // 2) เช็คว่ามียานพาหนะตรงกับงานไหม
+                                      final vehicleOk =
+                                          await checkVehicleTypeComplete(
+                                            detailsJob['vehicle_type'],
+                                          );
+                                      if (!mounted) return;
+
+                                      if (!vehicleOk) {
+                                        setState(() => isApplying = false);
+                                        showVehicleMismatchDialog(context);
+                                        return;
+                                      }
+
+                                      final canApply = await checkTimeComplete(
+                                        detailsJob['date'],
+                                        detailsJob['start_time'],
+                                        detailsJob['end_time'],
+                                      );
+
+                                      if (!canApply) {
+                                        setState(() => isApplying = false);
+                                        showTimeMismatchDialog(context);
+                                        return;
+                                      }
 
                                       await applyJob(widget.jobId);
 
@@ -360,7 +517,9 @@ class _DetailsJobState extends State<DetailsJob> {
                                           ? "ได้รับงานแล้ว"
                                           : statusDrivers == 2
                                           ? "ตำแหน่งเต็ม"
-                                          : "ไม่ทราบสถานะ",
+                                          : statusDrivers == 6
+                                          ? "ไม่สามารถสมัครงานได้"
+                                          : "พร้อมทำงาน",
                                       style: TextStyle(fontSize: 18),
                                     ),
                             ),
@@ -393,41 +552,10 @@ class _DetailsJobState extends State<DetailsJob> {
                                   ),
 
                                   onPressed: () {
-                                    showDialog(
-                                      context: context,
-                                      builder: (BuildContext context) {
-                                        return AlertDialog(
-                                          title: Text("ยกเลิกการสมัครงาน"),
-                                          content: Text(
-                                            "คุณต้องการยกเลิกการสมัครงานนี้หรือไม่?",
-                                          ),
-                                          actions: [
-                                            TextButton(
-                                              onPressed: () {
-                                                Navigator.pop(context);
-                                              },
-                                              child: Text(
-                                                "ยกเลิก",
-                                                style: TextStyle(
-                                                  color: Colors.grey,
-                                                ),
-                                              ),
-                                            ),
-
-                                            TextButton(
-                                              onPressed: () async {
-                                                await cancelApplyJob();
-                                                Navigator.of(context).pop();
-                                              },
-                                              child: Text(
-                                                "ยืนยัน",
-                                                style: TextStyle(
-                                                  color: Colors.red,
-                                                ),
-                                              ),
-                                            ),
-                                          ],
-                                        );
+                                    showCancelApplyDialog(
+                                      context,
+                                      onConfirm: () async {
+                                        await cancelApplyJob();
                                       },
                                     );
                                   },
@@ -466,81 +594,14 @@ class _DetailsJobState extends State<DetailsJob> {
                                   ),
 
                                   onPressed: () {
-                                    final pageContext = context;
-
-                                    showDialog(
-                                      context: pageContext,
-                                      builder: (dialogContext) {
-                                        return AlertDialog(
-                                          title: Text(
-                                            "ยืนยันการยกเลิกงาน",
-                                            style: TextStyle(
-                                              fontSize: 22,
-                                              fontWeight: FontWeight.bold,
-                                            ),
-                                          ),
-                                          content: RichText(
-                                            text: TextSpan(
-                                              style: TextStyle(
-                                                color: Colors.black,
-                                                fontSize: 16,
-                                              ),
-                                              children: [
-                                                TextSpan(
-                                                  text:
-                                                      "ในแต่ละเดือนสามารถยกเลิกงานได้สูงสุด 3 งาน (0/3)\n\n",
-                                                ),
-                                                TextSpan(
-                                                  text:
-                                                      "คุณต้องการยกเลิกงานนี้หรือไม่?",
-                                                  style: TextStyle(
-                                                    fontWeight: FontWeight.bold,
-                                                  ),
-                                                ),
-                                              ],
-                                            ),
-                                          ),
-                                          actions: [
-                                            TextButton(
-                                              onPressed: () {
-                                                Navigator.of(
-                                                  dialogContext,
-                                                ).pop();
-                                              },
-                                              child: Text(
-                                                "ยกเลิก",
-                                                style: TextStyle(
-                                                  color: Colors.grey,
-                                                ),
-                                              ),
-                                            ),
-
-                                            TextButton(
-                                              onPressed: () async {
-                                                // ปิด Dialog ก่อน
-                                                Navigator.of(
-                                                  dialogContext,
-                                                ).pop();
-
-                                                // ลบงาน
-                                                await cancelJob();
-
-                                                if (!mounted) return;
-
-                                                // ปิด DetailsJob และกลับไป MyjobPovider
-                                                Navigator.of(
-                                                  pageContext,
-                                                ).pop(true);
-                                              },
-                                              child: Text(
-                                                "ยืนยัน",
-                                                style: TextStyle(
-                                                  color: Colors.red,
-                                                ),
-                                              ),
-                                            ),
-                                          ],
-                                        );
+                                    showCancelJobDialog(
+                                      context,
+                                      onConfirm: () async {
+                                        await cancelJob();
+                                        if (!mounted) return;
+                                        Navigator.of(
+                                          context,
+                                        ).pop(true); // กลับไป MyjobPovider
                                       },
                                     );
                                   },
@@ -575,8 +636,23 @@ class _DetailsJobState extends State<DetailsJob> {
 
         detailsJob = {...data!, 'job_id': docSnapshot.id};
 
-        // print('job_id: ${docSnapshot.id}');
-        // print('detailsJob: $detailsJob');
+        final addressId = data['address_id'];
+        if (addressId != null && addressId.toString().isNotEmpty) {
+          final addressSnapshot = await db
+              .collection('address')
+              .doc(addressId.toString())
+              .get();
+
+          if (addressSnapshot.exists) {
+            final addressData = addressSnapshot.data()!;
+
+            detailsJob = {
+              ...detailsJob,
+              'district': addressData['district'],
+              'province': addressData['province'],
+            };
+          }
+        }
       }
 
       setState(() {
@@ -656,13 +732,149 @@ class _DetailsJobState extends State<DetailsJob> {
       var data = doc.data();
 
       if (data['provider_id'] == widget.pid) {
-        // คนที่ได้งาน → ยกเลิกและลบ application
-        await doc.reference.delete();
+        // คนที่ได้งาน → เปลี่ยนสถานะเป็น 6 ไม่ลบ application
+        await doc.reference.update({'status_drivers': 6});
       } else if (data['status_drivers'] == 2) {
         // คนที่ตำแหน่งเต็ม → ลบออก
         await doc.reference.delete();
       }
     }
+  }
+
+  bool _hasValue(dynamic v) => v != null && v.toString().trim().isNotEmpty;
+
+  /// คืนค่า true ถ้าข้อมูลครบ
+  Future<bool> checkProviderDataComplete() async {
+    try {
+      // 1. ตรวจสอบข้อมูลผู้ให้บริการ
+      final providerDoc = await db.collection('provider').doc(widget.pid).get();
+
+      final data = providerDoc.data();
+
+      if (!providerDoc.exists || data == null) return false;
+
+      final isProviderComplete =
+          _hasValue(data['phone']) &&
+          _hasValue(data['gender']) &&
+          _hasValue(data['profile']);
+
+      if (!isProviderComplete) return false;
+
+      // 2. ตรวจสอบข้อมูลธนาคาร
+      final bankQuery = await db
+          .collection('bank')
+          .where('provider_id', isEqualTo: widget.pid)
+          .limit(1)
+          .get();
+
+      if (bankQuery.docs.isEmpty) return false;
+
+      final bankData = bankQuery.docs.first.data();
+
+      // 3. ตรวจสอบว่าข้อมูลธนาคารครบทุกช่อง
+      return _hasValue(bankData['bank_name']) &&
+          _hasValue(bankData['account_number']) &&
+          _hasValue(bankData['account_name']) &&
+          _hasValue(bankData['qr_code']) &&
+          _hasValue(bankData['promptpay']);
+    } catch (e) {
+      print("Error checking provider data: $e");
+      return false;
+    }
+  }
+
+  Future<bool> checkVehicleTypeComplete(int vehicleType) async {
+    try {
+      final result = await db
+          .collection('document')
+          .where('pid', isEqualTo: widget.pid)
+          .where('vehicle_type', isEqualTo: vehicleType)
+          .limit(1)
+          .get();
+
+      return result.docs.isNotEmpty;
+    } catch (e) {
+      print("Error checking vehicle type: $e");
+      return false;
+    }
+  }
+
+  /// return true  = สมัครได้ (ไม่ชนกับงานอื่น)
+  /// return false = สมัครไม่ได้ (เวลาซ้อน/ห่างไม่ถึง 2 ชม. หรือเช็คไม่สำเร็จ)
+  Future<bool> checkTimeComplete(
+    String date,
+    String startTime,
+    String endTime,
+  ) async {
+    const int minGapMinutes = 120; // ต้องห่างกันอย่างน้อย 2 ชม.
+
+    try {
+      // 1) งานที่ provider คนนี้สมัครไว้ และสถานะ 1, 3, 4
+      final result = await db
+          .collection('all_drivers')
+          .where('provider_id', isEqualTo: widget.pid)
+          .where('status_drivers', whereIn: [1, 3, 4])
+          .get();
+
+      // ไม่มีงานที่สมัครไว้เลย → สมัครได้
+      if (result.docs.isEmpty) {
+        return true;
+      }
+
+      // 2) ดึงข้อมูลงานทั้งหมดพร้อมกัน
+      final jobDocs = await Future.wait(
+        result.docs.map((d) {
+          final jobId = d.data()['job_id'];
+          return db.collection('jobs').doc(jobId).get();
+        }),
+      );
+
+      // 3) เวลาของงานใหม่ (นาที)
+      final newStart = timeToMinutes(startTime);
+      var newEnd = timeToMinutes(endTime);
+      if (newEnd <= newStart) newEnd += 1440; // งานข้ามเที่ยงคืน
+
+      for (final jobDoc in jobDocs) {
+        if (!jobDoc.exists) continue;
+
+        final job = jobDoc.data()!;
+
+        // 4) คนละวัน → ข้ามไป
+        if (job['date'] != date) continue;
+
+        // 5) วันเดียวกัน → เช็คเวลา
+        final oldStart = timeToMinutes(job['start_time']);
+        var oldEnd = timeToMinutes(job['end_time']);
+        if (oldEnd <= oldStart) oldEnd += 1440;
+
+        // ชนกัน = เวลาซ้อน หรือห่างน้อยกว่า 2 ชม.
+        final isConflict =
+            newStart < oldEnd + minGapMinutes &&
+            oldStart < newEnd + minGapMinutes;
+
+        if (isConflict) {
+          return false;
+        }
+      }
+
+      // ไม่ชนกับงานไหนเลย
+      return true;
+    } catch (e) {
+      print("checkTimeComplete error: $e");
+
+      // เช็คไม่ได้ → ไม่ให้สมัคร
+      return false;
+    }
+  }
+
+  // แปลงเวลา เช่น 08:30 → 510 นาที
+  int timeToMinutes(String time) {
+    final parts = time.split(':');
+
+    final hour = int.parse(parts[0]);
+    final minute = int.parse(parts[1]);
+
+    return (hour * 60) + minute;
   }
 }
 

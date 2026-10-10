@@ -1,14 +1,15 @@
 import 'package:caremate_application/page/Bank.dart';
 import 'package:caremate_application/page/Changepassword.dart';
 import 'package:caremate_application/page/document.dart';
+import 'package:caremate_application/page/login.dart';
 import 'package:caremate_application/page/profile_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 class SettingsProvider extends StatefulWidget {
-  final String sid;
+  final String pid;
 
-  const SettingsProvider({super.key, this.sid = "9XfrEZu1OD6sqiAsjLBj"});
+  const SettingsProvider({super.key, required this.pid});
 
   @override
   State<SettingsProvider> createState() => _SettingsPageState();
@@ -27,80 +28,87 @@ class _SettingsPageState extends State<SettingsProvider> {
 
   // ดึงข้อมูลครั้งแรกจาก Firebase
   Future<void> _fetchUserData() async {
-  try {
-    final userDoc = await FirebaseFirestore.instance
-        .collection('user')
-        .doc(widget.sid)
-        .get();
+    try {
+      // 1. ใช้ pid ค้นหา provider ก่อน
+      DocumentSnapshot providerDoc = await FirebaseFirestore.instance
+          .collection('provider')
+          .doc(widget.pid)
+          .get();
 
-    debugPrint('USER EXISTS: ${userDoc.exists}');
-    debugPrint('USER DATA: ${userDoc.data()}');
+      debugPrint('PID = ${widget.pid}');
+      debugPrint('PROVIDER EXISTS = ${providerDoc.exists}');
+      debugPrint('PROVIDER DATA = ${providerDoc.data()}');
 
-    final serviceDoc = await FirebaseFirestore.instance
-        .collection('service')
-        .doc(widget.sid)
-        .get();
+      if (!providerDoc.exists || providerDoc.data() == null) {
+        debugPrint('ไม่พบข้อมูล provider');
 
-    debugPrint('SERVICE EXISTS: ${serviceDoc.exists}');
-    debugPrint('SERVICE DATA: ${serviceDoc.data()}');
-
-    if (mounted) {
-      setState(() {
-        if (userDoc.exists && userDoc.data() != null) {
-          final userData = userDoc.data() as Map<String, dynamic>;
-          realname = userData['realname']?.toString() ?? '';
+        if (mounted) {
+          setState(() {
+            isLoading = false;
+          });
         }
+        return;
+      }
 
-        if (serviceDoc.exists && serviceDoc.data() != null) {
-          final serviceData =
-              serviceDoc.data() as Map<String, dynamic>;
-          profileImage = serviceData['profileImage']?.toString();
+      // 2. ดึง provider_uid จาก provider
+      Map<String, dynamic> providerData =
+          providerDoc.data() as Map<String, dynamic>;
+
+      String providerUid = providerData['provider_uid']?.toString() ?? '';
+
+      debugPrint('PROVIDER UID = $providerUid');
+
+      if (providerUid.isEmpty) {
+        debugPrint('ไม่พบ provider_uid ใน provider');
+
+        if (mounted) {
+          setState(() {
+            isLoading = false;
+          });
         }
+        return;
+      }
 
-        isLoading = false;
-      });
-    }
-  } catch (e, stackTrace) {
-    debugPrint(' ERROR: $e');
-    debugPrint(' STACK: $stackTrace');
+      // 3. ใช้ provider_uid ไปค้น users
+      DocumentSnapshot userDoc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(providerUid)
+          .get();
 
-    if (mounted) {
-      setState(() {
-        isLoading = false;
-      });
+      debugPrint('USER EXISTS = ${userDoc.exists}');
+      debugPrint('USER DATA = ${userDoc.data()}');
+
+      Map<String, dynamic> userData = {};
+
+      if (userDoc.exists && userDoc.data() != null) {
+        userData = userDoc.data() as Map<String, dynamic>;
+      }
+
+      // 4. เอาข้อมูลไปแสดง
+      if (mounted) {
+        setState(() {
+          realname = userData['realname'] ?? '';
+
+          profileImage = providerData['profile']?.toString();
+
+          isLoading = false;
+        });
+      }
+    } catch (e, stackTrace) {
+      debugPrint('ERROR = $e');
+      debugPrint('STACK = $stackTrace');
+
+      if (mounted) {
+        setState(() {
+          isLoading = false;
+        });
+      }
     }
   }
-}
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        automaticallyImplyLeading: false,
-        backgroundColor: Colors.red,
-        title: const Text('การตั้งค่า', style: TextStyle(color: Colors.white)),
-      ),
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: 3, // ตอนนี้อยู่หน้า "ตั้งค่า"
-        type: BottomNavigationBarType.fixed,
-        selectedItemColor: Colors.red,
-        unselectedItemColor: Colors.grey,
-        items: const [
-          BottomNavigationBarItem(
-            icon: Icon(Icons.home_outlined),
-            label: 'หน้าหลัก',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.calendar_today_outlined),
-            label: 'ปฏิทิน',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.notifications_none),
-            label: 'ข้อความ',
-          ),
-          BottomNavigationBarItem(icon: Icon(Icons.settings), label: 'ตั้งค่า'),
-        ],
-      ),
       body: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -137,7 +145,8 @@ class _SettingsPageState extends State<SettingsProvider> {
                         Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (context) => ProfileProvider(sid: widget.sid),
+                            builder: (context) =>
+                                ProfileProvider(pid: widget.pid),
                           ),
                         );
                       },
@@ -189,9 +198,7 @@ class _SettingsPageState extends State<SettingsProvider> {
               onTap: () {
                 Navigator.push(
                   context,
-                  MaterialPageRoute(
-                    builder: (context) => const BankPage(),
-                  ),
+                  MaterialPageRoute(builder: (context) => const BankPage()),
                 );
               },
             ),
@@ -201,7 +208,9 @@ class _SettingsPageState extends State<SettingsProvider> {
               onTap: () {
                 Navigator.push(
                   context,
-                  MaterialPageRoute(builder: (context) =>  ChangepasswordPage(sid: widget.sid,)),
+                  MaterialPageRoute(
+                    builder: (context) => ChangepasswordPage(sid: widget.pid),
+                  ),
                 );
               },
             ),
@@ -226,7 +235,13 @@ class _SettingsPageState extends State<SettingsProvider> {
                   backgroundColor: Colors.red,
                   padding: const EdgeInsets.symmetric(vertical: 16),
                 ),
-                onPressed: () {},
+                onPressed: () {
+                  Navigator.pushAndRemoveUntil(
+                    context,
+                    MaterialPageRoute(builder: (context) => const LoginPage()),
+                    (route) => false,
+                  );
+                },
                 child: const Text(
                   'ออกจากระบบ',
                   style: TextStyle(color: Colors.white),

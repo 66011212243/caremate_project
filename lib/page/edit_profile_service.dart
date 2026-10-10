@@ -53,7 +53,7 @@ class _EditProfilePageState extends State<EditProfileService> {
   Future<void> _fetchProfileData() async {
     try {
       DocumentSnapshot userDoc = await FirebaseFirestore.instance
-          .collection('user')
+          .collection('users')
           .doc(widget.sid)
           .get();
 
@@ -85,7 +85,7 @@ class _EditProfilePageState extends State<EditProfileService> {
             heightController.text = serviceData['height']?.toString() ?? '';
             weightController.text = serviceData['weight']?.toString() ?? '';
             addressController.text = serviceData['address']?.toString() ?? '';
-            currentProfileImageUrl = serviceData['profileImage']?.toString();
+            currentProfileImageUrl = serviceData['photo']?.toString();
           }
 
           isLoading = false;
