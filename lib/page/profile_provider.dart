@@ -190,7 +190,7 @@ class _ProfilePageState extends State<ProfileProvider> {
                 final result = await Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (context) => EditProfileProvider(sid: widget.pid),
+                    builder: (context) => EditProfileProvider(pid: widget.sid),
                   ),
                 );
 

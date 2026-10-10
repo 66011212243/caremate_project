@@ -8,9 +8,9 @@ import 'package:http/http.dart' as http;
 class EditBank extends StatefulWidget {
   final String pid;
 
-  const EditBank({
+    const EditBank({
     super.key,
-    this.pid = "I9vYo5CMP3swjXsI6MkS",
+    required this.pid,
   });
 
   @override
@@ -41,35 +41,38 @@ class _BankPageState extends State<EditBank> {
   // ============================
   // ดึงข้อมูลธนาคารเดิม
   // ============================
+
   Future<void> _loadBankData() async {
+    debugPrint('EditBank pid = ${widget.pid}');
     try {
-      final doc = await FirebaseFirestore.instance
+      final query = await FirebaseFirestore.instance
           .collection('bank')
-          .doc(widget.pid)
+          .where('provider_id', isEqualTo: widget.pid)
+          .limit(1)
           .get();
 
-      if (doc.exists && mounted) {
-        final data = doc.data();
+      if (query.docs.isNotEmpty && mounted) {
+        final data = query.docs.first.data();
 
-        // นำข้อมูลเดิมใส่เข้า Controller เพื่อให้แสดงผลบน 
         setState(() {
-          accountNameCtl.text = data?['account_name'] ?? '';
-          bankNameCtl.text = data?['bank_name'] ?? '';
-          accountNumberCtl.text = data?['account_number'] ?? '';
-          promptpayCtl.text = data?['promptpay'] ?? '';
-          currentQrCodeUrl = data?['qr_code']; // URL รูปเดิม (ถ้ามี)
+          accountNameCtl.text = data['account_name'] ?? '';
+          bankNameCtl.text = data['bank_name'] ?? '';
+          accountNumberCtl.text = data['account_number'] ?? '';
+          promptpayCtl.text = data['promptpay'] ?? '';
+          currentQrCodeUrl = data['qr_code'];
         });
+      } else {
+        debugPrint('ไม่พบข้อมูลบัญชีธนาคารของ pid: ${widget.pid}');
       }
     } catch (e) {
+      debugPrint('โหลดข้อมูลบัญชีธนาคารผิดพลาด: $e');
+
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('ไม่สามารถโหลดข้อมูลได้: $e'),
-          ),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('ไม่สามารถโหลดข้อมูลได้: $e')));
       }
     } finally {
-      // ซ่อน Loading Indicator เมื่อโหลดเสร็จสิ้นไม่ว่าจะสำเร็จหรือล้มเหลว
       if (mounted) {
         setState(() {
           isLoading = false;
@@ -130,10 +133,17 @@ class _BankPageState extends State<EditBank> {
     });
 
     try {
-      await FirebaseFirestore.instance
+      final query = await FirebaseFirestore.instance
           .collection('bank')
-          .doc(widget.pid)
-          .update({
+          .where('provider_id', isEqualTo: widget.pid)
+          .limit(1)
+          .get();
+
+      if (query.docs.isEmpty) {
+        throw Exception('ไม่พบข้อมูลบัญชีธนาคารของผู้ให้บริการนี้');
+      }
+
+      await query.docs.first.reference.update({
         'account_name': accountNameCtl.text.trim(),
         'bank_name': bankNameCtl.text.trim(),
         'account_number': accountNumberCtl.text.trim(),
@@ -142,21 +152,17 @@ class _BankPageState extends State<EditBank> {
       });
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('แก้ไขข้อมูลสำเร็จ!'),
-          ),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('แก้ไขข้อมูลสำเร็จ!')));
 
         Navigator.pop(context, true);
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('เกิดข้อผิดพลาด: $e'),
-          ),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('เกิดข้อผิดพลาด: $e')));
       }
     } finally {
       if (mounted) {
@@ -182,10 +188,7 @@ class _BankPageState extends State<EditBank> {
       backgroundColor: Colors.white,
       appBar: AppBar(
         leading: IconButton(
-          icon: const Icon(
-            Icons.arrow_back,
-            color: Colors.black,
-          ),
+          icon: const Icon(Icons.arrow_back, color: Colors.black),
           onPressed: () => Navigator.pop(context),
         ),
         title: const Text(
@@ -200,9 +203,7 @@ class _BankPageState extends State<EditBank> {
         elevation: 0,
       ),
       body: isLoading
-          ? const Center(
-              child: CircularProgressIndicator(),
-            )
+          ? const Center(child: CircularProgressIndicator())
           : SingleChildScrollView(
               child: Padding(
                 padding: const EdgeInsets.all(16),
@@ -333,10 +334,7 @@ class _BankPageState extends State<EditBank> {
                           onPressed: _pickQRCodeImage,
                           child: const Text(
                             "แนบไฟล์",
-                            style: TextStyle(
-                              fontSize: 14,
-                              color: Colors.black,
-                            ),
+                            style: TextStyle(fontSize: 14, color: Colors.black),
                           ),
                         ),
                       ],
@@ -373,11 +371,7 @@ class _BankPageState extends State<EditBank> {
                       ),
                     ],
 
-                    const Divider(
-                      color: Colors.grey,
-                      thickness: 2,
-                      height: 30,
-                    ),
+                    const Divider(color: Colors.grey, thickness: 2, height: 30),
 
                     const SizedBox(height: 30),
 
@@ -393,9 +387,7 @@ class _BankPageState extends State<EditBank> {
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(25),
                           ),
-                          padding: const EdgeInsets.symmetric(
-                            vertical: 16,
-                          ),
+                          padding: const EdgeInsets.symmetric(vertical: 16),
                         ),
                         onPressed: isSaving ? null : _saveBank,
                         child: isSaving
@@ -409,9 +401,7 @@ class _BankPageState extends State<EditBank> {
                               )
                             : const Text(
                                 "แก้ไขบัญชีธนาคาร",
-                                style: TextStyle(
-                                  fontSize: 16,
-                                ),
+                                style: TextStyle(fontSize: 16),
                               ),
                       ),
                     ),

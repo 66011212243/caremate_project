@@ -1,4 +1,6 @@
 import 'package:caremate_application/page/Changepassword.dart';
+import 'package:caremate_application/page/Review_history_provider.dart';
+import 'package:caremate_application/page/Review_history_service.dart';
 import 'package:caremate_application/page/Review_history.dart';
 import 'package:caremate_application/page/login.dart';
 import 'package:caremate_application/page/profile_service.dart';
@@ -8,6 +10,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 class SettingsService extends StatefulWidget {
   final String sid;
+  
 
   const SettingsService({super.key, this.sid = "naw5Oe3VyaVwj89isnzA"});
 
@@ -184,12 +187,12 @@ class _SettingsPageState extends State<SettingsService> {
             buildMenu(
               'ประวัติรีวิว',
               onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => const ReviewhistoryPage(),
-                  ),
-                );
+                // Navigator.push(
+                //   context,
+                //   MaterialPageRoute(
+                //     builder: (context) => const ReviewHistoryService(),
+                //   ),
+                // );
               },
             ),
             const Divider(color: Colors.grey, thickness: 1, height: 30),

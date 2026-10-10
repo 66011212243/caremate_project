@@ -6,7 +6,12 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 
 class BankPage extends StatefulWidget {
-  const BankPage({super.key});
+  final String pid;
+
+  const BankPage({
+    super.key,
+    required this.pid,
+  });
 
   @override
   State<BankPage> createState() => _BankPageState();
@@ -108,6 +113,7 @@ Future<void> _saveBank() async {
 
       //[จุดแก้ไขที่ 3]: บันทึกข้อมูลพร้อม URL ของรูปคิวอาร์โค้ดลง Firebase
       await FirebaseFirestore.instance.collection('bank').add({
+         'provider_id': widget.pid, 
         'account_name': accountName,
         'bank_name': bankName,
         'account_number': accountNumber,

@@ -188,12 +188,12 @@ class _SettingsPageState extends State<SettingsService > {
             buildMenu(
               'บัญชีธนาคาร',
               onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => const BankPage(),
-                  ),
-                );
+                // Navigator.push(
+                //   context,
+                //   MaterialPageRoute(
+                //     builder: (context) => const BankPage(),
+                //   ),
+                // );
               },
             ),
             const Divider(color: Colors.grey, thickness: 1, height: 30),
@@ -202,7 +202,7 @@ class _SettingsPageState extends State<SettingsService > {
               onTap: () {
                 Navigator.push(
                   context,
-                  MaterialPageRoute(builder: (context) =>  ChangepasswordPage(sid: widget.sid,)),
+                  MaterialPageRoute(builder: (context) =>  ChangepasswordPage(userId: widget.sid,)),
                 );
               },
             ),

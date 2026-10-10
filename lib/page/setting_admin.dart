@@ -2,14 +2,15 @@ import 'package:caremate_application/page/Bank.dart';
 import 'package:caremate_application/page/Changepassword.dart';
 import 'package:caremate_application/page/admin_price_page.dart';
 import 'package:caremate_application/page/document.dart';
+import 'package:caremate_application/page/driver_pending_approval_page.dart';
 import 'package:caremate_application/page/profile_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 class SettingAdmin extends StatefulWidget {
-  final String sid;
+  final String uid;
 
-  const SettingAdmin({super.key, this.sid = "9XfrEZu1OD6sqiAsjLBj"});
+  const SettingAdmin({super.key, this.uid = "8EyD1RZpK2OVKUViOxEObOurg8w2"});
 
   @override
   State<SettingAdmin> createState() => _SettingsPageState();
@@ -17,61 +18,46 @@ class SettingAdmin extends StatefulWidget {
 
 class _SettingsPageState extends State<SettingAdmin> {
   String realname = '';
-  String? profileImage;
+  String email = '';
   bool isLoading = true;
 
   @override
   void initState() {
     super.initState();
-    _fetchUserData(); // ดึงข้อมูลจาก Firebase มาใส่ Controller ตอนเปิดหน้า
+    _fetchAdminData(); // ดึงข้อมูลจาก Firebase มาใส่ Controller ตอนเปิดหน้า
   }
 
   // ดึงข้อมูลครั้งแรกจาก Firebase
-  Future<void> _fetchUserData() async {
-  try {
-    final userDoc = await FirebaseFirestore.instance
-        .collection('user')
-        .doc(widget.sid)
-        .get();
+  Future<void> _fetchAdminData() async {
+    try {
+      final userDoc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(widget.uid)
+          .get();
 
-    debugPrint('USER EXISTS: ${userDoc.exists}');
-    debugPrint('USER DATA: ${userDoc.data()}');
+      if (mounted) {
+        setState(() {
+          if (userDoc.exists && userDoc.data() != null) {
+            final userData = userDoc.data() as Map<String, dynamic>;
+            realname = userData['realname']?.toString() ?? 'ผู้ดูแลระบบ';
+            email = userData['email']?.toString() ?? 'ผู้ดูแลระบบ';
+            print(realname);
+            print(email);
+          }
+          isLoading = false;
+        });
+      }
+    } catch (e, stackTrace) {
+      debugPrint('ERROR: $e');
+      debugPrint('STACK: $stackTrace');
 
-    final serviceDoc = await FirebaseFirestore.instance
-        .collection('service')
-        .doc(widget.sid)
-        .get();
-
-    debugPrint('SERVICE EXISTS: ${serviceDoc.exists}');
-    debugPrint('SERVICE DATA: ${serviceDoc.data()}');
-
-    if (mounted) {
-      setState(() {
-        if (userDoc.exists && userDoc.data() != null) {
-          final userData = userDoc.data() as Map<String, dynamic>;
-          realname = userData['realname']?.toString() ?? '';
-        }
-
-        if (serviceDoc.exists && serviceDoc.data() != null) {
-          final serviceData =
-              serviceDoc.data() as Map<String, dynamic>;
-          profileImage = serviceData['profileImage']?.toString();
-        }
-
-        isLoading = false;
-      });
-    }
-  } catch (e, stackTrace) {
-    debugPrint(' ERROR: $e');
-    debugPrint(' STACK: $stackTrace');
-
-    if (mounted) {
-      setState(() {
-        isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          isLoading = false;
+        });
+      }
     }
   }
-}
 
   @override
   Widget build(BuildContext context) {
@@ -113,49 +99,31 @@ class _SettingsPageState extends State<SettingAdmin> {
                   children: [
                     CircleAvatar(
                       radius: 28,
-                      backgroundImage:
-                          profileImage != null && profileImage!.isNotEmpty
-                          ? NetworkImage(profileImage!)
-                          : null,
-                      child: profileImage == null || profileImage!.isEmpty
-                          ? const Icon(Icons.person)
-                          : null,
+                      child: const Icon(Icons.person, size: 28),
                     ),
-                    const SizedBox(width: 12),
                     Expanded(
                       child: isLoading
                           ? const Text('กำลังโหลด...')
-                          : Text(
-                              realname,
-                              style: const TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                              ),
+                          : Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  realname,
+                                  style: const TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  email,
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    color: Colors.grey[600],
+                                  ),
+                                ),
+                              ],
                             ),
-                    ),
-                    GestureDetector(
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => ProfileProvider(sid: widget.sid),
-                          ),
-                        );
-                      },
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 10,
-                          vertical: 6,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.redAccent,
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: const Text(
-                          'โปรไฟล์',
-                          style: TextStyle(color: Colors.white),
-                        ),
-                      ),
                     ),
                   ],
                 ),
@@ -164,21 +132,44 @@ class _SettingsPageState extends State<SettingAdmin> {
 
             const SizedBox(height: 20),
             buildMenu(
-              'อัตราค่าบริการ',
+              'คำร้อง',
               onTap: () {
                 Navigator.push(
                   context,
-                  MaterialPageRoute(builder: (context) => AdminPricePage()),
+                  MaterialPageRoute(builder: (context) => DriverPendingApprovalPage()),
                 );
               },
-            ),    
+            ),
+            const Divider(color: Colors.grey, thickness: 1, height: 30),
+            buildMenu(
+              'รายงานทั้งหมด',
+              onTap: () {
+                // Navigator.push(
+                //   context,
+                //   MaterialPageRoute(builder: (context) => AdminPricePage()),
+                // );
+              },
+            ),
+            const Divider(color: Colors.grey, thickness: 1, height: 30),
+            buildMenu(
+              'อัตราค่าบริการ',
+              onTap: () {
+                // Navigator.push(
+                //   context,
+                //   MaterialPageRoute(builder: (context) => AdminPricePage()),
+                // );
+              },
+            ),
             const Divider(color: Colors.grey, thickness: 1, height: 30),
             buildMenu(
               'เปลี่ยนรหัสผ่าน',
               onTap: () {
                 Navigator.push(
                   context,
-                  MaterialPageRoute(builder: (context) =>  ChangepasswordPage(sid: widget.sid,)),
+                  MaterialPageRoute(
+                    builder: (context) =>
+                        ChangepasswordPage(userId: widget.uid),
+                  ),
                 );
               },
             ),

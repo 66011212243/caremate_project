@@ -1,570 +1,784 @@
-import 'dart:developer';
-
-import 'package:caremate_application/page/register_provider.dart';
 import 'package:flutter/material.dart';
-import 'dart:io';
-import 'dart:convert';
-import 'package:image_picker/image_picker.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:bcrypt/bcrypt.dart';
-import 'package:http/http.dart' as http;
-//import 'package:firebase_storage/firebase_storage.dart';
 
 class ApproveProvider extends StatefulWidget {
-  final String username;
-  final String fullname;
-  final String email;
-  final String password;
+  final String pid;
 
   const ApproveProvider({
     super.key,
-    required this.username,
-    required this.fullname,
-    required this.email,
-    required this.password,
+    required this.pid,
   });
 
   @override
-  State<ApproveProvider> createState() => _DocumentPageState();
+  State<ApproveProvider> createState() => _ApproveProviderState();
 }
 
-class _DocumentPageState extends State<ApproveProvider> {
-  var db = FirebaseFirestore.instance;
-  int vehicleType = 1;
-  final _formKey = GlobalKey<FormState>();
-  final ImagePicker picker = ImagePicker();
+class _ApproveProviderState extends State<ApproveProvider> {
+  final FirebaseFirestore db = FirebaseFirestore.instance;
 
-  final plateCtl = TextEditingController();
+  bool isLoading = true;
+  bool isProcessing = false;
 
-  bool isLoading = false;
+  String? documentId;
+  String? userUid;
 
-  XFile? idCardImage;
-  XFile? licenseImage;
-  XFile? vehicleBookImage;
-  XFile? insuranceImage;
+  Map<String, dynamic>? documentData;
 
-  Future<void> takePhoto(String type) async {
-    final photo = await picker.pickImage(
-      source: ImageSource.camera,
-      imageQuality: 70,
-    );
+  @override
+  void initState() {
+    super.initState();
+    loadData();
+  }
 
-    if (photo != null) {
-      setState(() {
-        if (type == "idcard") {
-          idCardImage = photo;
-        } else if (type == "license") {
-          licenseImage = photo;
-        } else if (type == "vehicle") {
-          vehicleBookImage = photo;
-        } else if (type == "insurance") {
-          insuranceImage = photo;
+  
+  // โหลดข้อมูลเอกสาร
+ // โหลดข้อมูลเอกสาร
+  Future<void> loadData() async {
+    try {
+      debugPrint('================================');
+      debugPrint('PID ที่ได้รับจาก HomepageAdmin: ${widget.pid}');
+      debugPrint('================================');
+
+      if (widget.pid.trim().isEmpty) {
+        throw Exception('PID เป็นค่าว่าง');
+      }
+
+      final cleanPid = widget.pid.trim();
+
+      // 1. ค้นหา document ด้วย PID
+      final documentSnapshot = await db
+          .collection('document')
+          .where('pid', isEqualTo: cleanPid)
+          .limit(1)
+          .get();
+
+      debugPrint(
+        'จำนวน document ที่พบ: ${documentSnapshot.docs.length}',
+      );
+
+      if (documentSnapshot.docs.isEmpty) {
+        throw Exception(
+          'ไม่พบเอกสารของผู้ให้บริการ PID: $cleanPid',
+        );
+      }
+
+      final documentDoc = documentSnapshot.docs.first;
+      documentId = documentDoc.id;
+      documentData = documentDoc.data();
+
+      debugPrint('พบ Document ID = $documentId');
+
+      // ------------------------------------------------
+      // 2. หา UID ของ users จากการ Query ไปที่ provider ก่อน
+      // ------------------------------------------------
+
+      // ลองหาจาก provider_uid ในตาราง provider ด้วย PID
+      // (ถ้า pid คือ doc.id ของ provider ใช้แบบ ก., ถ้า pid เป็น field ใช้แบบ ข.)
+      
+      // แบบ ก: กรณี PID คือ Document ID ของคอลเลกชัน provider
+      final providerDoc = await db.collection('provider').doc(cleanPid).get();
+      
+      if (providerDoc.exists && providerDoc.data()?['provider_uid'] != null) {
+        userUid = providerDoc.data()!['provider_uid'].toString();
+      } else {
+        // แบบ ข: กรณี PID เป็น Field ข้างในคอลเลกชัน provider (สำรองไว้)
+        final providerSnapshot = await db
+            .collection('provider')
+            .where('pid', isEqualTo: cleanPid)
+            .limit(1)
+            .get();
+
+        if (providerSnapshot.docs.isNotEmpty) {
+          userUid = providerSnapshot.docs.first.data()['provider_uid']?.toString();
         }
+      }
+
+      debugPrint('UID ของ users ที่ได้จาก provider = $userUid');
+
+      if (userUid == null || userUid!.isEmpty) {
+        throw Exception('ไม่พบ UID ของผู้ใช้ที่ผูกกับ PID: $cleanPid ในคอลเลกชัน provider');
+      }
+
+      if (!mounted) return;
+
+      setState(() {
+        isLoading = false;
       });
+    } catch (e, stackTrace) {
+      debugPrint('loadData error: $e');
+      debugPrintStack(stackTrace: stackTrace);
+
+      if (!mounted) return;
+
+      setState(() {
+        isLoading = false;
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('เกิดข้อผิดพลาด: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
     }
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color.fromARGB(255, 255, 255, 255),
-      appBar: AppBar(
-        leading: const BackButton(color: Colors.white),
-        title: const Text(
-          "เอกสารที่เกี่ยวข้อง",
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+  // เปิดดูรูปจาก URL
+  void showImage(String imageUrl, String title) {
+    if (imageUrl.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('ไม่พบลิงก์รูปภาพ'),
         ),
-        backgroundColor: const Color.fromARGB(255, 255, 0, 0),
-      ),
+      );
+      return;
+    }
 
-      body: SingleChildScrollView(
-        child: Padding(
-          padding: const EdgeInsets.all(16),
+    showDialog(
+      context: context,
+      builder: (context) {
+        return Dialog(
+          backgroundColor: Colors.black,
+          insetPadding: const EdgeInsets.all(15),
           child: Column(
+            mainAxisSize: MainAxisSize.min,
             children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: GestureDetector(
-                      onTap: () {
-                        setState(() {
-                          vehicleType = 1; // 1 = Car
-                        });
-                      },
-                      child: Column(
-                        children: [
-                          Text(
-                            "Car",
+              // หัวข้อ
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(12),
+                color: Colors.white,
+                child: Text(
+                  title,
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+
+              // รูปภาพ
+              Flexible(
+                child: InteractiveViewer(
+                  minScale: 0.5,
+                  maxScale: 4.0,
+                  child: Image.network(
+                    imageUrl,
+                    fit: BoxFit.contain,
+                    loadingBuilder:
+                        (context, child, loadingProgress) {
+                      if (loadingProgress == null) {
+                        return child;
+                      }
+
+                      return const SizedBox(
+                        height: 400,
+                        child: Center(
+                          child: CircularProgressIndicator(
+                            color: Colors.white,
+                          ),
+                        ),
+                      );
+                    },
+                    errorBuilder: (context, error, stackTrace) {
+                      return const SizedBox(
+                        height: 400,
+                        child: Center(
+                          child: Text(
+                            'ไม่สามารถโหลดรูปภาพได้',
                             style: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                              color: vehicleType == 1
-                                  ? Colors.black
-                                  : Colors.grey,
+                              color: Colors.white,
+                              fontSize: 16,
                             ),
                           ),
-                          const SizedBox(height: 8),
-                          Container(
-                            height: 3,
-                            color: vehicleType == 1
-                                ? Colors.red
-                                : Colors.transparent,
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                  Expanded(
-                    child: GestureDetector(
-                      onTap: () {
-                        setState(() {
-                          vehicleType = 0; // 0 = Bike
-                        });
-                      },
-                      child: Column(
-                        children: [
-                          Text(
-                            "Bike",
-                            style: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                              color: vehicleType == 0
-                                  ? Colors.black
-                                  : Colors.grey,
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          Container(
-                            height: 3,
-                            color: vehicleType == 0
-                                ? Colors.red
-                                : Colors.transparent,
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 20),
-
-              const Divider(
-                color: Colors.grey,
-                thickness: 2, // ความหนา
-                height: 30,
-              ),
-
-              Row(
-                children: [
-                  const Text(
-                    "ทะเบียนรถ:",
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: TextFormField(
-                      controller: plateCtl,
-                      keyboardType: TextInputType.text,
-                      decoration: const InputDecoration(
-                        hintText: "ทะเบียนรถ",
-                        border: UnderlineInputBorder(),
-                      ),
-                    ),
-                    
-                  ),
-                ],
-              ),
-
-              const SizedBox(height: 20),
-
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Text(
-                    "รูปบัตรประชาชน:",
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                  ),
-                  ElevatedButton(
-                    onPressed: () {
-                      takePhoto("idcard");
-                    },
-                    child: const Text(
-                      "แนบไฟล์",
-                      style: TextStyle(fontSize: 16, color: Colors.black),
-                    ),
-                  ),
-                ],
-              ),
-
-              if (idCardImage != null)
-                GestureDetector(
-                  onTap: () {
-                    showDialog(
-                      context: context,
-                      builder: (_) =>
-                          Dialog(child: Image.file(File(idCardImage!.path))),
-                    );
-                  },
-                  child: Row(
-                    children: [
-                      const Icon(Icons.insert_drive_file, color: Colors.red),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          idCardImage!.name,
-                          overflow: TextOverflow.ellipsis,
-                          maxLines: 1,
                         ),
-                      ),
-                    ],
+                      );
+                    },
                   ),
                 ),
-
-              const Divider(
-                color: Colors.grey,
-                thickness: 2, // ความหนา
-                height: 30,
               ),
 
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Text(
-                    "รูปใบอนุญาตขับขี่:",
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                  ),
-                  ElevatedButton(
-                    onPressed: () {
-                      takePhoto("license");
-                    },
-                    child: const Text(
-                      "แนบไฟล์",
-                      style: TextStyle(fontSize: 16, color: Colors.black),
-                    ),
-                  ),
-                ],
-              ),
-
-              if (licenseImage != null)
-                GestureDetector(
-                  onTap: () {
-                    showDialog(
-                      context: context,
-                      builder: (_) =>
-                          Dialog(child: Image.file(File(licenseImage!.path))),
-                    );
+              // ปุ่มปิด
+              Container(
+                width: double.infinity,
+                color: Colors.white,
+                child: TextButton(
+                  onPressed: () {
+                    Navigator.pop(context);
                   },
-                  child: Row(
-                    children: [
-                      const Icon(Icons.insert_drive_file, color: Colors.red),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          licenseImage!.name,
-                          overflow: TextOverflow.ellipsis,
-                          maxLines: 1,
-                        ),
-                      ),
-                    ],
+                  child: const Text(
+                    'ปิด',
+                    style: TextStyle(
+                      fontSize: 16,
+                      color: Colors.red,
+                    ),
                   ),
                 ),
-
-              const Divider(
-                color: Colors.grey,
-                thickness: 2, // ความหนา
-                height: 30,
-              ),
-
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Text(
-                    "รูปเอกสารหน้าเล่ม:",
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                  ),
-                  ElevatedButton(
-                    onPressed: () {
-                      takePhoto("vehicle");
-                    },
-                    child: const Text(
-                      "แนบไฟล์",
-                      style: TextStyle(fontSize: 16, color: Colors.black),
-                    ),
-                  ),
-                ],
-              ),
-              if (vehicleBookImage != null)
-                GestureDetector(
-                  onTap: () {
-                    showDialog(
-                      context: context,
-                      builder: (_) => Dialog(
-                        child: Image.file(File(vehicleBookImage!.path)),
-                      ),
-                    );
-                  },
-                  child: Row(
-                    children: [
-                      const Icon(Icons.insert_drive_file, color: Colors.red),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          vehicleBookImage!.name,
-                          overflow: TextOverflow.ellipsis,
-                          maxLines: 1,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-
-              const Divider(
-                color: Colors.grey,
-                thickness: 2, // ความหนา
-                height: 30,
-              ),
-
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Text(
-                    "รูปพรบ.รถ:",
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                  ),
-                  ElevatedButton(
-                    onPressed: () {
-                      takePhoto("insurance");
-                    },
-                    child: const Text(
-                      "แนบไฟล์",
-                      style: TextStyle(fontSize: 16, color: Colors.black),
-                    ),
-                  ),
-                ],
-              ),
-              if (insuranceImage != null)
-                GestureDetector(
-                  onTap: () {
-                    showDialog(
-                      context: context,
-                      builder: (_) =>
-                          Dialog(child: Image.file(File(insuranceImage!.path))),
-                    );
-                  },
-                  child: Row(
-                    children: [
-                      const Icon(Icons.insert_drive_file, color: Colors.red),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          insuranceImage!.name,
-                          overflow: TextOverflow.ellipsis,
-                          maxLines: 1,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-
-              const Divider(
-                color: Colors.grey,
-                thickness: 2, // ความหนา
-                height: 30,
-              ),
-
-              const SizedBox(height: 50),
-
-              Row(
-                children: [
-                  // ปุ่มที่ 1 (บันทึก)
-                  Expanded(
-                    child: ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color.fromARGB(255, 38, 255, 42),
-                        foregroundColor: const Color.fromARGB(
-                          255,
-                          255,
-                          255,
-                          255,
-                        ),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(25),
-                        ),
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                      ),
-                      onPressed: () {
-                        saveProvider();
-                      },
-                      child: const Text("อนุมัติ"),
-                    ),
-                  ),
-
-                  // ระยะห่างระหว่างปุ่ม
-                  const SizedBox(width: 16),
-
-                  // ปุ่มที่ 2 (ยกเลิก หรือ ปุ่มอื่น)
-                  Expanded(
-                    child: ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color.fromARGB(255, 255, 0, 0),
-                        foregroundColor: const Color.fromARGB(
-                          255,
-                          255,
-                          255,
-                          255,
-                        ),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(25),
-                        ),
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                      ),
-                      onPressed: () {
-                        saveProvider();
-                      },
-                      child: const Text("ปฏิเสธ"),
-                    ),
-                  ),
-                ],
               ),
             ],
           ),
+        );
+      },
+    );
+  }
+
+  // รายการเอกสาร กดเพื่อดูรูป
+  Widget documentImageButton({
+    required String title,
+    required String? imageUrl,
+  }) {
+    final url = imageUrl?.trim() ?? '';
+
+    return Card(
+      margin: const EdgeInsets.only(bottom: 10),
+      child: ListTile(
+        leading: const CircleAvatar(
+          child: Icon(Icons.image),
         ),
+        title: Text(
+          title,
+          style: const TextStyle(
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        subtitle: Text(
+          url.isEmpty
+              ? 'ไม่มีรูปภาพ'
+              : 'กดเพื่อดูรูปภาพ',
+        ),
+        trailing: url.isEmpty
+            ? const Icon(
+                Icons.image_not_supported,
+                color: Colors.grey,
+              )
+            : const Icon(
+                Icons.visibility,
+                color: Colors.blue,
+              ),
+        onTap: url.isEmpty
+            ? null
+            : () {
+                showImage(url, title);
+              },
       ),
     );
   }
 
-  // Future<String> _uploadToStorage(String folder, XFile file) async {
-  //   try {
-  //     final String fileName =
-  //         "${folder}_${DateTime.now().millisecondsSinceEpoch}.jpg";
-  //     final Reference ref = FirebaseStorage.instance.ref().child(
-  //       'documents/$fileName',
-  //     );
+  // อนุมัติ
+  Future<void> approveProvider() async {
+    if (isProcessing) return;
 
-  //     // เริ่มการอัปโหลด
-  //     UploadTask uploadTask = ref.putFile(File(file.path));
-
-  //     // รอจนกว่าจะอัปโหลดเสร็จสมบูรณ์ 100%
-  //     TaskSnapshot snapshot = await uploadTask;
-
-  //     // คืนค่า URL หลังจากที่ไฟล์ถูกเขียนลง Storage เรียบร้อยแล้ว
-  //     return await snapshot.ref.getDownloadURL();
-  //   } catch (e) {
-  //     throw 'ไม่สามารถอัปโหลด $folder ได้: $e';
-  //   }
-  // }
-
-  Future<void> saveProvider() async {
-    // ป้องกันการกดซ้ำ
-    if (isLoading) return;
-
-    // ตรวจสอบข้อมูลก่อนเริ่มทำงาน
-    if (idCardImage == null ||
-        licenseImage == null ||
-        vehicleBookImage == null ||
-        insuranceImage == null ||
-        plateCtl.text.isEmpty) {
+    if (documentId == null || userUid == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("กรุณากรอกข้อมูลและแนบเอกสารให้ครบ")),
+        const SnackBar(
+          content: Text('ไม่พบข้อมูลสำหรับอนุมัติ'),
+          backgroundColor: Colors.red,
+        ),
       );
       return;
     }
 
     setState(() {
-      isLoading = true; // เริ่มแสดง Loading
+      isProcessing = true;
     });
 
     try {
-      // 2. ทยอยอัปโหลดทีละไฟล์และเก็บ URL
-      // วิธีนี้จะช่วยให้แน่ใจว่าไฟล์ถูกอัปโหลดเสร็จก่อนไปทำขั้นตอนถัดไป
-      String? idCardUrl = await uploadToCloudinary(File(idCardImage!.path));
-      String? licenseUrl = await uploadToCloudinary(File(licenseImage!.path));
-      String? vehicleUrl = await uploadToCloudinary(
-        File(vehicleBookImage!.path),
-      );
-      String? insuranceUrl = await uploadToCloudinary(
-        File(insuranceImage!.path),
-      );
+      // users
+      await db.collection('users').doc(userUid).update({
+        'status_account': 1,
+      });
 
-      // 3. เข้ารหัส Password
-      final hashedPassword = BCrypt.hashpw(widget.password, BCrypt.gensalt());
-
-      var docRef = db.collection('provider').doc();
-      var dataprovider = {
-        'providername': widget.username,
-        'realname': widget.fullname,
-        'email': widget.email,
-        'password': hashedPassword,
-        'verification_status': 0,
-        'rating_avg': 0.0,
-      };
-      await docRef.set(dataprovider);
-      log("dataprovider data added with ID: ${docRef.id}");
-
-      var docPro = db.collection('document').doc();
-      var datadocprovider = {
-        'pid': docRef.id,
-        'vehicle_type': vehicleType,
-        'vehicle_Registration': plateCtl.text,
-        'IdCard': idCardUrl,
-        'drivinglicense': licenseUrl,
-        'vehicle_reg_book': vehicleUrl,
-        'vehicle_insurance_file': insuranceUrl,
-      };
-      await docPro.set(datadocprovider);
-      log("datadocprovider data added with ID: ${docPro.id}");
+      // document
+      await db.collection('document').doc(documentId).update({
+        'status_doc': 1,
+        'reject_reason': null,
+      });
 
       if (!mounted) return;
 
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text("สมัครสมาชิกสำเร็จ")));
-
-      // ย้ายไปหน้า Login
-      Navigator.pushAndRemoveUntil(
-        context,
-        MaterialPageRoute(builder: (context) => RegisterProvider()),
-        (route) => false, // ล้าง Stack หน้าเดิมทิ้งทั้งหมด
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('อนุมัติผู้ให้บริการเรียบร้อยแล้ว'),
+          backgroundColor: Colors.green,
+        ),
       );
+
+      Navigator.pop(context);
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text("เกิดข้อผิดพลาด: $e")));
-    } finally {
-      if (mounted) {
-        setState(() {
-          isLoading = false; // ปิด Loading ไม่ว่าจะสำเร็จหรือไม่ก็ตาม
-        });
-      }
+
+      setState(() {
+        isProcessing = false;
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('อนุมัติไม่สำเร็จ: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
     }
   }
 
-  Future<String?> uploadToCloudinary(File imageFile) async {
-    try {
-      const cloudName = "dsz1hhnx4"; // Cloud name ของคุณ
-      const uploadPreset = "flutter_upload"; // ชื่อ preset ที่ตั้งใน Cloudinary
+  // ปฏิเสธ
+  Future<void> rejectProvider() async {
+    if (isProcessing) return;
 
-      final url = Uri.parse(
-        "https://api.cloudinary.com/v1_1/$cloudName/image/upload",
+    final reasonController = TextEditingController();
+
+    final reason = await showDialog<String>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('ปฏิเสธเอกสาร'),
+          content: TextField(
+            controller: reasonController,
+            maxLines: 4,
+            decoration: const InputDecoration(
+              labelText: 'เหตุผลที่ปฏิเสธ',
+              hintText: 'กรุณาระบุเหตุผล',
+              border: OutlineInputBorder(),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.pop(context);
+              },
+              child: const Text('ยกเลิก'),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red,
+              ),
+              onPressed: () {
+                final reason = reasonController.text.trim();
+
+                if (reason.isEmpty) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('กรุณาระบุเหตุผล'),
+                    ),
+                  );
+                  return;
+                }
+
+                Navigator.pop(context, reason);
+              },
+              child: const Text(
+                'ปฏิเสธ',
+                style: TextStyle(color: Colors.white),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+
+    reasonController.dispose();
+
+    if (reason == null || reason.trim().isEmpty) {
+      return;
+    }
+
+    if (documentId == null || userUid == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('ไม่พบข้อมูลสำหรับปฏิเสธ'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    setState(() {
+      isProcessing = true;
+    });
+
+    try {
+      // users
+      await db.collection('users').doc(userUid).update({
+        'status_account': 3,
+      });
+
+      // document
+      await db.collection('document').doc(documentId).update({
+        'status_doc': 2,
+        'reject_reason': reason.trim(),
+      });
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('ปฏิเสธเอกสารเรียบร้อยแล้ว'),
+          backgroundColor: Colors.orange,
+        ),
       );
 
-      var request = http.MultipartRequest("POST", url)
-        ..fields['upload_preset'] = uploadPreset
-        ..files.add(await http.MultipartFile.fromPath('file', imageFile.path));
-
-      var response = await request.send();
-      if (response.statusCode == 200) {
-        var responseData = await response.stream.bytesToString();
-        var jsonData = jsonDecode(responseData);
-        return jsonData['secure_url']; // ✅ ได้ URL กลับมา
-      } else {
-        print("Upload failed with status: ${response.statusCode}");
-        return null;
-      }
+      Navigator.pop(context);
     } catch (e) {
-      print("Upload error: $e");
-      return null;
+      if (!mounted) return;
+
+      setState(() {
+        isProcessing = false;
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('ปฏิเสธไม่สำเร็จ: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
     }
+  }
+
+  // แสดงหน้า
+  @override
+  Widget build(BuildContext context) {
+    if (isLoading) {
+      return Scaffold(
+        appBar: AppBar(
+          backgroundColor: Colors.red,
+          title: const Text(
+            'ตรวจสอบเอกสาร',
+            style: TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          iconTheme: const IconThemeData(
+            color: Colors.white,
+          ),
+        ),
+        body: const Center(
+          child: CircularProgressIndicator(),
+        ),
+      );
+    }
+
+    if (documentData == null) {
+      return Scaffold(
+        appBar: AppBar(
+          backgroundColor: Colors.red,
+          title: const Text(
+            'ตรวจสอบเอกสาร',
+            style: TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          iconTheme: const IconThemeData(
+            color: Colors.white,
+          ),
+        ),
+        body: const Center(
+          child: Text(
+            'ไม่พบข้อมูลเอกสาร',
+            style: TextStyle(fontSize: 18),
+          ),
+        ),
+      );
+    }
+
+    // ดึงข้อมูลจาก Firestore
+
+    final vehicleType = documentData!['vehicle_type'];
+    final vehicleRegistration =
+        documentData!['vehicle_Registration']?.toString() ?? '';
+
+    final idCard =
+        documentData!['IdCard']?.toString() ?? '';
+
+    final drivingLicense =
+        documentData!['drivinglicense']?.toString() ?? '';
+
+    final vehicleRegBook =
+        documentData!['vehicle_reg_book']?.toString() ?? '';
+
+    final vehicleInsurance =
+        documentData!['vehicle_insurance_file']?.toString() ?? '';
+
+    final statusDoc = documentData!['status_doc'] ?? 0;
+
+    final rejectReason =
+        documentData!['reject_reason']?.toString() ?? '';
+
+    String vehicleText;
+
+    if (vehicleType.toString() == '1') {
+      vehicleText = 'รถยนต์';
+    } else if (vehicleType.toString() == '0') {
+      vehicleText = 'รถจักรยานยนต์';
+    } else {
+      vehicleText = vehicleType?.toString() ?? '-';
+    }
+
+    return Scaffold(
+      backgroundColor: Colors.white,
+
+      appBar: AppBar(
+        leading: const BackButton(
+          color: Colors.white,
+        ),
+        title: const Text(
+          'ตรวจสอบเอกสารผู้ให้บริการ',
+          style: TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        backgroundColor: Colors.red,
+      ),
+
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(16),
+
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+
+            // ข้อมูลรถ
+
+            const Text(
+              'ข้อมูลยานพาหนะ',
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+
+            const SizedBox(height: 15),
+
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+
+                    Row(
+                      children: [
+                        const Text(
+                          'ประเภทรถ: ',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        Text(vehicleText),
+                      ],
+                    ),
+
+                    const SizedBox(height: 12),
+
+                    Row(
+                      children: [
+                        const Text(
+                          'ทะเบียนรถ: ',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        Expanded(
+                          child: Text(
+                            vehicleRegistration.isEmpty
+                                ? '-'
+                                : vehicleRegistration,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
+            const SizedBox(height: 25),
+
+            // เอกสาร
+
+            const Text(
+              'เอกสารที่เกี่ยวข้อง',
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+
+            const SizedBox(height: 15),
+
+            documentImageButton(
+              title: 'บัตรประชาชน',
+              imageUrl: idCard,
+            ),
+
+            documentImageButton(
+              title: 'ใบขับขี่',
+              imageUrl: drivingLicense,
+            ),
+
+            documentImageButton(
+              title: 'เล่มทะเบียนรถ',
+              imageUrl: vehicleRegBook,
+            ),
+
+            documentImageButton(
+              title: 'ประกันภัยรถ',
+              imageUrl: vehicleInsurance,
+            ),
+
+            const SizedBox(height: 20),
+
+            // สถานะ
+
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Row(
+                  children: [
+                    const Text(
+                      'สถานะเอกสาร: ',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+
+                    const SizedBox(width: 10),
+
+                    if (statusDoc == 0)
+                      const Text(
+                        'รอตรวจสอบ',
+                        style: TextStyle(
+                          color: Colors.orange,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+
+                    if (statusDoc == 1)
+                      const Text(
+                        'อนุมัติแล้ว',
+                        style: TextStyle(
+                          color: Colors.green,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+
+                    if (statusDoc == 2)
+                      const Text(
+                        'ไม่อนุมัติ',
+                        style: TextStyle(
+                          color: Colors.red,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            ),
+
+            // เหตุผลที่ปฏิเสธ
+
+            if (statusDoc == 2 &&
+                rejectReason.isNotEmpty) ...[
+              const SizedBox(height: 15),
+
+              Card(
+                color: Colors.red.shade50,
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment:
+                        CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'เหตุผลที่ปฏิเสธ',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: Colors.red,
+                        ),
+                      ),
+
+                      const SizedBox(height: 8),
+
+                      Text(rejectReason),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+
+            const SizedBox(height: 30),
+
+            // ปุ่มอนุมัติ / ปฏิเสธ
+
+            if (statusDoc == 0)
+              Row(
+                children: [
+
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed:
+                          isProcessing
+                              ? null
+                              : rejectProvider,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.red,
+                        padding:
+                            const EdgeInsets.symmetric(
+                          vertical: 15,
+                        ),
+                      ),
+                      child: const Text(
+                        'ปฏิเสธ',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ),
+
+                  const SizedBox(width: 12),
+
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed:
+                          isProcessing
+                              ? null
+                              : approveProvider,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.green,
+                        padding:
+                            const EdgeInsets.symmetric(
+                          vertical: 15,
+                        ),
+                      ),
+                      child: isProcessing
+                          ? const SizedBox(
+                              height: 20,
+                              width: 20,
+                              child:
+                                  CircularProgressIndicator(
+                                color: Colors.white,
+                                strokeWidth: 2,
+                              ),
+                            )
+                          : const Text(
+                              'อนุมัติ',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                    ),
+                  ),
+                ],
+              ),
+          ],
+        ),
+      ),
+    );
   }
 }

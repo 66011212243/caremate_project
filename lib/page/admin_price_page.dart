@@ -1,4 +1,6 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 class AdminPricePage extends StatefulWidget {
   const AdminPricePage({super.key});
@@ -8,374 +10,514 @@ class AdminPricePage extends StatefulWidget {
 }
 
 class _AdminPricePageState extends State<AdminPricePage> {
+  final FirebaseFirestore db = FirebaseFirestore.instance;
 
-  double hourlyPrice = 60;
-  double distancePrice = 10;
+  // ราคาปัจจุบัน
+  int hourlyPrice = 0;
+  int bikePrice = 0;
+  int carPrice = 0;
 
+  // Controller
+  final TextEditingController hourlyController = TextEditingController();
+  final TextEditingController bikeController = TextEditingController();
+  final TextEditingController carController = TextEditingController();
 
-  final TextEditingController hourlyController =
-      TextEditingController(text: '60');
+  // ID ของ document ใน service_rates
+  String? rateDocumentId;
 
-  final TextEditingController distanceController =
-      TextEditingController(text: '10');
+  bool isLoading = true;
+  bool isSaving = false;
+
+  @override
+  void initState() {
+    super.initState();
+    loadPrices();
+  }
 
   @override
   void dispose() {
     hourlyController.dispose();
-    distanceController.dispose();
+    bikeController.dispose();
+    carController.dispose();
     super.dispose();
   }
 
+  // ============================================================
+  // โหลดราคาจาก Firestore
+  // ============================================================
+  Future<void> loadPrices() async {
+    try {
+      debugPrint('================================');
+      debugPrint('เริ่มโหลดข้อมูล service_rates');
+      debugPrint('================================');
 
-  void savePrice() {
-    final double? newHourlyPrice =
-        double.tryParse(hourlyController.text.trim());
+      if (mounted) {
+        setState(() {
+          isLoading = true;
+        });
+      }
 
-    final double? newDistancePrice =
-        double.tryParse(distanceController.text.trim());
+      debugPrint('กำลังอ่าน Firestore...');
 
-    if (newHourlyPrice == null || newHourlyPrice <= 0) {
-      showMessage('กรุณากรอกค่าบริการรายชั่วโมงให้ถูกต้อง');
+      final snapshot = await db
+          .collection('service_rates')
+          .limit(1)
+          .get()
+          .timeout(
+            const Duration(seconds: 10),
+          );
+
+      debugPrint(
+        'อ่าน Firestore สำเร็จ จำนวนข้อมูล = ${snapshot.docs.length}',
+      );
+
+      // ----------------------------------------------------------
+      // กรณียังไม่มีข้อมูล
+      // ----------------------------------------------------------
+      if (snapshot.docs.isEmpty) {
+        debugPrint('ยังไม่มีข้อมูลใน service_rates');
+
+        rateDocumentId = null;
+
+        hourlyPrice = 0;
+        bikePrice = 0;
+        carPrice = 0;
+
+        // ไม่กำหนด 60
+        hourlyController.clear();
+        bikeController.clear();
+        carController.clear();
+      }
+
+      else {
+        final doc = snapshot.docs.first;
+
+        rateDocumentId = doc.id;
+
+        final data = doc.data();
+
+        debugPrint('Document ID = ${doc.id}');
+        debugPrint('ข้อมูล = $data');
+
+        hourlyPrice = _toInt(data['price_per_hour']);
+        bikePrice = _toInt(data['price_km_bike']);
+        carPrice = _toInt(data['price_km_car']);
+
+        hourlyController.text = _formatNumber(hourlyPrice);
+        bikeController.text = _formatNumber(bikePrice);
+        carController.text = _formatNumber(carPrice);
+
+        debugPrint('ราคาต่อชั่วโมง = $hourlyPrice');
+        debugPrint('มอเตอร์ไซค์/กม. = $bikePrice');
+        debugPrint('รถยนต์/กม. = $carPrice');
+      }
+
+      if (!mounted) return;
+
+      setState(() {
+        isLoading = false;
+      });
+
+      debugPrint('โหลดข้อมูลเสร็จแล้ว');
+    } catch (e, stackTrace) {
+      debugPrint('================================');
+      debugPrint('ERROR loadPrices');
+      debugPrint('================================');
+      debugPrint('Error: $e');
+      debugPrint('StackTrace: $stackTrace');
+
+      if (!mounted) return;
+
+      setState(() {
+        isLoading = false;
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'ไม่สามารถโหลดข้อมูลราคาได้\n$e',
+          ),
+          backgroundColor: Colors.red,
+          duration: const Duration(seconds: 4),
+        ),
+      );
+    }
+  }
+
+  // ============================================================
+  // แปลงข้อมูลจาก Firestore เป็น int
+  // ============================================================
+  int _toInt(dynamic value) {
+    if (value == null) {
+      return 0;
+    }
+
+    if (value is int) {
+      return value;
+    }
+
+    if (value is double) {
+      return value.toInt();
+    }
+
+    return int.tryParse(value.toString()) ?? 0;
+  }
+
+  // ============================================================
+  // แสดงตัวเลขโดยไม่มีทศนิยม
+  // ============================================================
+  String _formatNumber(int value) {
+    return value.toString();
+  }
+
+  // ============================================================
+  // บันทึกราคา
+  // ============================================================
+  Future<void> savePrice() async {
+    if (isSaving) return;
+
+    // ----------------------------------------------------------
+    // อ่านค่าจากช่องกรอก
+    // ----------------------------------------------------------
+    final int? newHourlyPrice =
+        int.tryParse(hourlyController.text.trim());
+
+    final int? newBikePrice =
+        int.tryParse(bikeController.text.trim());
+
+    final int? newCarPrice =
+        int.tryParse(carController.text.trim());
+
+    // ----------------------------------------------------------
+    // ตรวจสอบราคาต่อชั่วโมง
+    // ----------------------------------------------------------
+    if (newHourlyPrice == null || newHourlyPrice < 0) {
+      _showMessage(
+        'กรุณากรอกราคาต่อชั่วโมงเป็นจำนวนเต็ม',
+        isError: true,
+      );
       return;
     }
 
-    if (newDistancePrice == null || newDistancePrice <= 0) {
-      showMessage('กรุณากรอกค่าบริการตามระยะทางให้ถูกต้อง');
+    // ----------------------------------------------------------
+    // ตรวจสอบราคามอเตอร์ไซค์
+    // ----------------------------------------------------------
+    if (newBikePrice == null || newBikePrice < 0) {
+      _showMessage(
+        'กรุณากรอกราคามอเตอร์ไซค์ต่อกิโลเมตรเป็นจำนวนเต็ม',
+        isError: true,
+      );
       return;
     }
 
-    setState(() {
+    // ----------------------------------------------------------
+    // ตรวจสอบราคารถยนต์
+    // ----------------------------------------------------------
+    if (newCarPrice == null || newCarPrice < 0) {
+      _showMessage(
+        'กรุณากรอกราคารถยนต์ต่อกิโลเมตรเป็นจำนวนเต็ม',
+        isError: true,
+      );
+      return;
+    }
+
+    try {
+      setState(() {
+        isSaving = true;
+      });
+
+      // --------------------------------------------------------
+      // ข้อมูลที่จะบันทึก
+      // --------------------------------------------------------
+      final Map<String, dynamic> data = {
+        'price_per_hour': newHourlyPrice,
+        'price_km_bike': newBikePrice,
+        'price_km_car': newCarPrice,
+      };
+
+      debugPrint('================================');
+      debugPrint('กำลังบันทึกราคา');
+      debugPrint('================================');
+      debugPrint('ข้อมูลที่จะบันทึก = $data');
+
+      // --------------------------------------------------------
+      // ถ้ามี document อยู่แล้ว → update
+      // --------------------------------------------------------
+      if (rateDocumentId != null) {
+        debugPrint(
+          'กำลัง UPDATE document = $rateDocumentId',
+        );
+
+        await db
+            .collection('service_rates')
+            .doc(rateDocumentId)
+            .update(data);
+      }
+
+      // --------------------------------------------------------
+      // ถ้ายังไม่มี document → สร้างใหม่
+      // --------------------------------------------------------
+      else {
+        debugPrint('ยังไม่มี document → กำลังสร้างใหม่');
+
+        final docRef = await db
+            .collection('service_rates')
+            .add(data);
+
+        rateDocumentId = docRef.id;
+
+        debugPrint(
+          'สร้าง document สำเร็จ ID = ${docRef.id}',
+        );
+      }
+
+      // --------------------------------------------------------
+      // อัปเดตค่าบนหน้า UI
+      // --------------------------------------------------------
       hourlyPrice = newHourlyPrice;
-      distancePrice = newDistancePrice;
-    });
+      bikePrice = newBikePrice;
+      carPrice = newCarPrice;
 
-    showMessage('บันทึกอัตราค่าบริการเรียบร้อยแล้ว');
+      if (!mounted) return;
+
+      setState(() {
+        isSaving = false;
+      });
+
+      _showMessage(
+        'บันทึกราคาเรียบร้อยแล้ว',
+        isError: false,
+      );
+    } catch (e, stackTrace) {
+      debugPrint('================================');
+      debugPrint('ERROR savePrice');
+      debugPrint('================================');
+      debugPrint('Error: $e');
+      debugPrint('StackTrace: $stackTrace');
+
+      if (!mounted) return;
+
+      setState(() {
+        isSaving = false;
+      });
+
+      _showMessage(
+        'ไม่สามารถบันทึกราคาได้\n$e',
+        isError: true,
+      );
+    }
   }
 
+  // ============================================================
+  // ยกเลิกการแก้ไข
+  // ============================================================
   void cancelEdit() {
-    setState(() {
-      hourlyController.text = hourlyPrice.toStringAsFixed(0);
-      distanceController.text = distancePrice.toStringAsFixed(0);
-    });
+    hourlyController.text = _formatNumber(hourlyPrice);
+    bikeController.text = _formatNumber(bikePrice);
+    carController.text = _formatNumber(carPrice);
+
+    _showMessage(
+      'ยกเลิกการแก้ไขแล้ว',
+      isError: false,
+    );
   }
 
-  void showMessage(String message) {
+  // ============================================================
+  // แสดงข้อความ
+  // ============================================================
+  void _showMessage(
+    String message, {
+    required bool isError,
+  }) {
+    if (!mounted) return;
+
+    ScaffoldMessenger.of(context).hideCurrentSnackBar();
+
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(message),
+        backgroundColor: isError ? Colors.red : Colors.green,
       ),
     );
   }
 
+  // ============================================================
+  // ช่องกรอกราคา
+  // ============================================================
+  Widget priceTextField({
+    required String label,
+    required String unit,
+    required TextEditingController controller,
+  }) {
+    return TextField(
+      controller: controller,
+
+      // รับเฉพาะตัวเลข
+      keyboardType: TextInputType.number,
+
+      // ไม่ให้กรอก . หรือ , หรืออักษร
+      inputFormatters: [
+        FilteringTextInputFormatter.digitsOnly,
+      ],
+
+      decoration: InputDecoration(
+        labelText: label,
+        suffixText: unit,
+        border: const OutlineInputBorder(),
+      ),
+    );
+  }
+
+  // ============================================================
+  // UI
+  // ============================================================
   @override
   Widget build(BuildContext context) {
-
-
-    // 3 ชั่วโมง
-    const double exampleHours = 3;
-
-    // 10 กิโลเมตร
-    const double exampleDistance = 10;
-
-    final double hourlyTotal =
-        hourlyPrice * exampleHours;
-
-    final double distanceTotal =
-        distancePrice * exampleDistance;
-
     return Scaffold(
-      backgroundColor: Colors.white,
-
-      // =========================
-      // APP BAR
-      // =========================
       appBar: AppBar(
-        backgroundColor: Colors.red,
-        toolbarHeight: 80,
-
-        leading: IconButton(
-          icon: const Icon(
-            Icons.arrow_back,
-            color: Colors.white,
-          ),
-          onPressed: () {
-            Navigator.pop(context);
-          },
-        ),
-
         title: const Text(
           'จัดการอัตราค่าบริการ',
-          style: TextStyle(
-            color: Colors.white,
-            fontSize: 21,
-            fontWeight: FontWeight.bold,
-          ),
         ),
+        backgroundColor: Colors.red,
+        foregroundColor: Colors.white,
       ),
 
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20),
-
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-
-            const Text(
-              'อัตราค่าบริการรายชั่วโมง',
-              style: TextStyle(
-                fontSize: 21,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-
-            const SizedBox(height: 10),
-
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(18),
-
-              decoration: BoxDecoration(
-                color: Colors.grey.shade100,
-                borderRadius: BorderRadius.circular(15),
-              ),
-
-              child: Row(
+      body: isLoading
+          ? const Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-
-                  const Icon(
-                    Icons.access_time,
-                    color: Colors.red,
-                    size: 38,
-                  ),
-
-                  const SizedBox(width: 15),
-
-                  const Expanded(
-                    child: Text(
-                      'ราคาปัจจุบัน\nต่อชั่วโมง',
-                      style: TextStyle(
-                        fontSize: 15,
-                        height: 1.5,
-                      ),
-                    ),
-                  ),
-
+                  CircularProgressIndicator(),
+                  SizedBox(height: 16),
                   Text(
-                    '${hourlyPrice.toStringAsFixed(0)} บาท',
-                    style: const TextStyle(
-                      color: Colors.red,
-                      fontSize: 23,
-                      fontWeight: FontWeight.bold,
+                    'กำลังโหลดข้อมูลราคา...',
+                    style: TextStyle(
+                      fontSize: 16,
                     ),
                   ),
                 ],
               ),
-            ),
-
-            const SizedBox(height: 15),
-
-            const Text(
-              'แก้ไขอัตราค่าบริการรายชั่วโมง',
-              style: TextStyle(
-                fontSize: 15,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-
-            const SizedBox(height: 8),
-
-            TextField(
-              controller: hourlyController,
-              keyboardType: const TextInputType.numberWithOptions(
-                decimal: true,
-              ),
-              decoration: InputDecoration(
-                prefixIcon: const Icon(
-                  Icons.monetization_on_outlined,
-                  color: Colors.grey,
-                ),
-                suffixText: 'บาท/ชั่วโมง',
-                hintText: 'กรอกราคา',
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: const BorderSide(
-                    color: Colors.red,
-                    width: 2,
-                  ),
-                ),
-              ),
-              onChanged: (value) {
-                setState(() {});
-              },
-            ),
-
-            const SizedBox(height: 35),
-
-            const Text(
-              'อัตราค่าบริการตามระยะทาง',
-              style: TextStyle(
-                fontSize: 21,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-
-            const SizedBox(height: 10),
-
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(18),
-
-              decoration: BoxDecoration(
-                color: Colors.grey.shade100,
-                borderRadius: BorderRadius.circular(15),
-              ),
-
-              child: Row(
+            )
+          : SingleChildScrollView(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-
-                  const Icon(
-                    Icons.location_on_outlined,
-                    color: Colors.red,
-                    size: 38,
-                  ),
-
-                  const SizedBox(width: 15),
-
-                  const Expanded(
-                    child: Text(
-                      'ราคาปัจจุบัน\nตามระยะทาง',
-                      style: TextStyle(
-                        fontSize: 15,
-                        height: 1.5,
-                      ),
-                    ),
-                  ),
-
-                  Text(
-                    '${distancePrice.toStringAsFixed(0)} บาท',
-                    style: const TextStyle(
-                      color: Colors.red,
-                      fontSize: 23,
+                  // ------------------------------------------------
+                  // หัวข้อ
+                  // ------------------------------------------------
+                  const Text(
+                    'อัตราค่าบริการ',
+                    style: TextStyle(
+                      fontSize: 22,
                       fontWeight: FontWeight.bold,
                     ),
+                  ),
+
+                  const SizedBox(height: 8),
+
+                  const Text(
+                    'ผู้ดูแลระบบสามารถกำหนดและแก้ไขอัตราค่าบริการได้',
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: Colors.grey,
+                    ),
+                  ),
+
+                  const SizedBox(height: 25),
+
+                  // ------------------------------------------------
+                  // ราคาต่อชั่วโมง
+                  // ------------------------------------------------
+                  priceTextField(
+                    label: 'ราคาต่อชั่วโมง',
+                    unit: 'บาท/ชั่วโมง',
+                    controller: hourlyController,
+                  ),
+
+                  const SizedBox(height: 20),
+
+                  // ------------------------------------------------
+                  // มอเตอร์ไซค์
+                  // ------------------------------------------------
+                  priceTextField(
+                    label: 'รถมอเตอร์ไซค์',
+                    unit: 'บาท/กม.',
+                    controller: bikeController,
+                  ),
+
+                  const SizedBox(height: 20),
+
+                  // ------------------------------------------------
+                  // รถยนต์
+                  // ------------------------------------------------
+                  priceTextField(
+                    label: 'รถยนต์',
+                    unit: 'บาท/กม.',
+                    controller: carController,
+                  ),
+
+                  const SizedBox(height: 30),
+
+                  // ------------------------------------------------
+                  // ปุ่ม
+                  // ------------------------------------------------
+                  Row(
+                    children: [
+                      // ปุ่มยกเลิก
+                      Expanded(
+                        child: OutlinedButton(
+                          onPressed: isSaving
+                              ? null
+                              : cancelEdit,
+                          style: OutlinedButton.styleFrom(
+                            minimumSize: const Size(
+                              double.infinity,
+                              50,
+                            ),
+                          ),
+                          child: const Text(
+                            'ยกเลิก',
+                          ),
+                        ),
+                      ),
+
+                      const SizedBox(width: 15),
+
+                      // ปุ่มบันทึก
+                      Expanded(
+                        child: ElevatedButton(
+                          onPressed: isSaving
+                              ? null
+                              : savePrice,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.red,
+                            foregroundColor: Colors.white,
+                            minimumSize: const Size(
+                              double.infinity,
+                              50,
+                            ),
+                          ),
+                          child: isSaving
+                              ? const SizedBox(
+                                  width: 22,
+                                  height: 22,
+                                  child:
+                                      CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: Colors.white,
+                                  ),
+                                )
+                              : const Text(
+                                  'บันทึก',
+                                ),
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
             ),
-
-            const SizedBox(height: 15),
-
-            const Text(
-              'แก้ไขอัตราค่าบริการตามระยะทาง',
-              style: TextStyle(
-                fontSize: 15,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-
-            const SizedBox(height: 8),
-
-            TextField(
-              controller: distanceController,
-              keyboardType: const TextInputType.numberWithOptions(
-                decimal: true,
-              ),
-              decoration: InputDecoration(
-                prefixIcon: const Icon(
-                  Icons.monetization_on_outlined,
-                  color: Colors.grey,
-                ),
-                suffixText: 'บาท/กิโลเมตร',
-                hintText: 'กรอกราคา',
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: const BorderSide(
-                    color: Colors.red,
-                    width: 2,
-                  ),
-                ),
-              ),
-              onChanged: (value) {
-                setState(() {});
-              },
-            ),
-
-            const SizedBox(height: 35),
-
-            Row(
-              children: [
-
-                // ยกเลิก
-                Expanded(
-                  child: OutlinedButton(
-                    onPressed: cancelEdit,
-
-                    style: OutlinedButton.styleFrom(
-                      minimumSize: const Size(
-                        double.infinity,
-                        50,
-                      ),
-                      side: const BorderSide(
-                        color: Colors.red,
-                      ),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                    ),
-
-                    child: const Text(
-                      'ยกเลิก',
-                      style: TextStyle(
-                        color: Colors.red,
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                ),
-
-                const SizedBox(width: 15),
-
-                // บันทึก
-                Expanded(
-                  child: ElevatedButton(
-                    onPressed: savePrice,
-
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.red,
-                      foregroundColor: Colors.white,
-                      minimumSize: const Size(
-                        double.infinity,
-                        50,
-                      ),
-                      elevation: 0,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                    ),
-
-                    child: const Text(
-                      'บันทึกการแก้ไข',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-
-            const SizedBox(height: 20),
-          ],
-        ),
-      ),
     );
   }
 }

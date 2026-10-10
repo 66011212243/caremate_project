@@ -96,8 +96,9 @@ class _EditProfilePageState extends State<EditProfileProvider> {
 
   Future<void> _pickImage() async {
     final XFile? pickedFile = await _picker.pickImage(
-      source: ImageSource.gallery,
+      source: ImageSource.camera,
     );
+
     if (pickedFile != null) {
       setState(() {
         profileImageFile = File(pickedFile.path);
@@ -131,16 +132,19 @@ class _EditProfilePageState extends State<EditProfileProvider> {
 
   // บันทึกการแก้ไข
   Future<void> _saveProfile() async {
-      debugPrint('========== เริ่มบันทึก ==========');
+    debugPrint('========== เริ่มบันทึก ==========');
     final name = nameController.text.trim();
     final username = usernameController.text.trim();
     final phone = phoneController.text.trim();
     final gender = selectedGender;
-
-    if (name.isEmpty || username.isEmpty || phone.isEmpty || gender == null) {
+    if (name.isEmpty ||
+        username.isEmpty ||
+        phone.isEmpty ||
+        gender == null ||
+        profileImageFile == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('กรุณากรอกข้อมูลให้ครบทุกช่อง'),
+          content: Text('กรุณากรอกข้อมูลและถ่ายรูปโปรไฟล์'),
           backgroundColor: Colors.red,
         ),
       );

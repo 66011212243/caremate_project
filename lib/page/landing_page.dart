@@ -1,6 +1,8 @@
 
 import 'package:caremate_application/page/login.dart';
 import 'package:flutter/material.dart';
+import 'package:caremate_application/page/register_users.dart';
+
 
 class LandingPage extends StatelessWidget {
   const LandingPage({super.key});
@@ -104,7 +106,12 @@ class LandingPage extends StatelessWidget {
                 ),
               ],
               onStartTap: () {
-                // Action เมื่อกด "เริ่มต้นใช้งาน" ฝั่งผู้รับบริการ
+                 Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) =>  RegisterUsers(role: 0),
+                          ),
+                        );
               },
             ),
 
@@ -128,7 +135,12 @@ class LandingPage extends StatelessWidget {
                 ),
               ],
               onStartTap: () {
-                // Action เมื่อกด "เริ่มต้นใช้งาน" ฝั่งผู้ให้บริการ
+                 Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) =>  RegisterUsers(role: 0),
+                          ),
+                        );
               },
             ),
 

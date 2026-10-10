@@ -191,7 +191,7 @@ class _SettingsPageState extends State<SettingsProvider> {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (context) =>  ChangepasswordPage(sid: widget.pid,),
+                    builder: (context) =>  ChangepasswordPage(userId: widget.pid,),
                   ),
                 );
               },
