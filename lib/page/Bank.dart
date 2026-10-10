@@ -2,6 +2,8 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
 
 class BankPage extends StatefulWidget {
   const BankPage({super.key});
@@ -17,9 +19,12 @@ class _BankPageState extends State<BankPage> {
   final TextEditingController accountNumberCtl = TextEditingController();
   final TextEditingController promptpayCtl = TextEditingController();
 
+  
+
   // 2. ตัวแปรเก็บรูปภาพคิวอาร์โค้ดที่เลือก
   File? qrCodeImage;
   final ImagePicker _picker = ImagePicker();
+  bool isLoading = false;
 
   @override
   void dispose() {
@@ -40,28 +45,99 @@ class _BankPageState extends State<BankPage> {
     }
   }
 
-  // 4. ฟังก์ชันบันทึกลง Firebase Firestore
-  void _saveBank() {
-    FirebaseFirestore.instance.collection('bank').add({
-      'account_name': accountNameCtl.text,
-      'bank_name': bankNameCtl.text,
-      'account_number': accountNumberCtl.text,
-      'promptpay': promptpayCtl.text,
-      'created_at': FieldValue.serverTimestamp(),
-    }).then((value) {
+  Future<String?> uploadToCloudinary(File imageFile) async {
+    try {
+      const cloudName = "dsz1hhnx4"; // Cloud name ของคุณ
+      const uploadPreset = "flutter_upload"; // ชื่อ preset ของคุณ
+
+      final url = Uri.parse(
+        "https://api.cloudinary.com/v1_1/$cloudName/image/upload",
+      );
+
+      var request = http.MultipartRequest("POST", url)
+        ..fields['upload_preset'] = uploadPreset
+        ..files.add(await http.MultipartFile.fromPath('file', imageFile.path));
+
+      var response = await request.send();
+      if (response.statusCode == 200) {
+        var responseData = await response.stream.bytesToString();
+        var jsonData = jsonDecode(responseData);
+        return jsonData['secure_url']; // ได้ URL รูปภาพกลับมา
+      } else {
+        print("Upload failed with status: ${response.statusCode}");
+        return null;
+      }
+    } catch (e) {
+      print("Upload error: $e");
+      return null;
+    }
+  }
+
+ // 4. ฟังก์ชันบันทึกลง Firebase Firestore
+Future<void> _saveBank() async {
+    final accountName = accountNameCtl.text.trim();
+    final bankName = bankNameCtl.text.trim();
+    final accountNumber = accountNumberCtl.text.trim();
+    final promptpay = promptpayCtl.text.trim();
+
+  // เช็กว่ากรอกข้อมูลครบทุกช่องหรือไม่
+  if (accountName.isEmpty ||
+      bankName.isEmpty ||
+      accountNumber.isEmpty ||
+      promptpay.isEmpty ||
+      qrCodeImage == null) { // ถ้าต้องการบังคับแนบรูปคิวอาร์โค้ดด้วย
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('กรุณากรอกข้อมูลและแนบรูปคิวอาร์โค้ดให้ครบถ้วน'),
+        backgroundColor: Colors.red,
+      ),
+    );
+    return;
+  }
+  setState(() {
+      isLoading = true; // เปิดตัวหมุนโหลดเพื่อป้องกันการกดซ้ำ
+    });
+
+    try {
+      // [จุดแก้ไขที่ 2]: อัปโหลดรูปภาพไปยัง Cloudinary ก่อน
+      String? qrCodeUrl = await uploadToCloudinary(qrCodeImage!);
+
+      if (qrCodeUrl == null) {
+        throw Exception('อัปโหลดรูปภาพคิวอาร์โค้ดไม่สำเร็จ');
+      }
+
+      //[จุดแก้ไขที่ 3]: บันทึกข้อมูลพร้อม URL ของรูปคิวอาร์โค้ดลง Firebase
+      await FirebaseFirestore.instance.collection('bank').add({
+        'account_name': accountName,
+        'bank_name': bankName,
+        'account_number': accountNumber,
+        'promptpay': promptpay,
+        'qr_code': qrCodeUrl, // บันทึก URL รูปภาพ
+        'created_at': FieldValue.serverTimestamp(),
+      });
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('บันทึกสำเร็จ!')),
         );
         Navigator.pop(context);
       }
-    }).catchError((error) {
+    } catch (error) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('เกิดข้อผิดพลาด: $error')),
+          SnackBar(
+            content: Text('เกิดข้อผิดพลาด: $error'),
+            backgroundColor: Colors.red,
+          ),
         );
       }
-    });
+    } finally {
+      if (mounted) {
+        setState(() {
+          isLoading = false;
+        });
+      }
+    }
   }
 
   @override
@@ -200,12 +276,12 @@ class _BankPageState extends State<BankPage> {
                 const SizedBox(height: 10),
                 Row(
                   children: [
-                    const Icon(Icons.image, color: Colors.green),
+                    const Icon(Icons.image, color: Colors.red),
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
                         "แนบรูปภาพแล้ว: ${qrCodeImage!.path.split('/').last}",
-                        style: const TextStyle(color: Colors.green),
+                        style: const TextStyle(color: Colors.red),
                         overflow: TextOverflow.ellipsis,
                       ),
                     ),

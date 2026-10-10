@@ -3,18 +3,18 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 class ReviewPage extends StatelessWidget {
-  final String jobId;
+  final String job_id;
   final String driverName;
-  final String driverId;
+  final String provider_id;
   final String phoneNumber;
   final String licensePlate;
   final String promptPay;
 
   ReviewPage({
     super.key,
-    this.jobId = "001",
+    this.job_id = "001",
     this.driverName = "พิชยกรณ์ ยามรัมย์",
-    this.driverId = "01",
+    this.provider_id = "01",
     this.phoneNumber = "095588291",
     this.licensePlate = "กข1234",
     this.promptPay = "1234567890",
@@ -35,8 +35,8 @@ class ReviewPage extends StatelessWidget {
 
     try {
       await FirebaseFirestore.instance.collection('review').add({
-        'jobId': jobId,
-        'driverId': driverId,
+        'job_id': job_id,
+        'provider_id': provider_id,
         'rating': ratingNotifier.value,
         'comment': commentController.text.trim(),
       });

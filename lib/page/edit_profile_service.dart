@@ -3,11 +3,12 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:http/http.dart' as http;
 
 class EditProfileService extends StatefulWidget {
   final String sid;
 
-  const EditProfileService({super.key, this.sid = "naw5Oe3VyaVwj89isnzA"});
+  const EditProfileService({super.key, this.sid = "5n4H3wdcrI7M4mI6F7iG"});
 
   @override
   State<EditProfileService> createState() => _EditProfilePageState();
@@ -18,10 +19,9 @@ class _EditProfilePageState extends State<EditProfileService> {
   final nameController = TextEditingController();
   final usernameController = TextEditingController();
   final phoneController = TextEditingController();
-  final genderController = TextEditingController();
+  String? selectedGender;
   final heightController = TextEditingController();
   final weightController = TextEditingController();
-  final addressController = TextEditingController();
 
   bool isEditing = true;
   bool isLoading = true;
@@ -29,6 +29,7 @@ class _EditProfilePageState extends State<EditProfileService> {
 
   File? profileImageFile;
   String? currentProfileImageUrl;
+  String? uid;
   final ImagePicker _picker = ImagePicker();
 
   @override
@@ -42,70 +43,67 @@ class _EditProfilePageState extends State<EditProfileService> {
     nameController.dispose();
     usernameController.dispose();
     phoneController.dispose();
-    genderController.dispose();
     heightController.dispose();
     weightController.dispose();
-    addressController.dispose();
     super.dispose();
   }
 
   // ดึงข้อมูลเดิมจาก Firebase
   Future<void> _fetchProfileData() async {
     try {
-      DocumentSnapshot userDoc = await FirebaseFirestore.instance
-          .collection('users')
-          .doc(widget.sid)
-          .get();
-
-      DocumentSnapshot serviceDoc = await FirebaseFirestore.instance
+      // 1. ดึงข้อมูลจาก collection 'provider' ด้วย pid
+      DocumentSnapshot providerDoc = await FirebaseFirestore.instance
           .collection('service')
           .doc(widget.sid)
           .get();
 
-      if (mounted) {
-        setState(() {
+      if (providerDoc.exists && providerDoc.data() != null) {
+        Map<String, dynamic> providerData =
+            providerDoc.data() as Map<String, dynamic>;
+
+        phoneController.text = providerData['phone']?.toString() ?? '';
+        weightController.text = providerData['weight']?.toString() ?? '';
+        heightController.text = providerData['height']?.toString() ?? '';
+        final gender = providerData['gender'];
+
+
+        if (gender == 1 || gender == '1') {
+          selectedGender = '1';
+        } else if (gender == 0 || gender == '0') {
+          selectedGender = '0';
+        } else {
+          selectedGender = null;
+        }
+        currentProfileImageUrl = providerData['profile']?.toString();
+        uid = providerData['service_uid']
+            ?.toString(); // ดึง uid ที่เชื่อมกับ users
+
+        // 2. ดึงข้อมูลจาก collection 'users' ตาม service_uid
+        if (uid != null && uid!.isNotEmpty) {
+          DocumentSnapshot userDoc = await FirebaseFirestore.instance
+              .collection('users')
+              .doc(uid)
+              .get();
+
           if (userDoc.exists && userDoc.data() != null) {
             Map<String, dynamic> userData =
                 userDoc.data() as Map<String, dynamic>;
-            nameController.text =
-                userData['realname']?.toString() ??
-                userData['name']?.toString() ??
-                '';
-            usernameController.text =
-                userData['username']?.toString() ??
-                userData['nickname']?.toString() ??
-                '';
+            nameController.text = userData['realname']?.toString() ?? '';
+            usernameController.text = userData['username']?.toString() ?? '';
           }
-
-          if (serviceDoc.exists && serviceDoc.data() != null) {
-            Map<String, dynamic> serviceData =
-                serviceDoc.data() as Map<String, dynamic>;
-            phoneController.text = serviceData['phone']?.toString() ?? '';
-            genderController.text = serviceData['gender']?.toString() ?? '';
-            heightController.text = serviceData['height']?.toString() ?? '';
-            weightController.text = serviceData['weight']?.toString() ?? '';
-            addressController.text = serviceData['address']?.toString() ?? '';
-            currentProfileImageUrl = serviceData['photo']?.toString();
-          }
-
-          isLoading = false;
-        });
+        }
       }
+
+      if (mounted) setState(() => isLoading = false);
     } catch (e) {
-      debugPrint("Fetch Edit Profile Error: $e");
+      debugPrint("Fetch Profile Error: $e");
       if (mounted) setState(() => isLoading = false);
     }
   }
 
-  // เลือกรูปภาพจากเครื่อง
   Future<void> _pickImage() async {
-    if (!isEditing) return;
-    // บีบอัดรูปภาพให้ขนาดเล็กมากๆ เพื่อเก็บใน Firestore ได้โดยไม่เกินขีดจำกัด
     final XFile? pickedFile = await _picker.pickImage(
       source: ImageSource.gallery,
-      maxWidth: 400,
-      maxHeight: 400,
-      imageQuality: 50,
     );
     if (pickedFile != null) {
       setState(() {
@@ -114,73 +112,102 @@ class _EditProfilePageState extends State<EditProfileService> {
     }
   }
 
-  // แปลงรูปภาพเป็น Base64 String เพื่อเก็บบน Firestore โดยไม่ต้องใช้ Storage
-  Future<String?> _convertImageToBase64(File imageFile) async {
+  Future<String?> uploadToCloudinary(File imageFile) async {
     try {
-      List<int> imageBytes = await imageFile.readAsBytes();
-      String base64Image = base64Encode(imageBytes);
-      return "data:image/jpeg;base64,$base64Image";
+      const cloudName = "dsz1hhnx4";
+      const uploadPreset = "flutter_upload";
+
+      final url = Uri.parse(
+        "https://api.cloudinary.com/v1_1/$cloudName/image/upload",
+      );
+      var request = http.MultipartRequest("POST", url)
+        ..fields['upload_preset'] = uploadPreset
+        ..files.add(await http.MultipartFile.fromPath('file', imageFile.path));
+
+      var response = await request.send();
+      if (response.statusCode == 200) {
+        var responseData = await response.stream.bytesToString();
+        var jsonData = jsonDecode(responseData);
+        return jsonData['secure_url'];
+      }
+      return null;
     } catch (e) {
-      debugPrint("Base64 Convert Error: $e");
       return null;
     }
   }
 
   // บันทึกข้อมูลลง Firestore
+  // บันทึกการแก้ไข
   Future<void> _saveProfile() async {
+    debugPrint('========== เริ่มบันทึก ==========');
+    final name = nameController.text.trim();
+    final username = usernameController.text.trim();
+    final phone = phoneController.text.trim();
+    final gender = selectedGender;
+    final height = heightController.text.trim();
+    final weight = weightController.text.trim();
+
+    if (name.isEmpty || username.isEmpty || phone.isEmpty || gender == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('กรุณากรอกข้อมูลให้ครบทุกช่อง'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
     setState(() => isSaving = true);
 
     try {
       String? imageUrl = currentProfileImageUrl;
 
-      // ถ้ามีการเลือกรูปใหม่ ให้แปลงเป็น Base64
       if (profileImageFile != null) {
-        String? base64Str = await _convertImageToBase64(profileImageFile!);
-        if (base64Str != null) {
-          imageUrl = base64Str;
+        String? uploadedUrl = await uploadToCloudinary(profileImageFile!);
+        if (uploadedUrl != null) {
+          imageUrl = uploadedUrl;
+        } else {
+          throw Exception('อัปโหลดรูปภาพไม่สำเร็จ');
         }
       }
 
-      // บันทึกลง collection 'user'
-      await FirebaseFirestore.instance.collection('user').doc(widget.sid).set({
-        'realname': nameController.text.trim(),
-        'username': usernameController.text.trim(),
-        'updated_at': FieldValue.serverTimestamp(),
-      }, SetOptions(merge: true));
+      // อัปเดตตาราง 'users' (realname, username)
+      if (uid != null && uid!.isNotEmpty) {
+        await FirebaseFirestore.instance.collection('users').doc(uid).update({
+          'realname': name,
+          'username': username,
+        });
+      }
 
-      // บันทึกลง collection 'service'
+      // อัปเดตตาราง 'provider' (phoneNo, gender, profile)
       await FirebaseFirestore.instance
           .collection('service')
           .doc(widget.sid)
-          .set({
-            'phone': phoneController.text.trim(),
-            'gender': genderController.text.trim(),
-            'height': heightController.text.trim(),
-            'weight': weightController.text.trim(),
-            'address': addressController.text.trim(),
-            if (imageUrl != null) 'profileImage': imageUrl,
-            'updated_at': FieldValue.serverTimestamp(),
-          }, SetOptions(merge: true));
+          .update({
+            'phone': phone,
+            'gender': int.parse(gender),
+            'height': height,
+            'weight': weight,
+            if (imageUrl != null) 'profile': imageUrl,
+          });
 
       if (mounted) {
-        setState(() {
-          isSaving = false;
-          currentProfileImageUrl = imageUrl;
-        });
-
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('บันทึกข้อมูลโปรไฟล์สำเร็จ!')),
         );
-
-        Navigator.pop(context);
+        Navigator.pop(context, true);
       }
     } catch (e) {
       if (mounted) {
-        setState(() => isSaving = false);
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('เกิดข้อผิดพลาดในการบันทึก: $e')),
+          SnackBar(
+            content: Text('เกิดข้อผิดพลาด: $e'),
+            backgroundColor: Colors.red,
+          ),
         );
       }
+    } finally {
+      if (mounted) setState(() => isSaving = false);
     }
   }
 
@@ -314,8 +341,14 @@ class _EditProfilePageState extends State<EditProfileService> {
                             const Divider(),
                             ProfileRow(
                               title: 'เพศ:',
-                              controller: genderController,
                               isEditing: isEditing,
+                              isGender: true,
+                              selectedGender: selectedGender,
+                              onGenderChanged: (value) {
+                                setState(() {
+                                  selectedGender = value;
+                                });
+                              },
                             ),
                             const Divider(),
                             ProfileRow(
@@ -334,12 +367,6 @@ class _EditProfilePageState extends State<EditProfileService> {
                             ProfileRow(
                               title: 'น้ำหนัก:',
                               controller: weightController,
-                              isEditing: isEditing,
-                            ),
-                            const Divider(),
-                            ProfileRow(
-                              title: 'พิกัดที่อยู่ :',
-                              controller: addressController,
                               isEditing: isEditing,
                             ),
                           ],
@@ -389,16 +416,23 @@ class _EditProfilePageState extends State<EditProfileService> {
 
 class ProfileRow extends StatelessWidget {
   final String title;
-  final TextEditingController controller;
+  final TextEditingController? controller;
   final bool isEditing;
   final bool isNumber;
+  final bool isGender;
+
+  final String? selectedGender;
+  final ValueChanged<String?>? onGenderChanged;
 
   const ProfileRow({
     super.key,
     required this.title,
-    required this.controller,
+    this.controller,
     required this.isEditing,
     this.isNumber = false,
+    this.isGender = false,
+    this.selectedGender,
+    this.onGenderChanged,
   });
 
   @override
@@ -413,19 +447,44 @@ class ProfileRow extends StatelessWidget {
           ),
           Expanded(
             child: isEditing
-                ? TextFormField(
-                    controller: controller,
-                    keyboardType: isNumber
-                        ? TextInputType.phone
-                        : TextInputType.text,
-                    style: const TextStyle(fontSize: 18, color: Colors.black),
-                    decoration: const InputDecoration(
-                      isDense: true,
-                      border: UnderlineInputBorder(),
-                    ),
-                  )
+                ? isGender
+                      ? DropdownButtonFormField<String>(
+                          value: selectedGender,
+                          decoration: const InputDecoration(
+                            isDense: true,
+                            border: UnderlineInputBorder(),
+                          ),
+                          hint: const Text('เลือกเพศ'),
+                          items: const [
+                            DropdownMenuItem(value: '0', child: Text('ชาย')),
+                            DropdownMenuItem(value: '1', child: Text('หญิง')),
+                          ],
+                          onChanged: onGenderChanged,
+                        )
+                      : TextFormField(
+                          controller: controller,
+                          keyboardType: isNumber
+                              ? TextInputType.phone
+                              : TextInputType.text,
+                          style: const TextStyle(
+                            fontSize: 18,
+                            color: Colors.black,
+                          ),
+                          decoration: const InputDecoration(
+                            isDense: true,
+                            border: UnderlineInputBorder(),
+                          ),
+                        )
                 : Text(
-                    controller.text.isEmpty ? '-' : controller.text,
+                    isGender
+                        ? (selectedGender == '1'
+                              ? 'หญิง'
+                              : selectedGender == '0'
+                              ? 'ชาย'
+                              : '-')
+                        : (controller?.text.isEmpty ?? true)
+                        ? '-'
+                        : controller!.text,
                     style: const TextStyle(fontSize: 18, color: Colors.grey),
                   ),
           ),
