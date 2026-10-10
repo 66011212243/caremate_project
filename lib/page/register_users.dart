@@ -3,7 +3,6 @@ import 'dart:developer';
 import 'package:caremate_application/page/homepage_provider.dart';
 import 'package:caremate_application/page/homepage_service.dart';
 import 'package:caremate_application/page/login.dart';
-import 'package:caremate_application/page/register_service_google.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:bcrypt/bcrypt.dart';

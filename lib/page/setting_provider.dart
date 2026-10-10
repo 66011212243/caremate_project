@@ -207,12 +207,12 @@ class _SettingsPageState extends State<SettingsProvider> {
             const Divider(color: Colors.grey, thickness: 1, height: 30),
             buildMenu(
               'เปลี่ยนรหัสผ่าน',
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) =>  ChangepasswordPage(userId: widget.sid,)),
-                );
-              },
+              // onTap: () {
+              //   Navigator.push(
+              //     context,
+              //     MaterialPageRoute(builder: (context) =>  ChangepasswordPage(userId: widget.sid,)),
+              //   );
+              // },
             ),
             const Divider(color: Colors.grey, thickness: 1, height: 30),
             buildMenu(

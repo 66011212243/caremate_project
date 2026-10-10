@@ -301,10 +301,10 @@ Future<void> showAccountPendingDialog(BuildContext context) {
         child: ElevatedButton(
           style: _confirmStyle(),
           onPressed: () {
-            Navigator.push(
-              dialogContext,
-              MaterialPageRoute(builder: (context) => DocumentPage()),
-            );
+            // Navigator.push(
+            //   dialogContext,
+            //   MaterialPageRoute(builder: (context) => DocumentPage()),
+            // );
           },
           child: const Text('กรอกเอกสาร', style: TextStyle(fontSize: 16)),
         ),
@@ -366,10 +366,10 @@ Future<void> showAccountRejectDialog(
         child: ElevatedButton(
           style: _confirmStyle(),
           onPressed: () {
-            Navigator.push(
-              dialogContext,
-              MaterialPageRoute(builder: (context) => DocumentPage()),
-            );
+            // Navigator.push(
+            //   dialogContext,
+            //   MaterialPageRoute(builder: (context) => DocumentPage()),
+            // );
           },
           child: const Text('แก้ไขเอกสาร', style: TextStyle(fontSize: 16)),
         ),

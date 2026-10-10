@@ -1,8 +1,6 @@
 import 'package:caremate_application/page/homepage_provider.dart';
 import 'package:caremate_application/page/homepage_service.dart';
 import 'package:caremate_application/page/notification_system.dart';
-import 'package:caremate_application/page/register_provider.dart';
-import 'package:caremate_application/page/register_service.dart';
 import 'package:caremate_application/page/register_users.dart';
 import 'package:caremate_application/page/signIn_Google.dart';
 

@@ -30,8 +30,6 @@ import 'package:caremate_application/page/landing_page.dart';
 import 'package:caremate_application/page/login.dart';
 import 'package:caremate_application/page/myJob_povider.dart';
 import 'package:caremate_application/page/position_provider.dart';
-import 'package:caremate_application/page/register_provider.dart';
-import 'package:caremate_application/page/registration_admin.dart';
 import 'package:caremate_application/page/review.dart';
 import 'package:caremate_application/page/setting_admin.dart';
 import 'package:caremate_application/page/status_job.dart';
@@ -58,7 +56,7 @@ Future<void> main() async {
 
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
-  
+
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
@@ -66,12 +64,7 @@ class MyApp extends StatelessWidget {
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
       ),
-      home: AdminReportedDriversPage(
-        //sid:'5n4H3wdcrI7M4mI6F7iG',
-         //pid:'62CH3vzWMqFHM7pnuNr6',
-        //pid:'PqGjZEEAEWpZlN5Ms3Yv',
-        //reports_id:'FmUc2xg51fXoU2JhKrDT',
-      ),
+      home: LoginPage(),
     );
   }
 }
