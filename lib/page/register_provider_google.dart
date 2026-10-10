@@ -40,7 +40,7 @@ Future<void> registerProviderWithGoogle(BuildContext context) async {
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(
-          builder: (context) => HomepageProvider(pid: user.uid),
+          builder: (context) => HomepageProvider(uid: user.uid),
         ),
       );
     }
