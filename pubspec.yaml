@@ -82,6 +82,8 @@ flutter:
       - assets/images/calendar.png
       - assets/images/map.png
       - assets/images/care.png
+      - assets/images/bike1.png
+      - assets/images/car0.png
   #   - images/a_dot_burr.jpeg
   #   - images/a_dot_ham.jpeg
 

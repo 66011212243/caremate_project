@@ -20,6 +20,7 @@ class _DetailsProviderState extends State<DetailsProvider> {
 
   double averageRating = 0.0;
   int reviewCount = 0;
+  String? imageUrl;
 
   @override
   void initState() {
@@ -95,39 +96,24 @@ class _DetailsProviderState extends State<DetailsProvider> {
                           children: [
                             GestureDetector(
                               onTap: () {
-                                showDialog(
-                                  context: context,
-                                  builder: (dialogContext) {
-                                    return Dialog(
-                                      backgroundColor: Colors.transparent,
-                                      child: Container(
-                                        width: 300,
-                                        height: 300,
-                                        decoration: BoxDecoration(
-                                          color: Colors.white,
-                                          borderRadius: BorderRadius.circular(
-                                            20,
-                                          ),
-                                        ),
-                                        child: const Center(
-                                          child: Text(
-                                            '👤',
-                                            style: TextStyle(fontSize: 120),
-                                          ),
-                                        ),
-                                      ),
-                                    );
-                                  },
-                                );
+                                if (imageUrl != null && imageUrl!.isNotEmpty) {
+                                  _showProfileImage(imageUrl!);
+                                }
                               },
                               child: CircleAvatar(
                                 radius: 35,
                                 backgroundColor: Colors.grey.shade200,
-                                child: const Icon(
-                                  Icons.person,
-                                  size: 45,
-                                  color: Colors.grey,
-                                ),
+                                backgroundImage:
+                                    imageUrl != null && imageUrl!.isNotEmpty
+                                    ? NetworkImage(imageUrl!)
+                                    : null,
+                                child: imageUrl == null || imageUrl!.isEmpty
+                                    ? const Icon(
+                                        Icons.person,
+                                        size: 45,
+                                        color: Colors.grey,
+                                      )
+                                    : null,
                               ),
                             ),
 
@@ -294,6 +280,7 @@ class _DetailsProviderState extends State<DetailsProvider> {
 
       // เอา provider_uid ไปดึงข้อมูล user
       var uid = providerData?['provider_uid'];
+      imageUrl = providerData?['profile'];
 
       if (uid != null) {
         var userDoc = await db.collection('users').doc(uid).get();
@@ -358,9 +345,64 @@ class _DetailsProviderState extends State<DetailsProvider> {
       reviewCount = ratingsSnapshot.docs.length;
       averageRating = totalRating / reviewCount;
     });
+  }
 
-    // print('จำนวนรีวิว: $reviewCount');
-    // print('คะแนนรวม: $totalRating');
-    // print('คะแนนเฉลี่ย: $averageRating');
+  void _showProfileImage(String imageUrl) {
+    showDialog(
+      context: context,
+      builder: (dialogContext) {
+        return Dialog(
+          backgroundColor: Colors.transparent,
+          insetPadding: const EdgeInsets.all(20),
+          child: Stack(
+            alignment: Alignment.topRight,
+            children: [
+              // รูปใหญ่ ซูมเข้า-ออกได้
+              ClipRRect(
+                borderRadius: BorderRadius.circular(16),
+                child: InteractiveViewer(
+                  minScale: 1,
+                  maxScale: 4,
+                  child: Image.network(
+                    imageUrl,
+                    fit: BoxFit.contain,
+                    loadingBuilder: (context, child, progress) {
+                      if (progress == null) return child;
+                      return const SizedBox(
+                        height: 250,
+                        child: Center(
+                          child: CircularProgressIndicator(color: Colors.white),
+                        ),
+                      );
+                    },
+                    errorBuilder: (context, error, stackTrace) {
+                      return Container(
+                        height: 250,
+                        color: Colors.white,
+                        child: const Center(
+                          child: Icon(Icons.broken_image, size: 60),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ),
+
+              // ปุ่มปิด
+              Padding(
+                padding: const EdgeInsets.all(8),
+                child: CircleAvatar(
+                  backgroundColor: Colors.black54,
+                  child: IconButton(
+                    icon: const Icon(Icons.close, color: Colors.white),
+                    onPressed: () => Navigator.pop(dialogContext),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
   }
 }

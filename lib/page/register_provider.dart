@@ -206,13 +206,16 @@ class _RegisterProviderState extends State<RegisterProvider> {
       return;
     }
 
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => DocumentPage(
-         pid: '62CH3vzWMqFHM7pnuNr6',
-        ),
-      ),
-    );
+    // Navigator.push(
+    //   context,
+    //   MaterialPageRoute(
+    //     // builder: (context) => DocumentPage(
+    //     //   username: usernameCtl.text,
+    //     //   fullname: fullnameCtl.text,
+    //     //   email: emailCtl.text,
+    //     //   password: passwordCtl.text,
+    //     // ),
+    //   ),
+    // );
   }
 }

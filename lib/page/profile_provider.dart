@@ -3,9 +3,9 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 class ProfileProvider extends StatefulWidget {
-  final String sid;
+  final String pid;
 
-  const ProfileProvider({super.key, this.sid = "naw5Oe3VyaVwj89isnzA"});
+  const ProfileProvider({super.key, required this.pid});
 
   @override
   State<ProfileProvider> createState() => _ProfilePageState();
@@ -29,39 +29,67 @@ class _ProfilePageState extends State<ProfileProvider> {
   // ดึงข้อมูลครั้งแรกจาก Firebase
   Future<void> _fetchUserData() async {
     try {
-      DocumentSnapshot userDoc = await FirebaseFirestore.instance
-          .collection('user')
-          .doc(widget.sid)
-          .get();
-
-      DocumentSnapshot serviceDoc = await FirebaseFirestore.instance
+      // 1. ใช้ pid ค้นหา provider ก่อน
+      DocumentSnapshot providerDoc = await FirebaseFirestore.instance
           .collection('provider')
-          .doc(widget.sid)
+          .doc(widget.pid)
           .get();
 
-      // เอาไว้ดูใน Console ว่าหาข้อมูลเจอไหม
-      debugPrint('SID = ${widget.sid}');
+      debugPrint('PID = ${widget.pid}');
+      debugPrint('PROVIDER EXISTS = ${providerDoc.exists}');
+      debugPrint('PROVIDER DATA = ${providerDoc.data()}');
+
+      if (!providerDoc.exists || providerDoc.data() == null) {
+        debugPrint('ไม่พบข้อมูล provider');
+
+        if (mounted) {
+          setState(() {
+            isLoading = false;
+          });
+        }
+        return;
+      }
+
+      // 2. ดึง provider_uid จาก provider
+      Map<String, dynamic> providerData =
+          providerDoc.data() as Map<String, dynamic>;
+
+      String providerUid = providerData['provider_uid']?.toString() ?? '';
+
+      debugPrint('PROVIDER UID = $providerUid');
+
+      if (providerUid.isEmpty) {
+        debugPrint('ไม่พบ provider_uid ใน provider');
+
+        if (mounted) {
+          setState(() {
+            isLoading = false;
+          });
+        }
+        return;
+      }
+
+      // 3. ใช้ provider_uid ไปค้น users
+      DocumentSnapshot userDoc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(providerUid)
+          .get();
+
       debugPrint('USER EXISTS = ${userDoc.exists}');
       debugPrint('USER DATA = ${userDoc.data()}');
-      debugPrint('SERVICE EXISTS = ${serviceDoc.exists}');
-      debugPrint('SERVICE DATA = ${serviceDoc.data()}');
 
-      Map<String, dynamic> data = {};
+      Map<String, dynamic> userData = {};
 
       if (userDoc.exists && userDoc.data() != null) {
-        data = userDoc.data() as Map<String, dynamic>;
+        userData = userDoc.data() as Map<String, dynamic>;
       }
 
-      Map<String, dynamic> providerData = {};
-
-      if (serviceDoc.exists && serviceDoc.data() != null) {
-        providerData = serviceDoc.data() as Map<String, dynamic>;
-      }
-
+      // 4. เอาข้อมูลไปแสดง
       if (mounted) {
         setState(() {
-          realname = data['realname'] ?? '';
-          username = data['username'] ?? '';
+          realname = userData['realname'] ?? '';
+          username = userData['username'] ?? '';
+
           phone = providerData['phone'] ?? '';
           gender = providerData['gender'] ?? '';
           profileImage = providerData['profileImage']?.toString();
@@ -70,8 +98,8 @@ class _ProfilePageState extends State<ProfileProvider> {
         });
       }
     } catch (e, stackTrace) {
-      debugPrint(' ERROR = $e');
-      debugPrint(' STACK = $stackTrace');
+      debugPrint('ERROR = $e');
+      debugPrint('STACK = $stackTrace');
 
       if (mounted) {
         setState(() {

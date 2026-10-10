@@ -1,6 +1,8 @@
 import 'package:caremate_application/page/Changepassword.dart';
 import 'package:caremate_application/page/Review_history_provider.dart';
 import 'package:caremate_application/page/Review_history_service.dart';
+import 'package:caremate_application/page/Review_history.dart';
+import 'package:caremate_application/page/login.dart';
 import 'package:caremate_application/page/profile_service.dart';
 import 'package:caremate_application/page/register_provider.dart';
 import 'package:flutter/material.dart';
@@ -29,80 +31,87 @@ class _SettingsPageState extends State<SettingsService> {
 
   // ดึงข้อมูลครั้งแรกจาก Firebase
   Future<void> _fetchUserData() async {
-  try {
-    final userDoc = await FirebaseFirestore.instance
-        .collection('user')
-        .doc(widget.sid)
-        .get();
+    try {
+      // 1. ใช้ sid ค้นหา service ก่อน
+      DocumentSnapshot serviceDoc = await FirebaseFirestore.instance
+          .collection('service')
+          .doc(widget.sid)
+          .get();
 
-    debugPrint('USER EXISTS: ${userDoc.exists}');
-    debugPrint('USER DATA: ${userDoc.data()}');
+      debugPrint('SID = ${widget.sid}');
+      debugPrint('SERVICE EXISTS = ${serviceDoc.exists}');
+      debugPrint('SERVICE DATA = ${serviceDoc.data()}');
 
-    final serviceDoc = await FirebaseFirestore.instance
-        .collection('provider')
-        .doc(widget.sid)
-        .get();
+      if (!serviceDoc.exists || serviceDoc.data() == null) {
+        debugPrint('ไม่พบข้อมูล service');
 
-    debugPrint('SERVICE EXISTS: ${serviceDoc.exists}');
-    debugPrint('SERVICE DATA: ${serviceDoc.data()}');
+        if (mounted) {
+          setState(() {
+            isLoading = false;
+          });
+        }
+        return;
+      }
 
-    if (mounted) {
-      setState(() {
-        if (userDoc.exists && userDoc.data() != null) {
-          final userData = userDoc.data() as Map<String, dynamic>;
+      // 2. ดึง service_uid จาก service
+      Map<String, dynamic> serviceData =
+          serviceDoc.data() as Map<String, dynamic>;
+
+      String serviceUid = serviceData['service_uid']?.toString() ?? '';
+
+      debugPrint('SERVICE UID = $serviceUid');
+
+      if (serviceUid.isEmpty) {
+        debugPrint('ไม่พบ service_uid ใน service');
+
+        if (mounted) {
+          setState(() {
+            isLoading = false;
+          });
+        }
+        return;
+      }
+
+      // 3. ใช้ service_uid ไปค้น users
+      DocumentSnapshot userDoc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(serviceUid)
+          .get();
+
+      debugPrint('USER EXISTS = ${userDoc.exists}');
+      debugPrint('USER DATA = ${userDoc.data()}');
+
+      Map<String, dynamic> userData = {};
+
+      if (userDoc.exists && userDoc.data() != null) {
+        userData = userDoc.data() as Map<String, dynamic>;
+      }
+
+      // 4. เอาข้อมูลไปแสดง
+      if (mounted) {
+        setState(() {
           realname = userData['realname']?.toString() ?? '';
-        }
 
-        if (serviceDoc.exists && serviceDoc.data() != null) {
-          final serviceData =
-              serviceDoc.data() as Map<String, dynamic>;
-          profileImage = serviceData['profileImage']?.toString();
-        }
+          profileImage = serviceData['profile']?.toString();
 
-        isLoading = false;
-      });
-    }
-  } catch (e, stackTrace) {
-    debugPrint(' ERROR: $e');
-    debugPrint(' STACK: $stackTrace');
+          isLoading = false;
+        });
+      }
+    } catch (e, stackTrace) {
+      debugPrint('ERROR = $e');
+      debugPrint('STACK = $stackTrace');
 
-    if (mounted) {
-      setState(() {
-        isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          isLoading = false;
+        });
+      }
     }
   }
-}
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        automaticallyImplyLeading: false,
-        backgroundColor: Colors.red,
-        title: const Text('การตั้งค่า', style: TextStyle(color: Colors.white)),
-      ),
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: 3, // ตอนนี้อยู่หน้า "ตั้งค่า"
-        type: BottomNavigationBarType.fixed,
-        selectedItemColor: Colors.red,
-        unselectedItemColor: Colors.grey,
-        items: const [
-          BottomNavigationBarItem(
-            icon: Icon(Icons.home_outlined),
-            label: 'หน้าหลัก',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.calendar_today_outlined),
-            label: 'ปฏิทิน',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.notifications_none),
-            label: 'ข้อความ',
-          ),
-          BottomNavigationBarItem(icon: Icon(Icons.settings), label: 'ตั้งค่า'),
-        ],
-      ),
       body: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -139,7 +148,8 @@ class _SettingsPageState extends State<SettingsService> {
                         Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (context) => ProfileService(sid: widget.sid),
+                            builder: (context) =>
+                                ProfileService(sid: widget.sid),
                           ),
                         );
                       },
@@ -192,7 +202,7 @@ class _SettingsPageState extends State<SettingsService> {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (context) =>  ChangepasswordPage(userId: widget.sid,),
+                    builder: (context) => ChangepasswordPage(sid: widget.sid),
                   ),
                 );
               },
@@ -228,7 +238,13 @@ class _SettingsPageState extends State<SettingsService> {
                   backgroundColor: Colors.red,
                   padding: const EdgeInsets.symmetric(vertical: 16),
                 ),
-                onPressed: () {},
+                onPressed: () {
+                  Navigator.pushAndRemoveUntil(
+                    context,
+                    MaterialPageRoute(builder: (context) => const LoginPage()),
+                    (route) => false,
+                  );
+                },
                 child: const Text(
                   'ออกจากระบบ',
                   style: TextStyle(color: Colors.white),
