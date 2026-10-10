@@ -11,18 +11,9 @@ import 'package:http/http.dart' as http;
 //import 'package:firebase_storage/firebase_storage.dart';
 
 class DocumentPage extends StatefulWidget {
-  final String username;
-  final String fullname;
-  final String email;
-  final String password;
+  final String pid;
 
-  const DocumentPage({
-    super.key,
-    required this.username,
-    required this.fullname,
-    required this.email,
-    required this.password,
-  });
+  const DocumentPage({super.key, required this.pid});
 
   @override
   State<DocumentPage> createState() => _DocumentPageState();
@@ -83,38 +74,69 @@ class _DocumentPageState extends State<DocumentPage> {
             children: [
               Row(
                 children: [
-                  const Text(
-                    "ประเภทรถ : ",
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  Expanded(
+                    child: GestureDetector(
+                      onTap: () {
+                        setState(() {
+                          vehicleType = 1; // 1 = Car
+                        });
+                      },
+                      child: Column(
+                        children: [
+                          Text(
+                            "Car",
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              color: vehicleType == 1
+                                  ? Colors.black
+                                  : Colors.grey,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Container(
+                            height: 3,
+                            color: vehicleType == 1
+                                ? Colors.red
+                                : Colors.transparent,
+                          ),
+                        ],
+                      ),
+                    ),
                   ),
-                  Radio<int>(
-                    value: 1,
-                    groupValue: vehicleType,
-                    onChanged: (value) {
-                      setState(() {
-                        vehicleType = value!;
-                      });
-                    },
+                  Expanded(
+                    child: GestureDetector(
+                      onTap: () {
+                        setState(() {
+                          vehicleType = 0; // 0 = Bike
+                        });
+                      },
+                      child: Column(
+                        children: [
+                          Text(
+                            "Bike",
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              color: vehicleType == 0
+                                  ? Colors.black
+                                  : Colors.grey,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Container(
+                            height: 3,
+                            color: vehicleType == 0
+                                ? Colors.red
+                                : Colors.transparent,
+                          ),
+                        ],
+                      ),
+                    ),
                   ),
-                  const Text("Car"),
-                  Radio<int>(
-                    value: 0,
-                    groupValue: vehicleType,
-                    onChanged: (value) {
-                      setState(() {
-                        vehicleType = value!;
-                      });
-                    },
-                  ),
-                  const Text("Bike"),
                 ],
               ),
-
-              const Divider(
-                color: Colors.grey,
-                thickness: 2, // ความหนา
-                height: 30,
-              ),
+              const SizedBox(height: 20),
 
               Row(
                 children: [
@@ -388,7 +410,7 @@ class _DocumentPageState extends State<DocumentPage> {
         licenseImage == null ||
         vehicleBookImage == null ||
         insuranceImage == null ||
-        plateCtl.text.isEmpty) {
+        plateCtl.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("กรุณากรอกข้อมูลและแนบเอกสารให้ครบ")),
       );
@@ -396,70 +418,126 @@ class _DocumentPageState extends State<DocumentPage> {
     }
 
     setState(() {
-      isLoading = true; // เริ่มแสดง Loading
+      isLoading = true;
     });
 
     try {
-      // 2. ทยอยอัปโหลดทีละไฟล์และเก็บ URL
-      // วิธีนี้จะช่วยให้แน่ใจว่าไฟล์ถูกอัปโหลดเสร็จก่อนไปทำขั้นตอนถัดไป
-      String? idCardUrl = await uploadToCloudinary(File(idCardImage!.path));
-      String? licenseUrl = await uploadToCloudinary(File(licenseImage!.path));
-      String? vehicleUrl = await uploadToCloudinary(
+      // อัปโหลดรูปบัตรประชาชน
+      final String? idCardUrl = await uploadToCloudinary(
+        File(idCardImage!.path),
+      );
+
+      // อัปโหลดใบขับขี่
+      final String? licenseUrl = await uploadToCloudinary(
+        File(licenseImage!.path),
+      );
+
+      // อัปโหลดเอกสารหน้าเล่มรถ
+      final String? vehicleUrl = await uploadToCloudinary(
         File(vehicleBookImage!.path),
       );
-      String? insuranceUrl = await uploadToCloudinary(
+
+      // อัปโหลด พ.ร.บ.
+      final String? insuranceUrl = await uploadToCloudinary(
         File(insuranceImage!.path),
       );
 
-      // 3. เข้ารหัส Password
-      final hashedPassword = BCrypt.hashpw(widget.password, BCrypt.gensalt());
+      // ตรวจสอบว่าอัปโหลดสำเร็จทั้งหมด
+      if (idCardUrl == null ||
+          licenseUrl == null ||
+          vehicleUrl == null ||
+          insuranceUrl == null) {
+        throw Exception("อัปโหลดเอกสารไม่สำเร็จ");
+      }
 
-      var docRef = db.collection('provider').doc();
-      var dataprovider = {
-        'providername': widget.username,
-        'realname': widget.fullname,
-        'email': widget.email,
-        'password': hashedPassword,
-        'verification_status': 0,
-        'rating_avg': 0.0,
-      };
-      await docRef.set(dataprovider);
-      log("dataprovider data added with ID: ${docRef.id}");
+      // สร้าง document ใหม่
+      final docRef = db.collection('document').doc();
 
-      var docPro = db.collection('document').doc();
-      var datadocprovider = {
-        'pid': docRef.id,
+      final datadocprovider = {
+        // PID ของผู้ให้บริการ
+        'pid': widget.pid,
+
+        // ข้อมูลรถ
         'vehicle_type': vehicleType,
-        'vehicle_Registration': plateCtl.text,
+        'vehicle_Registration': plateCtl.text.trim(),
+
+        // เอกสาร
         'IdCard': idCardUrl,
         'drivinglicense': licenseUrl,
         'vehicle_reg_book': vehicleUrl,
         'vehicle_insurance_file': insuranceUrl,
+
+        // สถานะเริ่มต้น
+        // 0 = รออนุมัติ
+        // 1 = อนุมัติ
+        // 2 = ไม่อนุมัติ
+        'status_doc': 0,
+
+        // ตอนแรกยังไม่มีเหตุผลปฏิเสธ
+        'reject_reason': null,
       };
-      await docPro.set(datadocprovider);
-      log("datadocprovider data added with ID: ${docPro.id}");
+
+      // บันทึกเอกสาร
+      await docRef.set(datadocprovider);
+
+      // หา provider จาก pid
+      final providerDoc = await db.collection('provider').doc(widget.pid).get();
+
+      if (!providerDoc.exists) {
+        throw Exception('ไม่พบข้อมูล provider PID = ${widget.pid}');
+      }
+
+      final providerData = providerDoc.data()!;
+
+      // เอา provider_uid
+      final providerUid = providerData['provider_uid'];
+
+      if (providerUid == null || providerUid.toString().isEmpty) {
+        throw Exception('ไม่พบ provider_uid');
+      }
+
+      debugPrint('PID = ${widget.pid}');
+      debugPrint('provider_uid = $providerUid');
+
+      // ไปหา users ด้วย provider_uid
+      final userDoc = await db
+          .collection('users')
+          .doc(providerUid.toString())
+          .get();
+
+      if (!userDoc.exists) {
+        throw Exception('ไม่พบข้อมูลผู้ใช้ uid = $providerUid');
+      }
+
+      // อัปเดตสถานะใน users
+      await userDoc.reference.update({'status_account': 2});
+
+      debugPrint('อัปเดต users/$providerUid status_account = 2 สำเร็จ');
+
+      await docRef.set(datadocprovider);
+
+      debugPrint('Document saved with ID: ${docRef.id}');
+      debugPrint('PID: ${widget.pid}');
+      debugPrint('Verification status: 0');
+      debugPrint('Rejection reason: null');
 
       if (!mounted) return;
 
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text("สมัครสมาชิกสำเร็จ")));
-
-      // ย้ายไปหน้า Login
-      Navigator.pushAndRemoveUntil(
-        context,
-        MaterialPageRoute(builder: (context) => RegisterProvider()),
-        (route) => false, // ล้าง Stack หน้าเดิมทิ้งทั้งหมด
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("บันทึกเอกสารสำเร็จ รอการอนุมัติ")),
       );
+
+      Navigator.pop(context, true);
     } catch (e) {
       if (!mounted) return;
+
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text("เกิดข้อผิดพลาด: $e")));
     } finally {
       if (mounted) {
         setState(() {
-          isLoading = false; // ปิด Loading ไม่ว่าจะสำเร็จหรือไม่ก็ตาม
+          isLoading = false;
         });
       }
     }

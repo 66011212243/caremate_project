@@ -1,13 +1,22 @@
-
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:bcrypt/bcrypt.dart';
 
 class ChangepasswordPage extends StatefulWidget {
-  final String sid;
+  // UID ของ users โดยตรง
+  final String? userId;
+
+  // ID ของผู้รับบริการ
+  final String? sid;
+
+  // ID ของผู้ให้บริการ
+  final String? pid;
 
   const ChangepasswordPage({
     super.key,
-    this.sid = "naw5Oe3VyaVwj89isnzA",
+    this.userId,
+    this.sid,
+    this.pid,
   });
 
   @override
@@ -15,15 +24,17 @@ class ChangepasswordPage extends StatefulWidget {
 }
 
 class _ChangepasswordPageState extends State<ChangepasswordPage> {
+  // =========================
   // Controllers
+  // =========================
+
   final oldPasswordController = TextEditingController();
   final newPasswordController = TextEditingController();
   final confirmPasswordController = TextEditingController();
 
-  // สถานะการทำงาน
   bool isLoading = false;
 
-  // แสดง/ซ่อนรหัสผ่าน
+  // แสดง / ซ่อนรหัสผ่าน
   bool hideOldPassword = true;
   bool hideNewPassword = true;
   bool hideConfirmPassword = true;
@@ -36,7 +47,10 @@ class _ChangepasswordPageState extends State<ChangepasswordPage> {
     super.dispose();
   }
 
+  // =========================
   // แสดงข้อความ
+  // =========================
+
   void _showMessage(String message) {
     if (!mounted) return;
 
@@ -50,15 +64,210 @@ class _ChangepasswordPageState extends State<ChangepasswordPage> {
       );
   }
 
+  // =========================================================
+  // ค้นหา users
+  // =========================================================
+
+  Future<DocumentSnapshot<Map<String, dynamic>>?> _findUserDocument() async {
+    final firestore = FirebaseFirestore.instance;
+
+    debugPrint('==============================');
+    debugPrint('เริ่มค้นหาผู้ใช้');
+    debugPrint('userId = ${widget.userId}');
+    debugPrint('sid = ${widget.sid}');
+    debugPrint('pid = ${widget.pid}');
+    debugPrint('==============================');
+
+    String? targetUid = widget.userId?.trim();
+
+    // =========================================================
+    // 1. กรณีมี userId มาโดยตรง
+    // =========================================================
+
+    if (targetUid != null && targetUid.isNotEmpty) {
+      debugPrint('ค้นหาจาก userId โดยตรง: $targetUid');
+    }
+
+    // =========================================================
+    // 2. กรณีเป็นผู้รับบริการ
+    // =========================================================
+
+    else if (widget.sid != null && widget.sid!.trim().isNotEmpty) {
+      final sid = widget.sid!.trim();
+
+      debugPrint('กำลังค้นหา service sid = $sid');
+
+      // 2.1 sid เป็น Document ID
+      final serviceDoc =
+          await firestore.collection('service').doc(sid).get();
+
+      if (serviceDoc.exists && serviceDoc.data() != null) {
+        targetUid = serviceDoc.data()?['service_uid']?.toString();
+
+        debugPrint(
+          'พบ service จาก Document ID',
+        );
+        debugPrint(
+          'service_uid = $targetUid',
+        );
+      }
+
+      // 2.2 ถ้า sid ไม่ใช่ Document ID
+      else {
+        debugPrint(
+          'ไม่พบ service/$sid กำลังค้นหาจาก service_id',
+        );
+
+        final serviceResult = await firestore
+            .collection('service')
+            .where('service_id', isEqualTo: sid)
+            .limit(1)
+            .get();
+
+        if (serviceResult.docs.isNotEmpty) {
+          targetUid =
+              serviceResult.docs.first.data()['service_uid']?.toString();
+
+          debugPrint(
+            'พบ service จาก service_id',
+          );
+          debugPrint(
+            'service_uid = $targetUid',
+          );
+        }
+      }
+    }
+
+    // =========================================================
+    // 3. กรณีเป็นผู้ให้บริการ
+    // =========================================================
+
+    else if (widget.pid != null && widget.pid!.trim().isNotEmpty) {
+      final pid = widget.pid!.trim();
+
+      debugPrint('กำลังค้นหา provider pid = $pid');
+
+      // 3.1 pid เป็น Document ID
+      final providerDoc =
+          await firestore.collection('provider').doc(pid).get();
+
+      if (providerDoc.exists && providerDoc.data() != null) {
+        targetUid =
+            providerDoc.data()?['provider_uid']?.toString();
+
+        debugPrint(
+          'พบ provider จาก Document ID',
+        );
+        debugPrint(
+          'provider_uid = $targetUid',
+        );
+      }
+
+      // 3.2 ถ้า pid ไม่ใช่ Document ID
+      else {
+        debugPrint(
+          'ไม่พบ provider/$pid กำลังค้นหาจาก pid',
+        );
+
+        final providerResult = await firestore
+            .collection('provider')
+            .where('pid', isEqualTo: pid)
+            .limit(1)
+            .get();
+
+        if (providerResult.docs.isNotEmpty) {
+          targetUid =
+              providerResult.docs.first.data()['provider_uid']?.toString();
+
+          debugPrint(
+            'พบ provider จากฟิลด์ pid',
+          );
+          debugPrint(
+            'provider_uid = $targetUid',
+          );
+        }
+      }
+    }
+
+    // =========================================================
+    // 4. ตรวจสอบ UID
+    // =========================================================
+
+    if (targetUid == null || targetUid.isEmpty) {
+      debugPrint('ไม่พบ UID ของผู้ใช้');
+
+      return null;
+    }
+
+    debugPrint(
+      'กำลังค้นหา users ด้วย UID = $targetUid',
+    );
+
+    // =========================================================
+    // 5. ค้นหา users จาก Document ID
+    // =========================================================
+
+    final userDoc =
+        await firestore.collection('users').doc(targetUid).get();
+
+    if (userDoc.exists) {
+      debugPrint(
+        'พบ users/$targetUid',
+      );
+
+      return userDoc;
+    }
+
+    // =========================================================
+    // 6. ถ้า UID ไม่ใช่ Document ID
+    //    ลองค้นหาจาก field uid
+    // =========================================================
+
+    debugPrint(
+      'ไม่พบ users/$targetUid',
+    );
+
+    final userQueryResult = await firestore
+        .collection('users')
+        .where('uid', isEqualTo: targetUid)
+        .limit(1)
+        .get();
+
+    if (userQueryResult.docs.isNotEmpty) {
+      debugPrint(
+        'พบ users จาก field uid',
+      );
+
+      return userQueryResult.docs.first;
+    }
+
+    debugPrint(
+      'ไม่พบข้อมูลผู้ใช้ใน users',
+    );
+
+    return null;
+  }
+
+  // =========================================================
   // เปลี่ยนรหัสผ่าน
+  // =========================================================
+
   Future<void> _changePassword() async {
     if (isLoading) return;
 
-    final oldPassword = oldPasswordController.text;
-    final newPassword = newPasswordController.text;
-    final confirmPassword = confirmPasswordController.text;
+    final oldPassword =
+        oldPasswordController.text.trim();
 
+    final newPassword =
+        newPasswordController.text.trim();
+
+    final confirmPassword =
+        confirmPasswordController.text.trim();
+
+    // =========================================================
     // ตรวจสอบข้อมูล
+    // =========================================================
+
     if (oldPassword.isEmpty ||
         newPassword.isEmpty ||
         confirmPassword.isEmpty) {
@@ -66,21 +275,45 @@ class _ChangepasswordPageState extends State<ChangepasswordPage> {
       return;
     }
 
-    // ตรวจสอบรหัสผ่านใหม่ตรงกัน
+    // =========================================================
+    // ตรวจสอบว่ามี ID อย่างน้อย 1 ตัว
+    // =========================================================
+
+    if ((widget.userId == null || widget.userId!.trim().isEmpty) &&
+        (widget.sid == null || widget.sid!.trim().isEmpty) &&
+        (widget.pid == null || widget.pid!.trim().isEmpty)) {
+      _showMessage('ไม่พบรหัสผู้ใช้งาน');
+      return;
+    }
+
+    // =========================================================
+    // ตรวจสอบรหัสผ่านใหม่
+    // =========================================================
+
     if (newPassword != confirmPassword) {
       _showMessage('รหัสผ่านใหม่ไม่ตรงกัน');
       return;
     }
 
+    // =========================================================
     // ตรวจสอบความยาว
+    // =========================================================
+
     if (newPassword.length < 8) {
-      _showMessage('รหัสผ่านใหม่ต้องมีอย่างน้อย 8 ตัวอักษร');
+      _showMessage(
+        'รหัสผ่านใหม่ต้องมีอย่างน้อย 8 ตัวอักษร',
+      );
       return;
     }
 
-    // ตรวจสอบว่าไม่ได้ใช้รหัสผ่านเดิม
+    // =========================================================
+    // ตรวจสอบว่าไม่ใช้รหัสเดิม
+    // =========================================================
+
     if (oldPassword == newPassword) {
-      _showMessage('รหัสผ่านใหม่ต้องไม่เหมือนรหัสผ่านเดิม');
+      _showMessage(
+        'รหัสผ่านใหม่ต้องไม่เหมือนรหัสผ่านเดิม',
+      );
       return;
     }
 
@@ -89,114 +322,149 @@ class _ChangepasswordPageState extends State<ChangepasswordPage> {
     });
 
     try {
-      // ผู้ใช้ที่กำลัง Login อยู่
-      final user = FirebaseAuth.instance.currentUser;
+      // =======================================================
+      // 1. ค้นหา users
+      // =======================================================
 
-      if (user == null) {
-        _showMessage('ไม่พบข้อมูลผู้ใช้ กรุณาเข้าสู่ระบบใหม่');
+      final userDoc = await _findUserDocument();
+
+      if (userDoc == null) {
+        _showMessage('ไม่พบข้อมูลผู้ใช้');
         return;
       }
 
-      // ตรวจสอบว่า sid เป็นของผู้ใช้ที่ Login อยู่จริง
-      if (user.uid != widget.sid) {
-        _showMessage('ไม่พบข้อมูลบัญชีผู้ใช้');
+      // =======================================================
+      // 2. อ่านข้อมูล users
+      // =======================================================
+
+      final userData = userDoc.data();
+
+      if (userData == null) {
+        _showMessage('ไม่พบข้อมูลผู้ใช้');
         return;
       }
 
-      // ตรวจสอบว่าเป็นบัญชี Email/Password
-      final hasEmailPasswordProvider = user.providerData.any(
-        (provider) => provider.providerId == 'password',
-      );
+      // =======================================================
+      // 3. อ่าน password เดิม
+      // =======================================================
 
-      if (!hasEmailPasswordProvider) {
-        _showMessage(
-          'บัญชีนี้เข้าสู่ระบบด้วย Google จึงไม่สามารถเปลี่ยนรหัสผ่านจากหน้านี้ได้',
+      final currentPassword =
+          userData['password']?.toString();
+
+      if (currentPassword == null ||
+          currentPassword.isEmpty) {
+        _showMessage('ไม่พบรหัสผ่านของผู้ใช้');
+        return;
+      }
+
+      // =======================================================
+      // 4. ตรวจสอบ password เดิมด้วย BCrypt
+      // =======================================================
+
+      bool passwordCorrect = false;
+
+      try {
+        passwordCorrect = BCrypt.checkpw(
+          oldPassword,
+          currentPassword,
         );
+      } catch (e) {
+        debugPrint(
+          'BCrypt Error: $e',
+        );
+
+        passwordCorrect = false;
+      }
+
+      if (!passwordCorrect) {
+        _showMessage('รหัสผ่านเดิมไม่ถูกต้อง');
         return;
       }
 
-      // ตรวจสอบว่ามี Email
-      if (user.email == null || user.email!.isEmpty) {
-        _showMessage('ไม่พบอีเมลของผู้ใช้');
-        return;
-      }
+      // =======================================================
+      // 5. Hash password ใหม่
+      // =======================================================
 
-      // ตรวจสอบรหัสผ่านเก่า
-      final credential = EmailAuthProvider.credential(
-        email: user.email!,
-        password: oldPassword,
+      final hashedPassword = BCrypt.hashpw(
+        newPassword,
+        BCrypt.gensalt(),
       );
 
-      await user.reauthenticateWithCredential(credential);
+      // =======================================================
+      // 6. บันทึกรหัสผ่านใหม่
+      // =======================================================
 
-      // เปลี่ยนรหัสผ่านใหม่
-      await user.updatePassword(newPassword);
+      await userDoc.reference.update({
+        'password': hashedPassword,
+      });
+
+      debugPrint(
+        'เปลี่ยนรหัสผ่านสำเร็จ',
+      );
+
+      // =======================================================
+      // 7. ล้างข้อมูล
+      // =======================================================
 
       if (!mounted) return;
 
-      // ล้างข้อมูลในช่องกรอก
       oldPasswordController.clear();
       newPasswordController.clear();
       confirmPasswordController.clear();
 
       _showMessage('เปลี่ยนรหัสผ่านสำเร็จ');
 
-      // รอให้เห็นข้อความก่อนกลับหน้าเดิม
+      // รอให้เห็นข้อความ
       await Future.delayed(
         const Duration(milliseconds: 800),
       );
 
       if (!mounted) return;
 
-      // ส่ง true กลับไปหน้าก่อนหน้า
       Navigator.pop(context, true);
-    } on FirebaseAuthException catch (e) {
+    } on FirebaseException catch (e) {
+      debugPrint(
+        'Firebase Error: ${e.code}',
+      );
+      debugPrint(
+        'Firebase Message: ${e.message}',
+      );
+
+      if (!mounted) return;
+
       String message;
 
       switch (e.code) {
-        case 'wrong-password':
-        case 'invalid-credential':
-          message = 'รหัสผ่านเก่าไม่ถูกต้อง';
+        case 'permission-denied':
+          message =
+              'ไม่มีสิทธิ์แก้ไขข้อมูล กรุณาตรวจสอบ Firebase Rules';
           break;
 
-        case 'weak-password':
-          message = 'รหัสผ่านใหม่ไม่ปลอดภัยเพียงพอ';
+        case 'unavailable':
+          message =
+              'ไม่สามารถเชื่อมต่อฐานข้อมูลได้';
           break;
 
-        case 'requires-recent-login':
-          message = 'เซสชันหมดอายุ กรุณาเข้าสู่ระบบใหม่';
-          break;
-
-        case 'network-request-failed':
-          message = 'ไม่สามารถเชื่อมต่ออินเทอร์เน็ตได้';
-          break;
-
-        case 'too-many-requests':
-          message = 'มีการลองมากเกินไป กรุณารอสักครู่';
-          break;
-
-        case 'user-disabled':
-          message = 'บัญชีผู้ใช้นี้ถูกระงับการใช้งาน';
-          break;
-
-        case 'user-not-found':
-          message = 'ไม่พบข้อมูลผู้ใช้';
-          break;
-
-        case 'operation-not-allowed':
-          message = 'ยังไม่ได้เปิดใช้งาน Email/Password ใน Firebase';
+        case 'not-found':
+          message =
+              'ไม่พบข้อมูลผู้ใช้ใน Firebase';
           break;
 
         default:
-          message = 'เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง';
+          message =
+              'เกิดข้อผิดพลาด: ${e.message ?? e.code}';
       }
 
-      if (mounted) {
-        _showMessage(message);
-      }
+      _showMessage(message);
     } catch (e) {
+      debugPrint(
+        'Change Password Error: $e',
+      );
+
       if (mounted) {
-        _showMessage('เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง');
+        _showMessage(
+          'เกิดข้อผิดพลาด: $e',
+        );
       }
     } finally {
       if (mounted) {
@@ -207,7 +475,10 @@ class _ChangepasswordPageState extends State<ChangepasswordPage> {
     }
   }
 
+  // =========================================================
   // ช่องกรอกรหัสผ่าน
+  // =========================================================
+
   Widget _buildPasswordField({
     required TextEditingController controller,
     required String hintText,
@@ -247,11 +518,16 @@ class _ChangepasswordPageState extends State<ChangepasswordPage> {
                 ? Icons.visibility_off
                 : Icons.visibility,
           ),
-          onPressed: isLoading ? null : onToggle,
+          onPressed:
+              isLoading ? null : onToggle,
         ),
       ),
     );
   }
+
+  // =========================================================
+  // UI
+  // =========================================================
 
   @override
   Widget build(BuildContext context) {
@@ -316,15 +592,16 @@ class _ChangepasswordPageState extends State<ChangepasswordPage> {
 
               const SizedBox(height: 30),
 
-              // รหัสผ่านเก่า
+              // รหัสผ่านเดิม
               _buildPasswordField(
                 controller: oldPasswordController,
-                hintText: 'รหัสผ่านเก่า',
+                hintText: 'รหัสผ่านเดิม',
                 obscureText: hideOldPassword,
                 prefixIcon: Icons.lock,
                 onToggle: () {
                   setState(() {
-                    hideOldPassword = !hideOldPassword;
+                    hideOldPassword =
+                        !hideOldPassword;
                   });
                 },
               ),
@@ -339,7 +616,8 @@ class _ChangepasswordPageState extends State<ChangepasswordPage> {
                 prefixIcon: Icons.lock_outline,
                 onToggle: () {
                   setState(() {
-                    hideNewPassword = !hideNewPassword;
+                    hideNewPassword =
+                        !hideNewPassword;
                   });
                 },
               ),
@@ -354,7 +632,8 @@ class _ChangepasswordPageState extends State<ChangepasswordPage> {
                 prefixIcon: Icons.lock_outline,
                 onToggle: () {
                   setState(() {
-                    hideConfirmPassword = !hideConfirmPassword;
+                    hideConfirmPassword =
+                        !hideConfirmPassword;
                   });
                 },
               ),
@@ -381,11 +660,14 @@ class _ChangepasswordPageState extends State<ChangepasswordPage> {
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.red,
                     foregroundColor: Colors.white,
-                    disabledBackgroundColor: Colors.grey,
+                    disabledBackgroundColor:
+                        Colors.grey,
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(25),
+                      borderRadius:
+                          BorderRadius.circular(25),
                     ),
-                    padding: const EdgeInsets.symmetric(
+                    padding:
+                        const EdgeInsets.symmetric(
                       vertical: 15,
                     ),
                   ),
@@ -396,7 +678,8 @@ class _ChangepasswordPageState extends State<ChangepasswordPage> {
                       ? const SizedBox(
                           width: 22,
                           height: 22,
-                          child: CircularProgressIndicator(
+                          child:
+                              CircularProgressIndicator(
                             color: Colors.white,
                             strokeWidth: 2,
                           ),
@@ -405,7 +688,8 @@ class _ChangepasswordPageState extends State<ChangepasswordPage> {
                           'ยืนยัน',
                           style: TextStyle(
                             fontSize: 16,
-                            fontWeight: FontWeight.bold,
+                            fontWeight:
+                                FontWeight.bold,
                           ),
                         ),
                 ),

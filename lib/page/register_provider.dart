@@ -210,10 +210,7 @@ class _RegisterProviderState extends State<RegisterProvider> {
       context,
       MaterialPageRoute(
         builder: (context) => DocumentPage(
-          username: usernameCtl.text,
-          fullname: fullnameCtl.text,
-          email: emailCtl.text,
-          password: passwordCtl.text,
+         pid: '62CH3vzWMqFHM7pnuNr6',
         ),
       ),
     );

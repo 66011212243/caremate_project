@@ -4,7 +4,7 @@ import 'package:caremate_application/page/details_job.dart';
 import 'package:caremate_application/page/myJob_povider.dart';
 import 'package:caremate_application/page/notification_system.dart';
 import 'package:caremate_application/page/notifications_page.dart';
-import 'package:caremate_application/page/settings_page.dart';
+import 'package:caremate_application/page/setting_provider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 
@@ -40,7 +40,7 @@ class _HomepageProviderState extends State<HomepageProvider> {
       Container(),
       MyjobPovider(pid: pid),
       NotificationsPage(),
-      SettingsPage(),
+      SettingsProvider(),
     ];
     return Scaffold(
       backgroundColor: Color.fromARGB(255, 255, 255, 255),
