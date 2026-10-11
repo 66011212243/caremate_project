@@ -23,6 +23,7 @@ class _DetailsJobServiceState extends State<DetailsJobService> {
   double? latitudeLocation;
   double? longitudeLocation;
   bool isEdited = false;
+  bool isDeleting = false;
 
   final _map = GlobalKey<LongdoMapState>();
   bool _ready = false;
@@ -468,163 +469,288 @@ class _DetailsJobServiceState extends State<DetailsJobService> {
                                 ),
                               ),
 
-                            const SizedBox(height: 12),
+                            if (detailsJob['job_status'] == 1)
+                              // ปุ่มยกเลิกงาน
+                              SizedBox(
+                                width: double.infinity,
+                                height: 48,
+                                child: OutlinedButton.icon(
+                                  onPressed: isDeleting
+                                      ? null
+                                      : () {
+                                          print("ยกเลิกงาน ${widget.jobId}");
 
-                            // แก้ไข / ลบ
-                            Row(
-                              children: [
-                                // ปุ่มแก้ไข
-                                Expanded(
-                                  child: OutlinedButton.icon(
-                                    onPressed: () async {
-                                      print("แก้ไขงาน ${widget.jobId}");
-                                      if (detailsJob['job_status'] != 0) {
-                                        ScaffoldMessenger.of(
-                                          context,
-                                        ).showSnackBar(
-                                          const SnackBar(
-                                            content: Text(
-                                              "ไม่สามารถแก้ไขงานได้ เนื่องจากงานอยู่ระหว่างดำเนินการ",
-                                            ),
-                                          ),
-                                        );
-
-                                        return;
-                                      }
-
-                                      final result = await Navigator.push(
-                                        context,
-                                        MaterialPageRoute(
-                                          builder: (context) => EditJob(
-                                            sid: detailsJob['service_id']
-                                                .toString(),
-                                            jobId: widget.jobId,
-                                          ),
-                                        ),
-                                      );
-
-                                      // ถ้าแก้ไขสำเร็จ ให้โหลดข้อมูลใหม่
-                                      if (result == 'edited') {
-                                        queryJobDetails();
-                                      }
-                                    },
-                                    icon: const Icon(
-                                      Icons.edit_outlined,
-                                      size: 20,
-                                    ),
-                                    label: const Text(
-                                      "แก้ไขงาน",
-                                      style: TextStyle(
-                                        fontSize: 15,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                    style: OutlinedButton.styleFrom(
-                                      foregroundColor: Colors.black87,
-                                      side: const BorderSide(
-                                        color: Colors.grey,
-                                      ),
-                                      padding: const EdgeInsets.symmetric(
-                                        vertical: 12,
-                                      ),
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(10),
-                                      ),
-                                    ),
-                                  ),
-                                ),
-
-                                const SizedBox(width: 10),
-
-                                // ปุ่มลบ
-                                Expanded(
-                                  child: OutlinedButton.icon(
-                                    onPressed: () {
-                                      print("ลบงาน ${widget.jobId}");
-                                      if (detailsJob['job_status'] != 0) {
-                                        ScaffoldMessenger.of(
-                                          context,
-                                        ).showSnackBar(
-                                          const SnackBar(
-                                            content: Text(
-                                              "ไม่สามารถลบงานได้ เนื่องจากงานอยู่ระหว่างดำเนินการ",
-                                            ),
-                                          ),
-                                        );
-
-                                        return;
-                                      }
-
-                                      // ถ้า status == 0 ค่อยเปิด Popup ยืนยัน
-                                      showDialog(
-                                        context: context,
-                                        builder: (context) {
-                                          return AlertDialog(
-                                            title: const Text("ยืนยันการลบงาน"),
-                                            content: const Text(
-                                              "คุณต้องการลบประกาศงานนี้ใช่หรือไม่?",
-                                            ),
-                                            actions: [
-                                              TextButton(
-                                                onPressed: () {
-                                                  Navigator.pop(context);
-                                                },
-                                                child: const Text(
-                                                  "ยกเลิก",
-                                                  style: TextStyle(
-                                                    color: Colors.grey,
-                                                  ),
+                                          if (detailsJob['job_status'] != 1) {
+                                            ScaffoldMessenger.of(
+                                              context,
+                                            ).showSnackBar(
+                                              const SnackBar(
+                                                content: Text(
+                                                  "ไม่สามารถยกเลิกงานได้ เนื่องจากงานอยู่ระหว่างดำเนินการ",
                                                 ),
                                               ),
+                                            );
+                                            return;
+                                          }
 
-                                              TextButton(
-                                                onPressed: () {
-                                                  Navigator.pop(context);
-
-                                                  print(
-                                                    "ยืนยันลบงาน ${widget.jobId}",
-                                                  );
-
-                                                  deleteJob(widget.jobId);
-                                                },
-                                                child: const Text(
-                                                  "ยืนยันการลบ",
-                                                  style: TextStyle(
-                                                    color: Colors.red,
-                                                    fontWeight: FontWeight.bold,
-                                                  ),
+                                          showDialog(
+                                            context: context,
+                                            builder: (dialogContext) {
+                                              return AlertDialog(
+                                                title: const Text(
+                                                  "ยืนยันการยกเลิกงาน",
                                                 ),
-                                              ),
-                                            ],
+                                                content: const Text(
+                                                  "คุณต้องการยกเลิกประกาศงานนี้ใช่หรือไม่?",
+                                                ),
+                                                actions: [
+                                                  TextButton(
+                                                    onPressed: () {
+                                                      Navigator.pop(
+                                                        dialogContext,
+                                                      );
+                                                    },
+                                                    child: const Text(
+                                                      "กลับ",
+                                                      style: TextStyle(
+                                                        color: Colors.grey,
+                                                      ),
+                                                    ),
+                                                  ),
+                                                  TextButton(
+                                                    onPressed: () {
+                                                      Navigator.pop(
+                                                        dialogContext,
+                                                      );
+                                                      cancelJob(widget.jobId);
+                                                    },
+                                                    child: const Text(
+                                                      "ยืนยันการยกเลิก",
+                                                      style: TextStyle(
+                                                        color: Colors.red,
+                                                        fontWeight:
+                                                            FontWeight.bold,
+                                                      ),
+                                                    ),
+                                                  ),
+                                                ],
+                                              );
+                                            },
                                           );
                                         },
-                                      );
-                                    },
-                                    icon: const Icon(
-                                      Icons.delete_outline,
-                                      size: 20,
+                                  icon: isDeleting
+                                      ? const SizedBox(
+                                          width: 18,
+                                          height: 18,
+                                          child: CircularProgressIndicator(
+                                            strokeWidth: 2,
+                                            color: Colors.red,
+                                          ),
+                                        )
+                                      : const Icon(
+                                          Icons.cancel_outlined,
+                                          size: 20,
+                                        ),
+                                  label: Text(
+                                    isDeleting
+                                        ? "กำลังยกเลิกงาน..."
+                                        : "ยกเลิกงาน",
+                                    style: const TextStyle(
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.bold,
                                     ),
-                                    label: const Text(
-                                      "ลบงาน",
-                                      style: TextStyle(
-                                        fontSize: 15,
-                                        fontWeight: FontWeight.bold,
-                                      ),
+                                  ),
+                                  style: OutlinedButton.styleFrom(
+                                    foregroundColor: Colors.red,
+                                    disabledForegroundColor: Colors.red,
+                                    side: const BorderSide(color: Colors.red),
+                                    padding: const EdgeInsets.symmetric(
+                                      vertical: 12,
                                     ),
-                                    style: OutlinedButton.styleFrom(
-                                      foregroundColor: Colors.red,
-                                      side: const BorderSide(color: Colors.red),
-                                      padding: const EdgeInsets.symmetric(
-                                        vertical: 12,
-                                      ),
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(10),
-                                      ),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(10),
                                     ),
                                   ),
                                 ),
-                              ],
-                            ),
+                              ),
+
+                            // แก้ไข / ลบ
+                            if (detailsJob['job_status'] == 0)
+                              Row(
+                                children: [
+                                  // ปุ่มแก้ไข
+                                  Expanded(
+                                    child: OutlinedButton.icon(
+                                      onPressed: () async {
+                                        print("แก้ไขงาน ${widget.jobId}");
+                                        if (detailsJob['job_status'] != 0) {
+                                          ScaffoldMessenger.of(
+                                            context,
+                                          ).showSnackBar(
+                                            const SnackBar(
+                                              content: Text(
+                                                "ไม่สามารถแก้ไขงานได้ เนื่องจากงานอยู่ระหว่างดำเนินการ",
+                                              ),
+                                            ),
+                                          );
+
+                                          return;
+                                        }
+
+                                        final result = await Navigator.push(
+                                          context,
+                                          MaterialPageRoute(
+                                            builder: (context) => EditJob(
+                                              sid: detailsJob['service_id']
+                                                  .toString(),
+                                              jobId: widget.jobId,
+                                            ),
+                                          ),
+                                        );
+
+                                        // ถ้าแก้ไขสำเร็จ ให้โหลดข้อมูลใหม่
+                                        if (result == 'edited') {
+                                          queryJobDetails();
+                                        }
+                                      },
+                                      icon: const Icon(
+                                        Icons.edit_outlined,
+                                        size: 20,
+                                      ),
+                                      label: const Text(
+                                        "แก้ไขงาน",
+                                        style: TextStyle(
+                                          fontSize: 15,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                      style: OutlinedButton.styleFrom(
+                                        foregroundColor: Colors.black87,
+                                        side: const BorderSide(
+                                          color: Colors.grey,
+                                        ),
+                                        padding: const EdgeInsets.symmetric(
+                                          vertical: 12,
+                                        ),
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(
+                                            10,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+
+                                  const SizedBox(width: 10),
+
+                                  // ปุ่มลบ
+                                  Expanded(
+                                    child: OutlinedButton.icon(
+                                      onPressed: isDeleting
+                                          ? null
+                                          : () {
+                                              print("ลบงาน ${widget.jobId}");
+
+                                              if (detailsJob['job_status'] !=
+                                                  0) {
+                                                ScaffoldMessenger.of(
+                                                  context,
+                                                ).showSnackBar(
+                                                  const SnackBar(
+                                                    content: Text(
+                                                      "ไม่สามารถยกเลิกงานได้ เนื่องจากงานอยู่ระหว่างดำเนินการ",
+                                                    ),
+                                                  ),
+                                                );
+                                                return;
+                                              }
+
+                                              showDialog(
+                                                context: context,
+                                                builder: (dialogContext) {
+                                                  return AlertDialog(
+                                                    title: const Text(
+                                                      "ยืนยันการลบงาน",
+                                                    ),
+                                                    content: const Text(
+                                                      "คุณต้องการลบประกาศงานนี้ใช่หรือไม่?",
+                                                    ),
+                                                    actions: [
+                                                      TextButton(
+                                                        onPressed: () {
+                                                          Navigator.pop(
+                                                            dialogContext,
+                                                          );
+                                                        },
+                                                        child: const Text(
+                                                          "กลับ",
+                                                          style: TextStyle(
+                                                            color: Colors.grey,
+                                                          ),
+                                                        ),
+                                                      ),
+                                                      TextButton(
+                                                        onPressed: () {
+                                                          Navigator.pop(
+                                                            dialogContext,
+                                                          );
+                                                          deleteJob(
+                                                            widget.jobId,
+                                                          );
+                                                        },
+                                                        child: const Text(
+                                                          "ยืนยันการลบ",
+                                                          style: TextStyle(
+                                                            color: Colors.red,
+                                                            fontWeight:
+                                                                FontWeight.bold,
+                                                          ),
+                                                        ),
+                                                      ),
+                                                    ],
+                                                  );
+                                                },
+                                              );
+                                            },
+                                      icon: isDeleting
+                                          ? const SizedBox(
+                                              width: 18,
+                                              height: 18,
+                                              child: CircularProgressIndicator(
+                                                strokeWidth: 2,
+                                                color: Colors.red,
+                                              ),
+                                            )
+                                          : const Icon(
+                                              Icons.cancel_outlined,
+                                              size: 20,
+                                            ),
+                                      label: Text(
+                                        isDeleting ? "กำลังลบงาน..." : "ลบงาน",
+                                        style: const TextStyle(
+                                          fontSize: 15,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                      style: OutlinedButton.styleFrom(
+                                        foregroundColor: Colors.red,
+                                        disabledForegroundColor: Colors.red,
+                                        side: const BorderSide(
+                                          color: Colors.red,
+                                        ),
+                                        padding: const EdgeInsets.symmetric(
+                                          vertical: 12,
+                                        ),
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(
+                                            10,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
                           ],
                         ),
                       ),
@@ -685,14 +811,91 @@ class _DetailsJobServiceState extends State<DetailsJobService> {
     return null;
   }
 
-  Future<void> deleteJob(String addressId) async {
-    try {
-      await db.collection('jobs').doc(addressId).delete();
-      if (!mounted) return;
+  Future<void> deleteJob(String jobId) async {
+    if (isDeleting) return;
 
+    setState(() {
+      isDeleting = true;
+    });
+
+    try {
+      // 1. ค้นหาผู้สมัครของงานนี้
+      final applications = await db
+          .collection('all_drivers')
+          .where('job_id', isEqualTo: jobId)
+          .get();
+
+      // 2. ลบข้อมูลผู้สมัคร
+      for (final doc in applications.docs) {
+        await doc.reference.delete();
+      }
+
+      // 3. ลบงาน
+      await db.collection('jobs').doc(jobId).delete();
+
+      if (!mounted) return;
       Navigator.pop(context, true);
     } catch (e) {
-      print("Error deleting address: $e");
+      print('Error deleting job: $e');
+    } finally {
+      if (mounted) {
+        setState(() {
+          isDeleting = false;
+        });
+      }
+    }
+  }
+
+  Future<void> cancelJob(String jobId) async {
+    if (isDeleting) return;
+
+    setState(() {
+      isDeleting = true;
+    });
+
+    try {
+      // 1. ค้นหาผู้สมัครทั้งหมดของงานนี้
+      final applications = await db
+          .collection('all_drivers')
+          .where('job_id', isEqualTo: jobId)
+          .get();
+
+      // 2. สร้าง Batch เพื่ออัปเดตสถานะ
+      final batch = db.batch();
+
+      // 3. เปลี่ยนสถานะผู้สมัครเป็น 6 โดยไม่ลบข้อมูล
+      for (final doc in applications.docs) {
+        batch.update(doc.reference, {'status_drivers': 7});
+      }
+
+      // 4. เปลี่ยนสถานะงานเป็น 10 (ยกเลิกงาน)
+      batch.update(db.collection('jobs').doc(jobId), {'job_status': 10});
+
+      // 5. บันทึกการเปลี่ยนแปลงทั้งหมด
+      await batch.commit();
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('ยกเลิกงานเรียบร้อยแล้ว')));
+
+      // กลับหน้าก่อนหน้าและส่งผลว่ามีการเปลี่ยนแปลง
+      Navigator.pop(context, true);
+    } catch (e) {
+      debugPrint('Error cancelling job: $e');
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('ยกเลิกงานไม่สำเร็จ กรุณาลองใหม่')),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          isDeleting = false;
+        });
+      }
     }
   }
 }

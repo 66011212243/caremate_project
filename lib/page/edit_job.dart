@@ -1,9 +1,12 @@
+import 'dart:convert';
 import 'dart:developer';
 
 import 'package:caremate_application/page/map_page.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
 import 'package:longdo_maps_api3_flutter/longdo_maps_api3_flutter.dart';
+import '../functions/create_job_functions.dart';
 
 class EditJob extends StatefulWidget {
   final String sid;
@@ -16,6 +19,7 @@ class EditJob extends StatefulWidget {
 }
 
 class _EditJobState extends State<EditJob> {
+  final FocusNode placeNameFocusNode = FocusNode();
   var db = FirebaseFirestore.instance;
 
   final map = GlobalKey<LongdoMapState>();
@@ -35,7 +39,7 @@ class _EditJobState extends State<EditJob> {
   TextEditingController jobTypeController = TextEditingController();
 
   int price = 0;
-  int ratePerHour = 100;
+  int ratePerHour = 0;
   int extraPrice = 0;
 
   int? vehicle;
@@ -44,20 +48,37 @@ class _EditJobState extends State<EditJob> {
   double? latitudeLocation;
   double? longitudeLocation;
 
+  // พิกัดที่อยู่หลักของผู้รับบริการ (จุดรับ)
+  double? pickupLatitude;
+  double? pickupLongitude;
+
+  // ระยะทางและอัตราค่าเดินทาง
+  double? distanceKm;
+  int ratePerKm = 0;
+
   String mainAddress = "";
   String address_id = "";
 
   bool isLoadingJob = true;
   bool isUpdatingJob = false;
 
+  List<PreviousPlace> previousPlaces = [];
+
   @override
   void initState() {
     super.initState();
-    loadJobData();
+    initData();
+  }
+
+  Future<void> initData() async {
+    await queryServiceRatesData();
+    await loadPreviousPlacesData();
+    await loadJobData();
   }
 
   @override
   void dispose() {
+    placeNameFocusNode.dispose();
     timeStartController.dispose();
     timeEndController.dispose();
     dateController.dispose();
@@ -72,7 +93,6 @@ class _EditJobState extends State<EditJob> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color.fromARGB(255, 255, 255, 255),
-
       appBar: AppBar(
         title: Row(
           children: [
@@ -82,7 +102,6 @@ class _EditJobState extends State<EditJob> {
               },
               label: const Icon(Icons.arrow_back_ios, color: Colors.black),
             ),
-
             const Text(
               "แก้ไขรายละเอียดงาน",
               style: TextStyle(
@@ -92,12 +111,10 @@ class _EditJobState extends State<EditJob> {
             ),
           ],
         ),
-
         toolbarHeight: 70,
         automaticallyImplyLeading: false,
         backgroundColor: const Color.fromARGB(255, 255, 255, 255),
       ),
-
       body: isLoadingJob
           ? const Center(child: CircularProgressIndicator())
           : SingleChildScrollView(
@@ -109,7 +126,7 @@ class _EditJobState extends State<EditJob> {
                     children: [
                       Container(
                         width: 350,
-                        color: Colors.white,
+                        color: Colors.grey.shade50,
                         child: Padding(
                           padding: const EdgeInsets.all(10.0),
                           child: Column(
@@ -122,7 +139,6 @@ class _EditJobState extends State<EditJob> {
                                   color: Color.fromARGB(255, 255, 0, 0),
                                 ),
                               ),
-
                               Text(mainAddress),
                             ],
                           ),
@@ -130,27 +146,94 @@ class _EditJobState extends State<EditJob> {
                       ),
 
                       // =========================
-                      // สถานที่
+                      // สถานที่ (Autocomplete)
                       // =========================
                       Row(
                         children: [
                           const Text(
                             "สถานที่ :",
                             style: TextStyle(
-                              fontSize: 16,
+                              fontSize: 18,
                               fontWeight: FontWeight.bold,
                             ),
                           ),
-
                           const SizedBox(width: 20),
-
                           SizedBox(
                             width: 220,
-                            child: TextField(
-                              controller: placeNameController,
-                              decoration: const InputDecoration(
-                                hintText: "กรุณากรอกชื่อสถานที่",
-                              ),
+                            child: RawAutocomplete<PreviousPlace>(
+                              textEditingController: placeNameController,
+                              focusNode: placeNameFocusNode,
+                              optionsBuilder:
+                                  (TextEditingValue textEditingValue) {
+                                    if (textEditingValue.text.isEmpty) {
+                                      return const Iterable<
+                                        PreviousPlace
+                                      >.empty();
+                                    }
+                                    return previousPlaces.where((place) {
+                                      return place.name.toLowerCase().contains(
+                                        textEditingValue.text.toLowerCase(),
+                                      );
+                                    });
+                                  },
+                              displayStringForOption: (PreviousPlace place) {
+                                return place.name;
+                              },
+                              onSelected: (PreviousPlace place) {
+                                setState(() {
+                                  placeNameController.text = place.name;
+                                  latitudeLocation = place.latitude;
+                                  longitudeLocation = place.longitude;
+                                });
+                              },
+                              fieldViewBuilder:
+                                  (
+                                    BuildContext context,
+                                    TextEditingController controller,
+                                    FocusNode focusNode,
+                                    VoidCallback onFieldSubmitted,
+                                  ) {
+                                    return TextField(
+                                      controller: controller,
+                                      focusNode: focusNode,
+                                      decoration: const InputDecoration(
+                                        hintText: "กรุณากรอกชื่อสถานที่",
+                                      ),
+                                    );
+                                  },
+                              optionsViewBuilder:
+                                  (
+                                    BuildContext context,
+                                    AutocompleteOnSelected<PreviousPlace>
+                                    onSelected,
+                                    Iterable<PreviousPlace> options,
+                                  ) {
+                                    return Align(
+                                      alignment: Alignment.topLeft,
+                                      child: Material(
+                                        elevation: 4,
+                                        child: SizedBox(
+                                          width: 220,
+                                          child: ListView.builder(
+                                            padding: EdgeInsets.zero,
+                                            shrinkWrap: true,
+                                            itemCount: options.length,
+                                            itemBuilder: (context, index) {
+                                              final place = options.elementAt(
+                                                index,
+                                              );
+                                              return ListTile(
+                                                title: Text(place.name),
+                                                onTap: () {
+                                                  onSelected(place);
+                                                },
+                                              );
+                                            },
+                                          ),
+                                        ),
+                                      ),
+                                    );
+                                  },
                             ),
                           ),
                         ],
@@ -158,9 +241,11 @@ class _EditJobState extends State<EditJob> {
 
                       const SizedBox(height: 15),
 
+                      // =========================
                       // พิกัด
+                      // =========================
                       Container(
-                        width: double.infinity,
+                        width: 360,
                         padding: const EdgeInsets.all(15),
                         decoration: BoxDecoration(
                           color: Colors.grey.shade50,
@@ -177,9 +262,7 @@ class _EditJobState extends State<EditJob> {
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
-
                             const SizedBox(height: 12),
-
                             Row(
                               children: [
                                 const Icon(
@@ -187,9 +270,7 @@ class _EditJobState extends State<EditJob> {
                                   color: Colors.red,
                                   size: 28,
                                 ),
-
                                 const SizedBox(width: 10),
-
                                 Expanded(
                                   child: Column(
                                     crossAxisAlignment:
@@ -201,23 +282,25 @@ class _EditJobState extends State<EditJob> {
                                             : "ยังไม่ได้เลือกพิกัด",
                                         style: const TextStyle(fontSize: 15),
                                       ),
-
                                       const SizedBox(height: 5),
-
                                       Text(
                                         longitudeLocation != null
                                             ? "ลองจิจูด: $longitudeLocation"
                                             : "ยังไม่ได้เลือกพิกัด",
                                         style: const TextStyle(fontSize: 15),
                                       ),
+                                      const SizedBox(height: 5),
+                                      if (distanceKm != null)
+                                        Text(
+                                          "ระยะทาง(ไป-กลับ): ${distanceKm!.toStringAsFixed(2)} กม.",
+                                          style: const TextStyle(fontSize: 15),
+                                        ),
                                     ],
                                   ),
                                 ),
                               ],
                             ),
-
                             const SizedBox(height: 12),
-
                             SizedBox(
                               width: double.infinity,
                               child: OutlinedButton.icon(
@@ -230,14 +313,53 @@ class _EditJobState extends State<EditJob> {
                                   );
 
                                   if (result != null) {
+                                    final double destinationLat =
+                                        (result['lat'] as num).toDouble();
+                                    final double destinationLon =
+                                        (result['lon'] as num).toDouble();
+
                                     setState(() {
-                                      latitudeLocation = result['lat'];
-                                      longitudeLocation = result['lon'];
+                                      latitudeLocation = destinationLat;
+                                      longitudeLocation = destinationLon;
                                     });
 
-                                    log("LatfromMap: $latitudeLocation");
+                                    if (pickupLatitude == null ||
+                                        pickupLongitude == null) {
+                                      ScaffoldMessenger.of(
+                                        context,
+                                      ).showSnackBar(
+                                        const SnackBar(
+                                          content: Text(
+                                            "ไม่พบพิกัดที่อยู่หลัก",
+                                          ),
+                                        ),
+                                      );
+                                      return;
+                                    }
 
-                                    log("LonfromMap: $longitudeLocation");
+                                    final distance = await getRouteDistance(
+                                      startLat: pickupLatitude!,
+                                      startLon: pickupLongitude!,
+                                      endLat: destinationLat,
+                                      endLon: destinationLon,
+                                    );
+
+                                    if (distance != null) {
+                                      setState(() {
+                                        distanceKm = distance;
+                                      });
+                                      updateTotalPrice();
+                                    } else {
+                                      ScaffoldMessenger.of(
+                                        context,
+                                      ).showSnackBar(
+                                        const SnackBar(
+                                          content: Text(
+                                            "ไม่สามารถคำนวณระยะทางได้",
+                                          ),
+                                        ),
+                                      );
+                                    }
                                   }
                                 },
                                 icon: const Icon(Icons.map, color: Colors.red),
@@ -278,19 +400,14 @@ class _EditJobState extends State<EditJob> {
                               fontWeight: FontWeight.bold,
                             ),
                           ),
-
                           const SizedBox(width: 10),
-
                           SizedBox(
                             width: 200,
                             child: TextField(
                               controller: dateController,
                               readOnly: true,
-
                               onTap: () async {
                                 DateTime initialDate = selectedDate ?? now;
-
-                                // ป้องกันกรณีวันที่เดิมเป็นวันที่ผ่านมาแล้ว
                                 if (initialDate.isBefore(
                                   DateTime(now.year, now.month, now.day),
                                 )) {
@@ -307,13 +424,11 @@ class _EditJobState extends State<EditJob> {
                                 if (picked != null) {
                                   setState(() {
                                     selectedDate = picked;
-
                                     dateController.text =
                                         "${picked.day}/${picked.month}/${picked.year}";
                                   });
                                 }
                               },
-
                               decoration: const InputDecoration(
                                 hintText: "เลือกวันที่",
                                 suffixIcon: Icon(Icons.calendar_today),
@@ -337,20 +452,15 @@ class _EditJobState extends State<EditJob> {
                               fontWeight: FontWeight.bold,
                             ),
                           ),
-
                           const SizedBox(width: 10),
-
                           const Text("จาก", style: TextStyle(fontSize: 14)),
-
                           const SizedBox(width: 10),
-
                           SizedBox(
                             width: 70,
                             height: 30,
                             child: TextField(
                               controller: timeStartController,
                               readOnly: true,
-
                               onTap: () async {
                                 TimeOfDay? picked = await showTimePicker(
                                   context: context,
@@ -368,34 +478,26 @@ class _EditJobState extends State<EditJob> {
                                 if (picked != null) {
                                   setState(() {
                                     startTime = picked;
-
                                     timeStartController.text =
                                         "${picked.hour}:${picked.minute.toString().padLeft(2, '0')}";
                                   });
-
                                   calculatePrice();
                                 }
                               },
-
                               decoration: const InputDecoration(
                                 hintText: "hh:mm",
                               ),
                             ),
                           ),
-
                           const SizedBox(width: 10),
-
                           const Text("ถึง", style: TextStyle(fontSize: 14)),
-
                           const SizedBox(width: 10),
-
                           SizedBox(
                             width: 70,
                             height: 30,
                             child: TextField(
                               controller: timeEndController,
                               readOnly: true,
-
                               onTap: () async {
                                 TimeOfDay? picked = await showTimePicker(
                                   context: context,
@@ -413,15 +515,12 @@ class _EditJobState extends State<EditJob> {
                                 if (picked != null) {
                                   setState(() {
                                     endTime = picked;
-
                                     timeEndController.text =
                                         "${picked.hour}:${picked.minute.toString().padLeft(2, '0')}";
                                   });
-
                                   calculatePrice();
                                 }
                               },
-
                               decoration: const InputDecoration(
                                 hintText: "hh:mm",
                               ),
@@ -444,9 +543,7 @@ class _EditJobState extends State<EditJob> {
                               fontWeight: FontWeight.bold,
                             ),
                           ),
-
                           const SizedBox(width: 10),
-
                           SizedBox(
                             width: 120,
                             child: TextField(
@@ -474,42 +571,40 @@ class _EditJobState extends State<EditJob> {
                               fontWeight: FontWeight.bold,
                             ),
                           ),
-
                           const SizedBox(width: 10),
-
                           Radio<int>(
                             value: 1,
                             groupValue: vehicle,
                             onChanged: (value) {
                               setState(() {
                                 vehicle = value;
-                                log(vehicle.toString());
+                                ratePerKm = 20; // รถยนต์ = 20 บาท/กม.
+                                updateTotalPrice();
                               });
                             },
                           ),
-
                           const Text("Car", style: TextStyle(fontSize: 16)),
-
                           const SizedBox(width: 10),
-
                           Radio<int>(
                             value: 0,
                             groupValue: vehicle,
                             onChanged: (value) {
                               setState(() {
                                 vehicle = value;
-                                log(vehicle.toString());
+                                ratePerKm = 10; // มอเตอร์ไซค์ = 10 บาท/กม.
+                                updateTotalPrice();
                               });
                             },
                           ),
-
                           const Text("Bike", style: TextStyle(fontSize: 16)),
                         ],
                       ),
 
                       const SizedBox(height: 10),
 
+                      // =========================
                       // ลักษณะงาน
+                      // =========================
                       Row(
                         children: [
                           const Text(
@@ -519,9 +614,7 @@ class _EditJobState extends State<EditJob> {
                               fontWeight: FontWeight.bold,
                             ),
                           ),
-
                           const SizedBox(width: 10),
-
                           SizedBox(
                             width: 200,
                             child: TextField(
@@ -537,7 +630,9 @@ class _EditJobState extends State<EditJob> {
 
                       const SizedBox(height: 15),
 
+                      // =========================
                       // ข้อมูลพิเศษ
+                      // =========================
                       Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
@@ -550,16 +645,13 @@ class _EditJobState extends State<EditJob> {
                                   fontWeight: FontWeight.bold,
                                 ),
                               ),
-
                               const Text(
                                 "(ไม่จำเป็น)",
                                 style: TextStyle(color: Colors.red),
                               ),
                             ],
                           ),
-
                           const SizedBox(width: 10),
-
                           Column(
                             children: [
                               Row(
@@ -567,46 +659,47 @@ class _EditJobState extends State<EditJob> {
                                   Radio<int>(
                                     value: 0,
                                     groupValue: additionalInfo,
+                                    toggleable: true,
                                     onChanged: (value) {
                                       setState(() {
-                                        additionalInfo = value;
-
-                                        extraPrice = 200;
-
+                                        if (value == null) {
+                                          additionalInfo = null;
+                                          extraPrice = 0;
+                                        } else {
+                                          additionalInfo = value;
+                                          extraPrice = 200;
+                                        }
                                         updateTotalPrice();
-
-                                        log(additionalInfo.toString());
                                       });
                                     },
                                   ),
-
                                   const Text(
-                                    "ผู้ป่วยติดเตียง  (+200 บาท)",
+                                    "ผู้ป่วยติดเตียง (+200 บาท)",
                                     style: TextStyle(fontSize: 16),
                                   ),
                                 ],
                               ),
-
                               Row(
                                 children: [
                                   Radio<int>(
                                     value: 1,
                                     groupValue: additionalInfo,
+                                    toggleable: true,
                                     onChanged: (value) {
                                       setState(() {
-                                        additionalInfo = value;
-
-                                        extraPrice = 100;
-
+                                        if (value == null) {
+                                          additionalInfo = null;
+                                          extraPrice = 0;
+                                        } else {
+                                          additionalInfo = value;
+                                          extraPrice = 100;
+                                        }
                                         updateTotalPrice();
-
-                                        log(additionalInfo.toString());
                                       });
                                     },
                                   ),
-
                                   const Text(
-                                    "ผู้ป่วยนั่งวิลแชร์  (+100 บาท)",
+                                    "ผู้ป่วยนั่งวิลแชร์ (+100 บาท)",
                                     style: TextStyle(fontSize: 16),
                                   ),
                                 ],
@@ -627,21 +720,16 @@ class _EditJobState extends State<EditJob> {
                             backgroundColor: isUpdatingJob
                                 ? Colors.grey
                                 : const Color.fromARGB(255, 255, 0, 0),
-
                             foregroundColor: Colors.white,
-
                             padding: const EdgeInsets.symmetric(
                               horizontal: 30,
                               vertical: 10,
                             ),
-
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(12),
                             ),
                           ),
-
                           onPressed: isUpdatingJob ? null : updateJobData,
-
                           child: isUpdatingJob
                               ? const Row(
                                   mainAxisAlignment: MainAxisAlignment.center,
@@ -654,9 +742,7 @@ class _EditJobState extends State<EditJob> {
                                         color: Colors.white,
                                       ),
                                     ),
-
                                     SizedBox(width: 10),
-
                                     Text(
                                       "กำลังบันทึก...",
                                       style: TextStyle(fontSize: 18),
@@ -680,21 +766,43 @@ class _EditJobState extends State<EditJob> {
   }
 
   // =========================================================
+  // โหลดราคากลางบริการ
+  // =========================================================
+  Future<void> queryServiceRatesData() async {
+    var serviceRateDoc = await db.collection('service_rates').get();
+    if (serviceRateDoc.docs.isNotEmpty) {
+      setState(() {
+        ratePerHour = serviceRateDoc.docs.first.data()['price_per_hour'] ?? 0;
+      });
+    }
+  }
+
+  // =========================================================
+  // โหลดสถานที่เดิม
+  // =========================================================
+  Future<void> loadPreviousPlacesData() async {
+    final places = await loadPreviousPlaces(db: db, serviceId: widget.sid);
+    if (!mounted) return;
+    setState(() {
+      previousPlaces = places;
+    });
+  }
+
+  // =========================================================
+  // โหลดข้อมูลงานเดิม
+  // =========================================================
+  // =========================================================
   // โหลดข้อมูลงานเดิม
   // =========================================================
   Future<void> loadJobData() async {
     try {
-      log("กำลังโหลด Job ID: ${widget.jobId}");
-
       final doc = await db.collection('jobs').doc(widget.jobId).get();
 
       if (!doc.exists) {
         if (!mounted) return;
-
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(const SnackBar(content: Text("ไม่พบข้อมูลงาน")));
-
         Navigator.pop(context);
         return;
       }
@@ -702,10 +810,8 @@ class _EditJobState extends State<EditJob> {
       final data = doc.data()!;
 
       setState(() {
-        // สถานที่
         placeNameController.text = data['place_name']?.toString() ?? '';
 
-        // พิกัด
         latitudeLocation = data['latitude'] != null
             ? (data['latitude'] as num).toDouble()
             : null;
@@ -714,41 +820,35 @@ class _EditJobState extends State<EditJob> {
             ? (data['longitude'] as num).toDouble()
             : null;
 
-        // วันที่
+        distanceKm = data['distance_km'] != null
+            ? (data['distance_km'] as num).toDouble()
+            : null;
+
         dateController.text = data['date']?.toString() ?? '';
-
-        // เวลา
         timeStartController.text = data['start_time']?.toString() ?? '';
-
         timeEndController.text = data['end_time']?.toString() ?? '';
 
-        // แปลงเวลาเดิมกลับเป็น TimeOfDay
         startTime = parseTime(data['start_time']?.toString());
-
         endTime = parseTime(data['end_time']?.toString());
 
-        // ราคา
-        priceController.text = data['service_fee']?.toString() ?? '';
-
-        price = int.tryParse(data['service_fee']?.toString() ?? '') ?? 0;
-
-        // ประเภทรถ
         vehicle = data['vehicle_type'] != null
             ? (data['vehicle_type'] as num).toInt()
             : null;
 
-        // ลักษณะงาน
+        if (vehicle == 1) {
+          ratePerKm = 20;
+        } else if (vehicle == 0) {
+          ratePerKm = 10;
+        }
+
         jobTypeController.text = data['job_type']?.toString() ?? '';
 
-        // ข้อมูลพิเศษ
         additionalInfo = data['additional_info'] != null
             ? (data['additional_info'] as num).toInt()
             : null;
 
-        // Address ID ของงานเดิม
         address_id = data['address_id']?.toString() ?? '';
 
-        // คำนวณ extraPrice จากข้อมูลเดิม
         if (additionalInfo == 0) {
           extraPrice = 200;
         } else if (additionalInfo == 1) {
@@ -757,25 +857,38 @@ class _EditJobState extends State<EditJob> {
           extraPrice = 0;
         }
 
-        // แปลงวันที่เดิม
         selectedDate = parseDate(data['date']?.toString());
+
+        // =========================================================
+        // 1. ดึงราคารวมเดิม (เช่น 1200) ใส่ Controller ตรงๆ
+        // =========================================================
+        int savedFee =
+            int.tryParse(data['service_fee']?.toString() ?? '0') ?? 0;
+        priceController.text = "$savedFee";
+
+        // =========================================================
+        // 2. ย้อนคำนวณหาค่า price พื้นฐาน (หักค่าระยะทาง + ค่าบริการพิเศษออก)
+        // เพื่อให้เวลาเปลี่ยนเวลา/รถภายหลัง สามารถคำนวณต่อได้ถูกต้อง
+        // =========================================================
+        int distancePrice = 0;
+        if (distanceKm != null) {
+          distancePrice = (distanceKm! * ratePerKm).ceil();
+        }
+        price = savedFee - distancePrice - extraPrice;
+        if (price < 0) price = 0;
+
+        // *** สำคัญ: ห้ามใส่ calculatePrice(); ตรงนี้เด็ดขาด ***
 
         isLoadingJob = false;
       });
 
-      // โหลดที่อยู่หลัก
-      readAddress();
-
-      log("โหลดข้อมูลงานสำเร็จ");
+      await readAddress();
     } catch (e) {
       log("Error loading job: $e");
-
       if (!mounted) return;
-
       setState(() {
         isLoadingJob = false;
       });
-
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text("เกิดข้อผิดพลาดในการโหลดข้อมูล: $e")),
       );
@@ -787,8 +900,6 @@ class _EditJobState extends State<EditJob> {
   // =========================================================
   Future<void> readAddress() async {
     try {
-      log("readAddress called with sid: ${widget.sid}");
-
       final resultAddress = await db
           .collection("address")
           .where("service_id", isEqualTo: widget.sid)
@@ -799,29 +910,22 @@ class _EditJobState extends State<EditJob> {
         final data = resultAddress.docs.first.data();
 
         final address =
-            "${data['address_details'] ?? ''} "
-            "${data['district'] ?? ''} "
-            "${data['province'] ?? ''}";
-
+            "${data['address_details'] ?? ''} ${data['district'] ?? ''} ${data['province'] ?? ''}";
         final addressId = resultAddress.docs.first.id;
+
+        pickupLatitude = (data['latitude'] as num).toDouble();
+        pickupLongitude = (data['longitude'] as num).toDouble();
 
         if (!mounted) return;
 
         setState(() {
           mainAddress = address;
-
-          // ถ้างานเดิมไม่มี address_id
-          // ค่อยใช้ address หลักปัจจุบัน
           if (address_id.isEmpty) {
             address_id = addressId;
           }
         });
-
-        log("Main Address: $mainAddress");
-        log("Address ID: $address_id");
       } else {
         if (!mounted) return;
-
         setState(() {
           mainAddress = "ยังไม่มีที่อยู่หลัก";
         });
@@ -832,16 +936,15 @@ class _EditJobState extends State<EditJob> {
   }
 
   // =========================================================
-  // แก้ไขงาน
+  // แก้ไขงาน (พร้อม Validation และเช็คเวลาชน)
   // =========================================================
   Future<void> updateJobData() async {
-    // ป้องกันการกดปุ่มซ้ำ
     if (isUpdatingJob) return;
 
-    // ตรวจสอบข้อมูล
     if (placeNameController.text.isEmpty ||
         latitudeLocation == null ||
         longitudeLocation == null ||
+        distanceKm == null ||
         dateController.text.isEmpty ||
         timeStartController.text.isEmpty ||
         timeEndController.text.isEmpty ||
@@ -852,11 +955,40 @@ class _EditJobState extends State<EditJob> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("กรุณากรอกข้อมูลให้ครบทุกช่อง")),
       );
-
       return;
     }
 
-    // เปลี่ยนสถานะเป็นกำลังบันทึก
+    final startMinutes = timeToMinutes(timeStartController.text);
+    final endMinutes = timeToMinutes(timeEndController.text);
+
+    if (startMinutes >= endMinutes) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('เวลาสิ้นสุดต้องมากกว่าเวลาเริ่มต้น')),
+      );
+      return;
+    }
+
+    // เช็ควันและเวลาชนกับงานอื่น
+    final canCreate = await checkJobTimeConflict(
+      db: db,
+      serviceId: widget.sid,
+      date: dateController.text,
+      startTime: timeStartController.text,
+      endTime: timeEndController.text,
+    );
+
+    if (!canCreate) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            "ไม่สามารถแก้ไขงานได้\nงานในวันเดียวกันต้องมีระยะห่างอย่างน้อย 2 ชั่วโมง",
+          ),
+        ),
+      );
+      return;
+    }
+
     setState(() {
       isUpdatingJob = true;
     });
@@ -864,47 +996,29 @@ class _EditJobState extends State<EditJob> {
     try {
       final data = {
         'place_name': placeNameController.text,
-
         'latitude': latitudeLocation,
-
         'longitude': longitudeLocation,
-
+        'distance_km': distanceKm,
         'date': dateController.text,
-
         'start_time': timeStartController.text,
-
         'end_time': timeEndController.text,
-
-        'service_fee': priceController.text,
-
+        'service_fee': int.tryParse(priceController.text) ?? 0,
         'vehicle_type': vehicle,
-
         'job_type': jobTypeController.text,
-
         'additional_info': additionalInfo,
-
         'address_id': address_id,
       };
 
-      // UPDATE งานเดิม
       await db.collection('jobs').doc(widget.jobId).update(data);
 
-      log("แก้ไขงานสำเร็จ ID: ${widget.jobId}");
-
       if (!mounted) return;
-
-      // กลับไปหน้า DetailsJob
-      // พร้อมส่ง true กลับไป
       Navigator.pop(context, 'edited');
     } catch (e) {
       log("Error updating job: $e");
-
       if (!mounted) return;
-
       setState(() {
         isUpdatingJob = false;
       });
-
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text("เกิดข้อผิดพลาดในการแก้ไขงาน: $e")),
       );
@@ -912,92 +1026,100 @@ class _EditJobState extends State<EditJob> {
   }
 
   // =========================================================
-  // คำนวณราคา
+  // คำนวณระยะทาง
+  // =========================================================
+  Future<double?> getRouteDistance({
+    required double startLat,
+    required double startLon,
+    required double endLat,
+    required double endLon,
+  }) async {
+    const apiKey = "57200903bc3dfd00ca50a47c1bd70f30";
+
+    final url = Uri.parse(
+      "https://api.longdo.com/RouteService/json/route/guide"
+      "?flon=$startLon"
+      "&flat=$startLat"
+      "&tlon=$endLon"
+      "&tlat=$endLat"
+      "&mode=t"
+      "&type=1"
+      "&locale=th"
+      "&key=$apiKey",
+    );
+
+    try {
+      final response = await http.get(url);
+
+      if (response.statusCode != 200) return null;
+
+      final data = jsonDecode(response.body);
+
+      if (data['data'] == null || data['data'].isEmpty) return null;
+
+      final distanceMeter = data['data'][0]['distance'];
+      if (distanceMeter == null) return null;
+
+      final distance = (distanceMeter as num).toDouble() / 1000 * 2;
+      return distance;
+    } catch (e) {
+      print("getRouteDistance error: $e");
+      return null;
+    }
+  }
+
+  // =========================================================
+  // คำนวณราคาตามชั่วโมงและระยะทาง
   // =========================================================
   void calculatePrice() {
     if (startTime != null && endTime != null) {
-      log(startTime.toString());
-      log(endTime.toString());
-
       int startMinutes = startTime!.hour * 60 + startTime!.minute;
-
       int endMinutes = endTime!.hour * 60 + endTime!.minute;
-
       int diff = endMinutes - startMinutes;
 
       if (diff > 0) {
         int hours = (diff / 60).ceil();
-
         setState(() {
           price = hours * ratePerHour;
-
           updateTotalPrice();
-
-          log("ราคาพื้นฐาน: $price");
         });
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("เวลาสิ้นสุดต้องมากกว่าเวลาเริ่มต้น")),
-        );
       }
     } else {
       price = 0;
     }
   }
 
-  // =========================================================
-  // รวมราคา
-  // =========================================================
   void updateTotalPrice() {
-    int total = price + extraPrice;
+    int distancePrice = 0;
 
-    priceController.text = total.toString();
-  }
-
-  // =========================================================
-  // แปลง String เวลา → TimeOfDay
-  // =========================================================
-  TimeOfDay? parseTime(String? time) {
-    if (time == null || time.isEmpty) {
-      return null;
+    if (distanceKm != null) {
+      distancePrice = (distanceKm! * ratePerKm).ceil();
     }
 
+    int total = price + distancePrice + extraPrice;
+    priceController.text = "$total";
+  }
+
+  TimeOfDay? parseTime(String? time) {
+    if (time == null || time.isEmpty) return null;
     try {
       final parts = time.split(':');
-
-      final hour = int.parse(parts[0]);
-
-      final minute = int.parse(parts[1]);
-
-      return TimeOfDay(hour: hour, minute: minute);
+      return TimeOfDay(hour: int.parse(parts[0]), minute: int.parse(parts[1]));
     } catch (e) {
-      log("ไม่สามารถแปลงเวลา: $time");
-
       return null;
     }
   }
 
-  // =========================================================
-  // แปลง String วันที่ → DateTime
-  // =========================================================
   DateTime? parseDate(String? date) {
-    if (date == null || date.isEmpty) {
-      return null;
-    }
-
+    if (date == null || date.isEmpty) return null;
     try {
       final parts = date.split('/');
-
-      final day = int.parse(parts[0]);
-
-      final month = int.parse(parts[1]);
-
-      final year = int.parse(parts[2]);
-
-      return DateTime(year, month, day);
+      return DateTime(
+        int.parse(parts[2]),
+        int.parse(parts[1]),
+        int.parse(parts[0]),
+      );
     } catch (e) {
-      log("ไม่สามารถแปลงวันที่: $date");
-
       return null;
     }
   }

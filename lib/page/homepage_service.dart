@@ -28,7 +28,6 @@ class _HomepageServiceState extends State<HomepageService> {
 
   @override
   void initState() {
-    // TODO: implement initState
     super.initState();
     NotificationSystem().setupNotification(widget.uid);
     loadServiceData();
@@ -39,12 +38,11 @@ class _HomepageServiceState extends State<HomepageService> {
     final List<Widget> pages = [
       Container(),
       CalendarServicePage(sid: sid),
-      //MyjobPovider(pid: widget.pid),
-      NotificationsPage(),
+      NotificationsPage(uid: widget.uid),
       SettingsService(sid: sid),
     ];
     return Scaffold(
-      backgroundColor: Color.fromARGB(255, 255, 255, 255),
+      backgroundColor: const Color.fromARGB(255, 248, 249, 250),
       appBar: AppBar(
         title: Text(
           _selectedIndex == 0
@@ -54,18 +52,20 @@ class _HomepageServiceState extends State<HomepageService> {
               : _selectedIndex == 2
               ? "ข้อความ"
               : "ตั้งค่า",
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+          style: const TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.bold,
+          ),
         ),
-
-        backgroundColor: Color.fromARGB(255, 255, 0, 0),
-        toolbarHeight: 90,
+        backgroundColor: const Color.fromARGB(255, 255, 0, 0),
+        toolbarHeight: 70,
         automaticallyImplyLeading: false,
       ),
       body: _selectedIndex == 0
           ? isLoading
-                ? Center(child: CircularProgressIndicator())
+                ? const Center(child: CircularProgressIndicator())
                 : serviceJobs.isEmpty
-                ? Center(
+                ? const Center(
                     child: Text(
                       'ไม่มีรายการ',
                       style: TextStyle(
@@ -75,14 +75,16 @@ class _HomepageServiceState extends State<HomepageService> {
                     ),
                   )
                 : ListView.builder(
+                    padding: const EdgeInsets.only(bottom: 30),
                     itemCount: serviceJobs.length + 1,
                     itemBuilder: (context, index) {
                       if (index == 0) {
-                        return Padding(
-                          padding: const EdgeInsets.only(
-                            top: 30,
-                            left: 30,
-                            bottom: 20,
+                        return const Padding(
+                          padding: EdgeInsets.only(
+                            top: 20,
+                            left: 20,
+                            right: 20,
+                            bottom: 15,
                           ),
                           child: Text(
                             "งานของฉัน",
@@ -94,156 +96,197 @@ class _HomepageServiceState extends State<HomepageService> {
                         );
                       }
                       var job = serviceJobs[index - 1];
-                      return Container(
-                        color: Color.fromARGB(255, 255, 255, 255),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Padding(
-                              padding: const EdgeInsets.only(bottom: 20),
-                              child: Center(
-                                child: InkWell(
-                                  borderRadius: BorderRadius.circular(16),
-                                  onTap: () async {
-                                    print('job_id: ${job['job_id']}');
-                                    print('sid: ${sid}');
+                      final int status = job['job_status'] ?? 0;
+                      final statusInfo = getJobStatusInfo(status);
+                      final Color statusColor = statusInfo['color'];
 
-                                    final selectedJobId = job['job_id'];
+                      return Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 8,
+                        ),
+                        child: Container(
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(16),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.06),
+                                blurRadius: 10,
+                                offset: const Offset(0, 4),
+                              ),
+                            ],
+                          ),
+                          child: Material(
+                            color: Colors.transparent,
+                            borderRadius: BorderRadius.circular(16),
+                            child: InkWell(
+                              borderRadius: BorderRadius.circular(16),
+                              onTap: () async {
+                                final selectedJobId = job['job_id'];
 
-                                    final result = await Navigator.push(
-                                      context,
-                                      MaterialPageRoute(
-                                        builder: (context) => DetailsJobService(
-                                          jobId: selectedJobId,
-                                        ),
-                                      ),
-                                    );
-
-                                    if (result == true) {
-                                      setState(() {
-                                        serviceJobs.removeWhere(
-                                          (item) =>
-                                              item['job_id'] == selectedJobId,
-                                        );
-                                      });
-                                    } else if (result == 'edited') {
-                                      // แก้ไขงาน
-                                      await queryJobData();
-                                    }
-                                  },
-                                  child: Padding(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 20,
-                                    ),
-                                    child: Container(
-                                      height: 170,
-                                      width: double.infinity,
-                                      decoration: BoxDecoration(
-                                        color: Colors.white,
-                                        borderRadius: BorderRadius.all(
-                                          Radius.circular(16),
-                                        ),
-                                        boxShadow: [
-                                          BoxShadow(
-                                            color: Colors.grey.withOpacity(0.5),
-                                            blurRadius: 3,
-                                            offset: Offset(0, 5),
-                                          ),
-                                        ],
-                                      ),
-                                      child: Padding(
-                                        padding: const EdgeInsets.only(
-                                          top: 15,
-                                          left: 30,
-                                        ),
-                                        child: Column(
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.start,
-                                          children: [
-                                            Text(
-                                              job['place_name'],
-                                              style: TextStyle(
-                                                fontSize: 18,
-                                                fontWeight: FontWeight.bold,
-                                              ),
-                                            ),
-                                            SizedBox(height: 10),
-                                            Row(
-                                              children: [
-                                                Icon(Icons.calendar_month),
-                                                SizedBox(width: 5),
-                                                Text(
-                                                  job['date'],
-                                                  style: TextStyle(
-                                                    fontSize: 14,
-                                                  ),
-                                                ),
-
-                                                SizedBox(width: 20),
-
-                                                Icon(Icons.access_time),
-                                                SizedBox(width: 5),
-                                                Text(
-                                                  job['start_time'],
-                                                  style: TextStyle(
-                                                    fontSize: 14,
-                                                  ),
-                                                ),
-                                                Text(
-                                                  " - ",
-                                                  style: TextStyle(
-                                                    fontSize: 14,
-                                                  ),
-                                                ),
-                                                Text(
-                                                  job['end_time'],
-                                                  style: TextStyle(
-                                                    fontSize: 14,
-                                                  ),
-                                                ),
-                                              ],
-                                            ),
-                                            SizedBox(height: 10),
-                                            Row(
-                                              children: [
-                                                Icon(
-                                                  job['vehicle_type'] == 0
-                                                      ? Icons.motorcycle
-                                                      : Icons.time_to_leave,
-                                                ),
-                                                SizedBox(width: 5),
-                                                Text(
-                                                  job['vehicle_type'] == 1
-                                                      ? "Car"
-                                                      : "Bike",
-                                                  style: TextStyle(
-                                                    fontSize: 14,
-                                                  ),
-                                                ),
-                                              ],
-                                            ),
-                                            SizedBox(height: 10),
-                                            Row(
-                                              children: [
-                                                Icon(Icons.money),
-                                                SizedBox(width: 5),
-                                                Text(
-                                                  " ${job['service_fee']} บาท",
-                                                  style: TextStyle(
-                                                    fontSize: 14,
-                                                  ),
-                                                ),
-                                              ],
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                    ),
+                                final result = await Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) =>
+                                        DetailsJobService(jobId: selectedJobId),
                                   ),
+                                );
+
+                                if (result == true) {
+                                  setState(() {
+                                    serviceJobs.removeWhere(
+                                      (item) => item['job_id'] == selectedJobId,
+                                    );
+                                  });
+                                } else if (result == 'edited') {
+                                  await queryJobData();
+                                }
+                              },
+                              child: Padding(
+                                padding: const EdgeInsets.all(16),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    // --- Header: ชื่อสถานที่ + Status Badge (อยู่ภายในกรอบ) ---
+                                    Row(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Expanded(
+                                          child: Text(
+                                            job['place_name'] ??
+                                                'ไม่ระบุสถานที่',
+                                            style: const TextStyle(
+                                              fontSize: 18,
+                                              fontWeight: FontWeight.bold,
+                                              color: Colors.black87,
+                                            ),
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                        ),
+                                        const SizedBox(width: 8),
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 10,
+                                            vertical: 5,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            color: statusColor.withOpacity(
+                                              0.12,
+                                            ),
+                                            borderRadius: BorderRadius.circular(
+                                              20,
+                                            ),
+                                          ),
+                                          child: Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              Icon(
+                                                statusInfo['icon'],
+                                                size: 14,
+                                                color: statusColor,
+                                              ),
+                                              const SizedBox(width: 4),
+                                              Text(
+                                                statusInfo['title'],
+                                                style: TextStyle(
+                                                  fontSize: 12,
+                                                  fontWeight: FontWeight.w600,
+                                                  color: statusColor,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+
+                                    const Divider(height: 20, thickness: 0.8),
+
+                                    // --- Body: วันที่ และ เวลา ---
+                                    Row(
+                                      children: [
+                                        const Icon(
+                                          Icons.calendar_month,
+                                          size: 18,
+                                          color: Colors.redAccent,
+                                        ),
+                                        const SizedBox(width: 6),
+                                        Text(
+                                          job['date'] ?? '',
+                                          style: const TextStyle(fontSize: 14),
+                                        ),
+                                        const SizedBox(width: 20),
+                                        const Icon(
+                                          Icons.access_time,
+                                          size: 18,
+                                          color: Colors.redAccent,
+                                        ),
+                                        const SizedBox(width: 6),
+                                        Text(
+                                          "${job['start_time']} - ${job['end_time']}",
+                                          style: const TextStyle(fontSize: 14),
+                                        ),
+                                      ],
+                                    ),
+
+                                    const SizedBox(height: 10),
+
+                                    // --- Footer: รถ และ ราคาสุทธิ ---
+                                    Row(
+                                      children: [
+                                        Icon(
+                                          job['vehicle_type'] == 0
+                                              ? Icons.two_wheeler
+                                              : Icons.directions_car,
+                                          size: 18,
+                                          color: Colors.grey.shade700,
+                                        ),
+                                        const SizedBox(width: 6),
+                                        Text(
+                                          job['vehicle_type'] == 1
+                                              ? "Car"
+                                              : "Bike",
+                                          style: const TextStyle(
+                                            fontSize: 14,
+                                            fontWeight: FontWeight.w500,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+
+                                    const SizedBox(height: 10),
+
+                                    Row(
+                                      children: [
+                                        const Icon(
+                                          Icons.payments_outlined,
+                                          size: 18,
+                                          color: Colors.green,
+                                        ),
+                                        const SizedBox(width: 4),
+                                        Text(
+                                          " ${job['service_fee']} บาท",
+                                          style: const TextStyle(
+                                            fontSize: 16,
+                                            fontWeight: FontWeight.bold,
+                                            color: Color.fromARGB(
+                                              255,
+                                              220,
+                                              0,
+                                              0,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ],
                                 ),
                               ),
                             ),
-                          ],
+                          ),
                         ),
                       );
                     },
@@ -252,13 +295,11 @@ class _HomepageServiceState extends State<HomepageService> {
       floatingActionButton: _selectedIndex == 0
           ? FloatingActionButton(
               onPressed: () {
-                // ยังไม่มี sid
                 if (sid.isEmpty) {
                   print('ยังไม่มี sid');
                   return;
                 }
 
-                // ข้อมูลยังไม่ครบ
                 if (!isServiceDataComplete) {
                   showDialog(
                     context: context,
@@ -290,7 +331,6 @@ class _HomepageServiceState extends State<HomepageService> {
                   return;
                 }
 
-                // ข้อมูลครบ → ไปหน้าสร้างงาน
                 Navigator.push(
                   context,
                   MaterialPageRoute(
@@ -303,19 +343,16 @@ class _HomepageServiceState extends State<HomepageService> {
               child: const Icon(Icons.add, color: Colors.white),
             )
           : null,
-
       bottomNavigationBar: BottomNavigationBar(
         type: BottomNavigationBarType.fixed,
-        selectedItemColor: Color.fromARGB(255, 255, 0, 0),
+        selectedItemColor: const Color.fromARGB(255, 255, 0, 0),
         currentIndex: _selectedIndex,
-
         onTap: (index) {
           setState(() {
             _selectedIndex = index;
           });
         },
-
-        items: [
+        items: const [
           BottomNavigationBarItem(icon: Icon(Icons.home), label: "หน้าหลัก"),
           BottomNavigationBarItem(
             icon: Icon(Icons.calendar_month),
@@ -340,10 +377,10 @@ class _HomepageServiceState extends State<HomepageService> {
       var querySnapshot = await db
           .collection('jobs')
           .where('service_id', isEqualTo: sid)
+          .where('job_status', whereNotIn: [9, 10])
           .get();
 
       serviceJobs = querySnapshot.docs.map((doc) {
-        //print("job_id: ${doc.id}");
         return {...doc.data(), 'job_id': doc.id};
       }).toList();
 
@@ -379,20 +416,14 @@ class _HomepageServiceState extends State<HomepageService> {
       }
 
       final serviceDoc = result.docs.first;
-
-      // sid = Document ID ของ service
       sid = serviceDoc.id;
-
-      // ข้อมูล service ทั้งหมด
       final data = serviceDoc.data();
 
-      // เช็คข้อมูล service ที่จำเป็น
       final isServiceComplete =
           data['phone'] != null &&
           data['phone'].toString().trim().isNotEmpty &&
           data['gender'] != null;
 
-      // เช็คว่ามีที่อยู่หลักหรือไม่
       final address = await db
           .collection('address')
           .where('service_id', isEqualTo: sid)
@@ -402,16 +433,9 @@ class _HomepageServiceState extends State<HomepageService> {
 
       final isAddressComplete = address.docs.isNotEmpty;
 
-      // ต้องครบทั้งข้อมูล service และที่อยู่
       setState(() {
         isServiceDataComplete = isServiceComplete && isAddressComplete;
       });
-
-      print("uid: ${widget.uid}");
-      print("sid: $sid");
-      print("ข้อมูล service ครบ: $isServiceComplete");
-      print("มีที่อยู่หลัก: $isAddressComplete");
-      print("ข้อมูลทั้งหมดครบ: $isServiceDataComplete");
 
       await queryJobData();
     } catch (e) {
@@ -421,6 +445,80 @@ class _HomepageServiceState extends State<HomepageService> {
         isServiceDataComplete = false;
         isLoading = false;
       });
+    }
+  }
+
+  // =========================================================
+  // ฟังก์ชันจับคู่ข้อความ สี และไอคอนตามสถานะงาน (0-9)
+  // =========================================================
+  Map<String, dynamic> getJobStatusInfo(int status) {
+    switch (status) {
+      case 0:
+        return {
+          'title': 'รอผู้สมัคร',
+          'color': Colors.orange.shade800,
+          'icon': Icons.hourglass_empty_rounded,
+        };
+      case 1:
+        return {
+          'title': 'ได้ผู้ให้บริการแล้ว',
+          'color': Colors.blue.shade700,
+          'icon': Icons.assignment_ind_rounded,
+        };
+      case 2:
+        return {
+          'title': 'กำลังเดินทาง',
+          'color': Colors.indigo,
+          'icon': Icons.directions_car_rounded,
+        };
+      case 3:
+        return {
+          'title': 'ถึงจุดหมายแล้ว',
+          'color': Colors.teal,
+          'icon': Icons.location_on_rounded,
+        };
+      case 4:
+        return {
+          'title': 'กำลังให้บริการ',
+          'color': Colors.amber.shade900,
+          'icon': Icons.medical_services_rounded,
+        };
+      case 5:
+        return {
+          'title': 'ให้บริการเสร็จสิ้น',
+          'color': Colors.cyan.shade800,
+          'icon': Icons.task_alt_rounded,
+        };
+      case 6:
+        return {
+          'title': 'รอการชำระเงิน',
+          'color': Colors.deepOrange,
+          'icon': Icons.payment_rounded,
+        };
+      case 7:
+        return {
+          'title': 'ชำระเงินแล้ว',
+          'color': Colors.lightGreen.shade800,
+          'icon': Icons.account_balance_wallet_rounded,
+        };
+      case 8:
+        return {
+          'title': 'ยกเลิก',
+          'color': Colors.red.shade700,
+          'icon': Icons.cancel_outlined,
+        };
+      case 9:
+        return {
+          'title': 'สำเร็จ',
+          'color': Colors.green.shade700,
+          'icon': Icons.check_circle_rounded,
+        };
+      default:
+        return {
+          'title': 'ไม่ทราบสถานะ',
+          'color': Colors.grey,
+          'icon': Icons.help_outline_rounded,
+        };
     }
   }
 }

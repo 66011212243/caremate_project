@@ -1,3 +1,7 @@
+import 'package:caremate_application/page/accountStatusPage.dart';
+import 'package:caremate_application/page/auth_navigation.dart';
+import 'package:caremate_application/page/document.dart';
+import 'package:caremate_application/page/homepage_admin.dart';
 import 'package:caremate_application/page/homepage_provider.dart';
 import 'package:caremate_application/page/homepage_service.dart';
 import 'package:caremate_application/page/notification_system.dart';
@@ -36,6 +40,17 @@ class _WelcomePageState extends State<WelcomePage> {
   var db = FirebaseFirestore.instance;
 
   bool isLoading = false;
+  bool isGoogleLoading = false;
+
+  void startLoading() {
+    if (!mounted) return;
+    setState(() => isGoogleLoading = true);
+  }
+
+  void stopLoading() {
+    if (!mounted) return;
+    setState(() => isGoogleLoading = false);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -138,17 +153,35 @@ class _WelcomePageState extends State<WelcomePage> {
                     ),
                     padding: const EdgeInsets.symmetric(vertical: 14),
                   ),
-                  onPressed: () {
-                    signInWithGoogle(context);
-                  },
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      //Image.asset('assets/images/google.png', width: 20),
-                      const SizedBox(width: 10),
-                      const Text("เข้าสู่ระบบด้วย Google"),
-                    ],
-                  ),
+
+                  // ป้องกันการกดซ้ำระหว่างกำลังโหลด
+                  onPressed: isGoogleLoading
+                      ? null
+                      : () async {
+                          await signInWithGoogle(
+                            context,
+                            onLoadingStart: startLoading,
+                            onLoadingEnd: stopLoading,
+                          );
+                        },
+
+                  // แสดง Loading หรือข้อความบนปุ่ม
+                  child: isGoogleLoading
+                      ? const SizedBox(
+                          width: 22,
+                          height: 22,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.red,
+                          ),
+                        )
+                      : const Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            SizedBox(width: 10),
+                            Text("เข้าสู่ระบบด้วย Google"),
+                          ],
+                        ),
                 ),
               ),
 
@@ -250,6 +283,7 @@ class _WelcomePageState extends State<WelcomePage> {
       var userId = userDoc.id;
       var hashedPassword = userData['password'];
       var role = userData['role'];
+      var statusAccount = userData['status_account'];
 
       log("user_id: $userId");
       log("role: $role");
@@ -306,20 +340,24 @@ class _WelcomePageState extends State<WelcomePage> {
         );
       } else if (role == 1) {
         // ผู้ให้บริการ
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(
-            builder: (context) => HomepageProvider(uid: userId),
-          ),
+
+        if (!mounted) return;
+
+        setState(() {
+          isLoading = false;
+        });
+
+        await navigateAfterLogin(
+          context: context,
+          uid: userId,
+          role: role as int,
         );
       } else if (role == 2) {
         // แอดมิน
-        // Navigator.pushReplacement(
-        //   context,
-        //   MaterialPageRoute(
-        //     builder: (context) => const HomepageAdmin(),
-        //   ),
-        // );
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => HomepageAdmin(uid: userId)),
+        );
       } else {
         // Role ไม่ถูกต้อง
         log("ไม่พบ Role ที่รองรับ: $role");

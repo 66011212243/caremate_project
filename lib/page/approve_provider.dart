@@ -2,12 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 class ApproveProvider extends StatefulWidget {
-  final String pid;
+  final String docId;
+  final String uid;
 
-  const ApproveProvider({
-    super.key,
-    required this.pid,
-  });
+  const ApproveProvider({super.key, required this.docId, required this.uid});
 
   @override
   State<ApproveProvider> createState() => _ApproveProviderState();
@@ -19,10 +17,8 @@ class _ApproveProviderState extends State<ApproveProvider> {
   bool isLoading = true;
   bool isProcessing = false;
 
-  String? documentId;
-  String? userUid;
-
   Map<String, dynamic>? documentData;
+  // ลบ documentId และ userUid ออก ใช้ widget.docId / widget.uid แทน
 
   @override
   void initState() {
@@ -30,89 +26,26 @@ class _ApproveProviderState extends State<ApproveProvider> {
     loadData();
   }
 
-  
   // โหลดข้อมูลเอกสาร
- // โหลดข้อมูลเอกสาร
+  // โหลดข้อมูลเอกสาร
   Future<void> loadData() async {
     try {
-      debugPrint('================================');
-      debugPrint('PID ที่ได้รับจาก HomepageAdmin: ${widget.pid}');
-      debugPrint('================================');
+      final docSnap = await db.collection('document').doc(widget.docId).get();
 
-      if (widget.pid.trim().isEmpty) {
-        throw Exception('PID เป็นค่าว่าง');
+      if (!docSnap.exists) {
+        throw Exception('ไม่พบเอกสาร ID: ${widget.docId}');
       }
 
-      final cleanPid = widget.pid.trim();
-
-      // 1. ค้นหา document ด้วย PID
-      final documentSnapshot = await db
-          .collection('document')
-          .where('pid', isEqualTo: cleanPid)
-          .limit(1)
-          .get();
-
-      debugPrint(
-        'จำนวน document ที่พบ: ${documentSnapshot.docs.length}',
-      );
-
-      if (documentSnapshot.docs.isEmpty) {
-        throw Exception(
-          'ไม่พบเอกสารของผู้ให้บริการ PID: $cleanPid',
-        );
-      }
-
-      final documentDoc = documentSnapshot.docs.first;
-      documentId = documentDoc.id;
-      documentData = documentDoc.data();
-
-      debugPrint('พบ Document ID = $documentId');
-
-      // ------------------------------------------------
-      // 2. หา UID ของ users จากการ Query ไปที่ provider ก่อน
-      // ------------------------------------------------
-
-      // ลองหาจาก provider_uid ในตาราง provider ด้วย PID
-      // (ถ้า pid คือ doc.id ของ provider ใช้แบบ ก., ถ้า pid เป็น field ใช้แบบ ข.)
-      
-      // แบบ ก: กรณี PID คือ Document ID ของคอลเลกชัน provider
-      final providerDoc = await db.collection('provider').doc(cleanPid).get();
-      
-      if (providerDoc.exists && providerDoc.data()?['provider_uid'] != null) {
-        userUid = providerDoc.data()!['provider_uid'].toString();
-      } else {
-        // แบบ ข: กรณี PID เป็น Field ข้างในคอลเลกชัน provider (สำรองไว้)
-        final providerSnapshot = await db
-            .collection('provider')
-            .where('pid', isEqualTo: cleanPid)
-            .limit(1)
-            .get();
-
-        if (providerSnapshot.docs.isNotEmpty) {
-          userUid = providerSnapshot.docs.first.data()['provider_uid']?.toString();
-        }
-      }
-
-      debugPrint('UID ของ users ที่ได้จาก provider = $userUid');
-
-      if (userUid == null || userUid!.isEmpty) {
-        throw Exception('ไม่พบ UID ของผู้ใช้ที่ผูกกับ PID: $cleanPid ในคอลเลกชัน provider');
-      }
+      documentData = docSnap.data();
 
       if (!mounted) return;
-
-      setState(() {
-        isLoading = false;
-      });
+      setState(() => isLoading = false);
     } catch (e, stackTrace) {
       debugPrint('loadData error: $e');
       debugPrintStack(stackTrace: stackTrace);
 
       if (!mounted) return;
-
-      setState(() {
-        isLoading = false;
-      });
+      setState(() => isLoading = false);
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -126,11 +59,9 @@ class _ApproveProviderState extends State<ApproveProvider> {
   // เปิดดูรูปจาก URL
   void showImage(String imageUrl, String title) {
     if (imageUrl.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('ไม่พบลิงก์รูปภาพ'),
-        ),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('ไม่พบลิงก์รูปภาพ')));
       return;
     }
 
@@ -165,8 +96,7 @@ class _ApproveProviderState extends State<ApproveProvider> {
                   child: Image.network(
                     imageUrl,
                     fit: BoxFit.contain,
-                    loadingBuilder:
-                        (context, child, loadingProgress) {
+                    loadingBuilder: (context, child, loadingProgress) {
                       if (loadingProgress == null) {
                         return child;
                       }
@@ -174,9 +104,7 @@ class _ApproveProviderState extends State<ApproveProvider> {
                       return const SizedBox(
                         height: 400,
                         child: Center(
-                          child: CircularProgressIndicator(
-                            color: Colors.white,
-                          ),
+                          child: CircularProgressIndicator(color: Colors.white),
                         ),
                       );
                     },
@@ -186,10 +114,7 @@ class _ApproveProviderState extends State<ApproveProvider> {
                         child: Center(
                           child: Text(
                             'ไม่สามารถโหลดรูปภาพได้',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 16,
-                            ),
+                            style: TextStyle(color: Colors.white, fontSize: 16),
                           ),
                         ),
                       );
@@ -208,10 +133,7 @@ class _ApproveProviderState extends State<ApproveProvider> {
                   },
                   child: const Text(
                     'ปิด',
-                    style: TextStyle(
-                      fontSize: 16,
-                      color: Colors.red,
-                    ),
+                    style: TextStyle(fontSize: 16, color: Colors.red),
                   ),
                 ),
               ),
@@ -232,29 +154,12 @@ class _ApproveProviderState extends State<ApproveProvider> {
     return Card(
       margin: const EdgeInsets.only(bottom: 10),
       child: ListTile(
-        leading: const CircleAvatar(
-          child: Icon(Icons.image),
-        ),
-        title: Text(
-          title,
-          style: const TextStyle(
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        subtitle: Text(
-          url.isEmpty
-              ? 'ไม่มีรูปภาพ'
-              : 'กดเพื่อดูรูปภาพ',
-        ),
+        leading: const CircleAvatar(child: Icon(Icons.image)),
+        title: Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
+        subtitle: Text(url.isEmpty ? 'ไม่มีรูปภาพ' : 'กดเพื่อดูรูปภาพ'),
         trailing: url.isEmpty
-            ? const Icon(
-                Icons.image_not_supported,
-                color: Colors.grey,
-              )
-            : const Icon(
-                Icons.visibility,
-                color: Colors.blue,
-              ),
+            ? const Icon(Icons.image_not_supported, color: Colors.grey)
+            : const Icon(Icons.visibility, color: Colors.blue),
         onTap: url.isEmpty
             ? null
             : () {
@@ -268,31 +173,32 @@ class _ApproveProviderState extends State<ApproveProvider> {
   Future<void> approveProvider() async {
     if (isProcessing) return;
 
-    if (documentId == null || userUid == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('ไม่พบข้อมูลสำหรับอนุมัติ'),
-          backgroundColor: Colors.red,
-        ),
-      );
-      return;
-    }
-
-    setState(() {
-      isProcessing = true;
-    });
+    setState(() => isProcessing = true);
 
     try {
-      // users
-      await db.collection('users').doc(userUid).update({
-        'status_account': 1,
-      });
+      final userRef = db.collection('users').doc(widget.uid);
+      final docRef = db.collection('document').doc(widget.docId);
 
-      // document
-      await db.collection('document').doc(documentId).update({
-        'status_doc': 1,
-        'reject_reason': null,
-      });
+      // อ่านสถานะบัญชีล่าสุด ณ ตอนกดอนุมัติ
+      final userSnap = await userRef.get();
+      if (!userSnap.exists) {
+        throw Exception('ไม่พบผู้ใช้ UID: ${widget.uid}');
+      }
+
+      final currentStatus = int.tryParse(
+        userSnap.data()?['status_account']?.toString() ?? '',
+      );
+
+      final batch = db.batch();
+
+      // บัญชียังไม่ใช่ 1 เท่านั้นถึงจะอัปเดต
+      if (currentStatus != 1) {
+        batch.update(userRef, {'status_account': 1});
+      }
+
+      batch.update(docRef, {'status_doc': 1, 'reject_reason': null});
+
+      await batch.commit();
 
       if (!mounted) return;
 
@@ -302,14 +208,10 @@ class _ApproveProviderState extends State<ApproveProvider> {
           backgroundColor: Colors.green,
         ),
       );
-
       Navigator.pop(context);
     } catch (e) {
       if (!mounted) return;
-
-      setState(() {
-        isProcessing = false;
-      });
+      setState(() => isProcessing = false);
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -324,88 +226,41 @@ class _ApproveProviderState extends State<ApproveProvider> {
   Future<void> rejectProvider() async {
     if (isProcessing) return;
 
-    final reasonController = TextEditingController();
-
     final reason = await showDialog<String>(
       context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: const Text('ปฏิเสธเอกสาร'),
-          content: TextField(
-            controller: reasonController,
-            maxLines: 4,
-            decoration: const InputDecoration(
-              labelText: 'เหตุผลที่ปฏิเสธ',
-              hintText: 'กรุณาระบุเหตุผล',
-              border: OutlineInputBorder(),
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.pop(context);
-              },
-              child: const Text('ยกเลิก'),
-            ),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.red,
-              ),
-              onPressed: () {
-                final reason = reasonController.text.trim();
-
-                if (reason.isEmpty) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('กรุณาระบุเหตุผล'),
-                    ),
-                  );
-                  return;
-                }
-
-                Navigator.pop(context, reason);
-              },
-              child: const Text(
-                'ปฏิเสธ',
-                style: TextStyle(color: Colors.white),
-              ),
-            ),
-          ],
-        );
-      },
+      builder: (context) => const _RejectReasonDialog(),
     );
 
-    reasonController.dispose();
+    // ลบ reasonController.dispose() ออกไปเลย
 
     if (reason == null || reason.trim().isEmpty) {
       return;
     }
 
-    if (documentId == null || userUid == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('ไม่พบข้อมูลสำหรับปฏิเสธ'),
-          backgroundColor: Colors.red,
-        ),
-      );
-      return;
-    }
+    if (!mounted) return;
 
     setState(() {
       isProcessing = true;
     });
-
     try {
-      // users
-      await db.collection('users').doc(userUid).update({
-        'status_account': 3,
-      });
+      final userRef = db.collection('users').doc(widget.uid);
+      final docRef = db.collection('document').doc(widget.docId);
 
-      // document
-      await db.collection('document').doc(documentId).update({
-        'status_doc': 2,
-        'reject_reason': reason.trim(),
-      });
+      final userSnap = await userRef.get();
+      final currentStatus = int.tryParse(
+        userSnap.data()?['status_account']?.toString() ?? '',
+      );
+
+      final batch = db.batch();
+
+      // ถ้าบัญชีอนุมัติแล้ว (1) ไม่แตะ users
+      if (currentStatus != 1) {
+        batch.update(userRef, {'status_account': 3});
+      }
+
+      batch.update(docRef, {'status_doc': 2, 'reject_reason': reason.trim()});
+
+      await batch.commit();
 
       if (!mounted) return;
 
@@ -442,18 +297,11 @@ class _ApproveProviderState extends State<ApproveProvider> {
           backgroundColor: Colors.red,
           title: const Text(
             'ตรวจสอบเอกสาร',
-            style: TextStyle(
-              color: Colors.white,
-              fontWeight: FontWeight.bold,
-            ),
+            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
           ),
-          iconTheme: const IconThemeData(
-            color: Colors.white,
-          ),
+          iconTheme: const IconThemeData(color: Colors.white),
         ),
-        body: const Center(
-          child: CircularProgressIndicator(),
-        ),
+        body: const Center(child: CircularProgressIndicator()),
       );
     }
 
@@ -463,20 +311,12 @@ class _ApproveProviderState extends State<ApproveProvider> {
           backgroundColor: Colors.red,
           title: const Text(
             'ตรวจสอบเอกสาร',
-            style: TextStyle(
-              color: Colors.white,
-              fontWeight: FontWeight.bold,
-            ),
+            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
           ),
-          iconTheme: const IconThemeData(
-            color: Colors.white,
-          ),
+          iconTheme: const IconThemeData(color: Colors.white),
         ),
         body: const Center(
-          child: Text(
-            'ไม่พบข้อมูลเอกสาร',
-            style: TextStyle(fontSize: 18),
-          ),
+          child: Text('ไม่พบข้อมูลเอกสาร', style: TextStyle(fontSize: 18)),
         ),
       );
     }
@@ -487,22 +327,18 @@ class _ApproveProviderState extends State<ApproveProvider> {
     final vehicleRegistration =
         documentData!['vehicle_Registration']?.toString() ?? '';
 
-    final idCard =
-        documentData!['IdCard']?.toString() ?? '';
+    final idCard = documentData!['IdCard']?.toString() ?? '';
 
-    final drivingLicense =
-        documentData!['drivinglicense']?.toString() ?? '';
+    final drivingLicense = documentData!['drivinglicense']?.toString() ?? '';
 
-    final vehicleRegBook =
-        documentData!['vehicle_reg_book']?.toString() ?? '';
+    final vehicleRegBook = documentData!['vehicle_reg_book']?.toString() ?? '';
 
     final vehicleInsurance =
         documentData!['vehicle_insurance_file']?.toString() ?? '';
 
     final statusDoc = documentData!['status_doc'] ?? 0;
 
-    final rejectReason =
-        documentData!['reject_reason']?.toString() ?? '';
+    final rejectReason = documentData!['reject_reason']?.toString() ?? '';
 
     String vehicleText;
 
@@ -518,15 +354,10 @@ class _ApproveProviderState extends State<ApproveProvider> {
       backgroundColor: Colors.white,
 
       appBar: AppBar(
-        leading: const BackButton(
-          color: Colors.white,
-        ),
+        leading: const BackButton(color: Colors.white),
         title: const Text(
           'ตรวจสอบเอกสารผู้ให้บริการ',
-          style: TextStyle(
-            color: Colors.white,
-            fontWeight: FontWeight.bold,
-          ),
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
         ),
         backgroundColor: Colors.red,
       ),
@@ -537,15 +368,10 @@ class _ApproveProviderState extends State<ApproveProvider> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-
             // ข้อมูลรถ
-
             const Text(
               'ข้อมูลยานพาหนะ',
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-              ),
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
             ),
 
             const SizedBox(height: 15),
@@ -556,14 +382,11 @@ class _ApproveProviderState extends State<ApproveProvider> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-
                     Row(
                       children: [
                         const Text(
                           'ประเภทรถ: ',
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                          ),
+                          style: TextStyle(fontWeight: FontWeight.bold),
                         ),
                         Text(vehicleText),
                       ],
@@ -575,9 +398,7 @@ class _ApproveProviderState extends State<ApproveProvider> {
                       children: [
                         const Text(
                           'ทะเบียนรถ: ',
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                          ),
+                          style: TextStyle(fontWeight: FontWeight.bold),
                         ),
                         Expanded(
                           child: Text(
@@ -596,26 +417,16 @@ class _ApproveProviderState extends State<ApproveProvider> {
             const SizedBox(height: 25),
 
             // เอกสาร
-
             const Text(
               'เอกสารที่เกี่ยวข้อง',
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-              ),
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
             ),
 
             const SizedBox(height: 15),
 
-            documentImageButton(
-              title: 'บัตรประชาชน',
-              imageUrl: idCard,
-            ),
+            documentImageButton(title: 'บัตรประชาชน', imageUrl: idCard),
 
-            documentImageButton(
-              title: 'ใบขับขี่',
-              imageUrl: drivingLicense,
-            ),
+            documentImageButton(title: 'ใบขับขี่', imageUrl: drivingLicense),
 
             documentImageButton(
               title: 'เล่มทะเบียนรถ',
@@ -630,7 +441,6 @@ class _ApproveProviderState extends State<ApproveProvider> {
             const SizedBox(height: 20),
 
             // สถานะ
-
             Card(
               child: Padding(
                 padding: const EdgeInsets.all(16),
@@ -638,9 +448,7 @@ class _ApproveProviderState extends State<ApproveProvider> {
                   children: [
                     const Text(
                       'สถานะเอกสาร: ',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                      ),
+                      style: TextStyle(fontWeight: FontWeight.bold),
                     ),
 
                     const SizedBox(width: 10),
@@ -677,9 +485,7 @@ class _ApproveProviderState extends State<ApproveProvider> {
             ),
 
             // เหตุผลที่ปฏิเสธ
-
-            if (statusDoc == 2 &&
-                rejectReason.isNotEmpty) ...[
+            if (statusDoc == 2 && rejectReason.isNotEmpty) ...[
               const SizedBox(height: 15),
 
               Card(
@@ -687,8 +493,7 @@ class _ApproveProviderState extends State<ApproveProvider> {
                 child: Padding(
                   padding: const EdgeInsets.all(16),
                   child: Column(
-                    crossAxisAlignment:
-                        CrossAxisAlignment.start,
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       const Text(
                         'เหตุผลที่ปฏิเสธ',
@@ -710,23 +515,15 @@ class _ApproveProviderState extends State<ApproveProvider> {
             const SizedBox(height: 30),
 
             // ปุ่มอนุมัติ / ปฏิเสธ
-
             if (statusDoc == 0)
               Row(
                 children: [
-
                   Expanded(
                     child: ElevatedButton(
-                      onPressed:
-                          isProcessing
-                              ? null
-                              : rejectProvider,
+                      onPressed: isProcessing ? null : rejectProvider,
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.red,
-                        padding:
-                            const EdgeInsets.symmetric(
-                          vertical: 15,
-                        ),
+                        padding: const EdgeInsets.symmetric(vertical: 15),
                       ),
                       child: const Text(
                         'ปฏิเสธ',
@@ -743,23 +540,16 @@ class _ApproveProviderState extends State<ApproveProvider> {
 
                   Expanded(
                     child: ElevatedButton(
-                      onPressed:
-                          isProcessing
-                              ? null
-                              : approveProvider,
+                      onPressed: isProcessing ? null : approveProvider,
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.green,
-                        padding:
-                            const EdgeInsets.symmetric(
-                          vertical: 15,
-                        ),
+                        padding: const EdgeInsets.symmetric(vertical: 15),
                       ),
                       child: isProcessing
                           ? const SizedBox(
                               height: 20,
                               width: 20,
-                              child:
-                                  CircularProgressIndicator(
+                              child: CircularProgressIndicator(
                                 color: Colors.white,
                                 strokeWidth: 2,
                               ),
@@ -779,6 +569,61 @@ class _ApproveProviderState extends State<ApproveProvider> {
           ],
         ),
       ),
+    );
+  }
+}
+
+class _RejectReasonDialog extends StatefulWidget {
+  const _RejectReasonDialog();
+
+  @override
+  State<_RejectReasonDialog> createState() => _RejectReasonDialogState();
+}
+
+class _RejectReasonDialogState extends State<_RejectReasonDialog> {
+  final TextEditingController reasonController = TextEditingController();
+
+  @override
+  void dispose() {
+    reasonController.dispose(); // dispose ตอน Dialog ถูกถอดออกจริงๆ
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('ปฏิเสธเอกสาร'),
+      content: TextField(
+        controller: reasonController,
+        maxLines: 4,
+        decoration: const InputDecoration(
+          labelText: 'เหตุผลที่ปฏิเสธ',
+          hintText: 'กรุณาระบุเหตุผล',
+          border: OutlineInputBorder(),
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('ยกเลิก'),
+        ),
+        ElevatedButton(
+          style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+          onPressed: () {
+            final reason = reasonController.text.trim();
+
+            if (reason.isEmpty) {
+              ScaffoldMessenger.of(
+                context,
+              ).showSnackBar(const SnackBar(content: Text('กรุณาระบุเหตุผล')));
+              return;
+            }
+
+            Navigator.pop(context, reason);
+          },
+          child: const Text('ปฏิเสธ', style: TextStyle(color: Colors.white)),
+        ),
+      ],
     );
   }
 }

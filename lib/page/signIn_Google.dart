@@ -1,3 +1,6 @@
+import 'package:caremate_application/page/accountStatusPage.dart';
+import 'package:caremate_application/page/auth_navigation.dart';
+import 'package:caremate_application/page/document.dart';
 import 'package:caremate_application/page/homepage_provider.dart';
 import 'package:caremate_application/page/homepage_service.dart';
 import 'package:flutter/material.dart';
@@ -7,23 +10,25 @@ import 'package:fluttertoast/fluttertoast.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'dart:developer';
 
-Future<void> signInWithGoogle(BuildContext context) async {
+Future<void> signInWithGoogle(
+  BuildContext context, {
+  required VoidCallback onLoadingStart,
+  required VoidCallback onLoadingEnd,
+}) async {
+  final db = FirebaseFirestore.instance;
+
+  onLoadingStart();
+
   try {
     final GoogleSignIn googleSignIn = GoogleSignIn();
     await googleSignIn.signOut();
 
-    // -----------------------------
-    // เลือก Google Account
-    // -----------------------------
-
+    // 1. เลือก Google Account
     final GoogleSignInAccount? googleUser = await googleSignIn.signIn();
 
     if (googleUser == null) return;
 
-    // -----------------------------
-    // ดึงข้อมูล Google
-    // -----------------------------
-
+    // 2. ดึงข้อมูล Google
     final GoogleSignInAuthentication googleAuth =
         await googleUser.authentication;
 
@@ -32,10 +37,7 @@ Future<void> signInWithGoogle(BuildContext context) async {
       idToken: googleAuth.idToken,
     );
 
-    // -----------------------------
-    // Login Firebase Authentication
-    // -----------------------------
-
+    // 3. Login Firebase Authentication
     final UserCredential userCredential = await FirebaseAuth.instance
         .signInWithCredential(credential);
 
@@ -43,24 +45,15 @@ Future<void> signInWithGoogle(BuildContext context) async {
 
     if (user == null) return;
 
-    log("Google UID: ${user.uid}");
-    log("Google Email: ${user.email}");
+    log('Google UID: ${user.uid}');
+    log('Google Email: ${user.email}');
 
-    // -----------------------------
-    // ค้นหาข้อมูลใน users
-    // -----------------------------
+    // 4. ค้นหาข้อมูลผู้ใช้ใน Firestore
+    final userDoc = await db.collection('users').doc(user.uid).get();
 
-    final userDoc = await FirebaseFirestore.instance
-        .collection('users')
-        .doc(user.uid)
-        .get();
-
-    // -----------------------------
-    // ไม่มีบัญชีในระบบ
-    // -----------------------------
-
+    // 5. ไม่พบบัญชี
     if (!userDoc.exists) {
-      Fluttertoast.showToast(msg: "ไม่พบบัญชีนี้ กรุณาสมัครสมาชิกก่อน");
+      Fluttertoast.showToast(msg: 'ไม่พบบัญชีนี้ กรุณาสมัครสมาชิกก่อน');
 
       await FirebaseAuth.instance.signOut();
       await googleSignIn.signOut();
@@ -68,57 +61,45 @@ Future<void> signInWithGoogle(BuildContext context) async {
       return;
     }
 
-    // -----------------------------
-    // ดึงข้อมูลผู้ใช้
-    // -----------------------------
-
+    // 6. อ่านข้อมูลผู้ใช้
     final userData = userDoc.data()!;
+    final String userId = userDoc.id;
+    final int role = userData['role'] as int;
 
-    final int role = userData['role'];
+    log('User UID: $userId');
+    log('User Role: $role');
 
-    log("User UID: ${user.uid}");
-    log("User Role: $role");
+    if (!context.mounted) return;
 
-    // -----------------------------
-    // Role 0 = ผู้รับบริการ
-    // -----------------------------
-
+    // 7. แยก Role
     if (role == 0) {
-      Navigator.pushReplacement(
+      onLoadingEnd();
+
+      Navigator.pushAndRemoveUntil(
         context,
-        MaterialPageRoute(builder: (context) => HomepageService(uid: user.uid)),
+        MaterialPageRoute(builder: (_) => HomepageService(uid: userId)),
+        (route) => false,
       );
-    }
-    // -----------------------------
-    // Role 1 = ผู้ให้บริการ
-    // -----------------------------
-    else if (role == 1) {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(
-          builder: (context) => HomepageProvider(uid: user.uid),
-        ),
-      );
-    }
-    // -----------------------------
-    // Role 2 = Admin
-    // -----------------------------
-    else if (role == 2) {
-      // TODO: ไปหน้า Admin
-      log("เข้าสู่ระบบ Admin");
-    }
-    // -----------------------------
-    // Role ไม่ถูกต้อง
-    // -----------------------------
-    else {
-      Fluttertoast.showToast(msg: "ประเภทบัญชีไม่ถูกต้อง");
+    } else if (role == 1) {
+      onLoadingEnd();
+
+      await navigateAfterLogin(context: context, uid: userId, role: role);
+    } else if (role == 2) {
+      onLoadingEnd();
+
+      // TODO: นำทางไปหน้า Admin
+      log('เข้าสู่ระบบ Admin');
+    } else {
+      Fluttertoast.showToast(msg: 'ประเภทบัญชีไม่ถูกต้อง');
 
       await FirebaseAuth.instance.signOut();
       await googleSignIn.signOut();
     }
   } catch (e) {
-    log("Google login error: $e");
+    log('Google login error: $e');
 
-    Fluttertoast.showToast(msg: "เข้าสู่ระบบไม่สำเร็จ");
+    Fluttertoast.showToast(msg: 'เข้าสู่ระบบไม่สำเร็จ');
+  } finally {
+    onLoadingEnd();
   }
 }

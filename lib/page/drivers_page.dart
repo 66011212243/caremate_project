@@ -147,7 +147,9 @@ class _DriversPageState extends State<DriversPage> {
                       ),
                       const SizedBox(width: 4),
                       Text(
-                        rating == 0.0 ? '-' : rating.toStringAsFixed(1),
+                        rating == 0.0
+                            ? 'ยังไม่มีรีวิว'
+                            : rating.toStringAsFixed(1),
                         style: const TextStyle(
                           fontSize: 15,
                           fontWeight: FontWeight.bold,

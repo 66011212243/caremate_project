@@ -11,6 +11,7 @@ class HistoryJobService extends StatefulWidget {
 
 class _HistoryJobServiceState extends State<HistoryJobService> {
   // ฟังก์ชันสำหรับเลือก Icon ตามรหัสประเภทรถ (0 = มอเตอร์ไซค์, 1 = รถยนต์)
+  int? jobStatus;
   IconData _getVehicleIcon(dynamic vehicleType) {
     final type = vehicleType?.toString();
     if (type == '1') {
@@ -63,8 +64,11 @@ class _HistoryJobServiceState extends State<HistoryJobService> {
       body: StreamBuilder<QuerySnapshot>(
         stream: FirebaseFirestore.instance
             .collection('jobs')
-            .where('service_id', isEqualTo: widget.sid) // หรือใช้ 'provider_id' ให้ตรงกับ Firestore ของคุณ
-            .where('job_status', isEqualTo: 9) // กรองเฉพาะงานที่เสร็จแล้ว
+            .where(
+              'service_id',
+              isEqualTo: widget.sid,
+            ) // หรือใช้ 'provider_id' ให้ตรงกับ Firestore ของคุณ
+            .where('job_status', whereIn: [9, 10]) // กรองเฉพาะงานที่เสร็จแล้ว
             .snapshots(),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
@@ -72,9 +76,7 @@ class _HistoryJobServiceState extends State<HistoryJobService> {
           }
 
           if (snapshot.hasError) {
-            return Center(
-              child: Text('เกิดข้อผิดพลาด: ${snapshot.error}'),
-            );
+            return Center(child: Text('เกิดข้อผิดพลาด: ${snapshot.error}'));
           }
 
           if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
@@ -90,11 +92,13 @@ class _HistoryJobServiceState extends State<HistoryJobService> {
               final jobData = jobDocs[index].data() as Map<String, dynamic>;
 
               // ดึงและแปลงประเภทข้อมูลให้อยู่ในรูปแบบ String เพื่อป้องกัน Error
-              final hospitalName = jobData['place_name']?.toString() ?? 'ไม่ระบุ';
+              final hospitalName =
+                  jobData['place_name']?.toString() ?? 'ไม่ระบุ';
               final date = jobData['date']?.toString() ?? '-';
               final timeStart = jobData['start_time']?.toString() ?? '-';
               final timeEnd = jobData['end_time']?.toString() ?? '-';
               final price = jobData['service_fee']?.toString() ?? '0';
+              final int? jobStatus = (jobData['job_status'] as num?)?.toInt();
 
               final rawVehicleType = jobData['vehicle_type'];
               final vehicleIcon = _getVehicleIcon(rawVehicleType);
@@ -133,10 +137,7 @@ class _HistoryJobServiceState extends State<HistoryJobService> {
                           children: [
                             const Icon(Icons.calendar_month, size: 20),
                             const SizedBox(width: 5),
-                            Text(
-                              date,
-                              style: const TextStyle(fontSize: 15),
-                            ),
+                            Text(date, style: const TextStyle(fontSize: 15)),
                             const SizedBox(width: 20),
                             const Icon(Icons.access_time, size: 20),
                             const SizedBox(width: 5),
@@ -149,10 +150,7 @@ class _HistoryJobServiceState extends State<HistoryJobService> {
                         const SizedBox(height: 10),
                         Row(
                           children: [
-                            Icon(
-                              vehicleIcon,
-                              size: 20,
-                            ),
+                            Icon(vehicleIcon, size: 20),
                             const SizedBox(width: 5),
                             Text(
                               vehicleName,
@@ -171,6 +169,49 @@ class _HistoryJobServiceState extends State<HistoryJobService> {
                             ),
                           ],
                         ),
+                        if (jobStatus == 9 || jobStatus == 10)
+                          Row(
+                            children: [
+                              const Spacer(),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 6,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: jobStatus == 9
+                                      ? Colors.green.withOpacity(0.1)
+                                      : Colors.orange.withOpacity(0.1),
+                                  borderRadius: BorderRadius.circular(20),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(
+                                      jobStatus == 9
+                                          ? Icons.check_circle
+                                          : Icons.cancel_outlined,
+                                      size: 16,
+                                      color: jobStatus == 9
+                                          ? Colors.green
+                                          : Colors.orange.shade700,
+                                    ),
+                                    const SizedBox(width: 6),
+                                    Text(
+                                      jobStatus == 9 ? "สำเร็จ" : "ยกเลิก",
+                                      style: TextStyle(
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w600,
+                                        color: jobStatus == 9
+                                            ? Colors.green
+                                            : Colors.orange.shade700,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
                       ],
                     ),
                   ),

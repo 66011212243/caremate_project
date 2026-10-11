@@ -1,13 +1,16 @@
 import 'package:caremate_application/page/Review_history_provider.dart';
 import 'package:caremate_application/page/approve_provider.dart';
+import 'package:caremate_application/page/notifications_page.dart';
+import 'package:caremate_application/page/setting_admin.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 class HomepageAdmin extends StatefulWidget {
   static const int serviceRoleValue = 0;
   static const int providerRoleValue = 1;
+  final String uid;
 
-  const HomepageAdmin({super.key}); 
+  const HomepageAdmin({super.key, required this.uid});
 
   @override
   State<HomepageAdmin> createState() => _HomepageAdminState();
@@ -15,33 +18,72 @@ class HomepageAdmin extends StatefulWidget {
 
 // 1. เพิ่มการประกาศ Class _HomepageAdminState ให้ถูกต้อง
 class _HomepageAdminState extends State<HomepageAdmin> {
+  int _selectedIndex = 0;
+
   @override
   Widget build(BuildContext context) {
+    final List<Widget> pages = [
+      Container(),
+      NotificationsPage(uid: widget.uid),
+      SettingAdmin(uid: widget.uid),
+    ];
     return DefaultTabController(
       length: 2,
       child: Scaffold(
         appBar: AppBar(
-          title: const Text(
-            'Admin',
+          title: Text(
+            _selectedIndex == 0
+                ? 'Admin'
+                : _selectedIndex == 1
+                ? 'การแจ้งเตือน'
+                : "การตั้งค่า",
             style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
           ),
           backgroundColor: Colors.red,
 
-          bottom: const TabBar(
-            labelColor: Colors.white,
-            unselectedLabelColor: Colors.white70,
-            tabs: [
-              Tab(text: 'ผู้รับบริการ'),
-              Tab(text: 'ผู้ให้บริการ'),
-            ],
-          ),
+          bottom: _selectedIndex == 0
+              ? const TabBar(
+                  labelColor: Colors.white,
+                  unselectedLabelColor: Colors.white70,
+                  tabs: [
+                    Tab(text: 'ผู้รับบริการ'),
+                    Tab(text: 'ผู้ให้บริการ'),
+                  ],
+                )
+              : null,
         ),
 
-        body: const TabBarView(
-          children: [
-            // 2. เรียกใช้ static variable ผ่าน HomepageAdmin.
-            UserList(role: HomepageAdmin.serviceRoleValue),
-            UserList(role: HomepageAdmin.providerRoleValue),
+        body: _selectedIndex == 0
+            ? TabBarView(
+                children: [
+                  // 2. เรียกใช้ static variable ผ่าน HomepageAdmin.
+                  UserList(role: HomepageAdmin.serviceRoleValue),
+                  UserList(role: HomepageAdmin.providerRoleValue),
+                ],
+              )
+            : pages[_selectedIndex],
+        bottomNavigationBar: BottomNavigationBar(
+          type: BottomNavigationBarType.fixed,
+          selectedItemColor: Color.fromARGB(255, 255, 0, 0),
+          currentIndex: _selectedIndex,
+
+          onTap: (index) {
+            setState(() {
+              _selectedIndex = index;
+            });
+          },
+
+          items: [
+            BottomNavigationBarItem(icon: Icon(Icons.home), label: "หน้าหลัก"),
+
+            BottomNavigationBarItem(
+              icon: Icon(Icons.notifications),
+              label: "ข้อความ",
+            ),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.settings),
+              label: "ตั้งค่า",
+            ),
           ],
         ),
       ),
@@ -100,7 +142,9 @@ class UserList extends StatelessWidget {
           final pidValue = providerData['pid']?.toString() ?? doc.id;
 
           return RelatedProfileData(
-            profileUrl: (profile != null && profile.isNotEmpty) ? profile : null,
+            profileUrl: (profile != null && profile.isNotEmpty)
+                ? profile
+                : null,
             pid: pidValue,
           );
         }
@@ -158,7 +202,8 @@ class UserList extends StatelessWidget {
                 return ListTile(
                   leading: Builder(
                     builder: (context) {
-                      if (profileSnapshot.connectionState == ConnectionState.waiting) {
+                      if (profileSnapshot.connectionState ==
+                          ConnectionState.waiting) {
                         return const CircleAvatar(
                           child: SizedBox(
                             width: 18,
@@ -186,7 +231,10 @@ class UserList extends StatelessWidget {
                     ),
                   ),
 
-                  subtitle: Text(username, style: const TextStyle(fontSize: 14)),
+                  subtitle: Text(
+                    username,
+                    style: const TextStyle(fontSize: 14),
+                  ),
 
                   trailing: const Icon(Icons.arrow_forward_ios, size: 16),
 
@@ -195,16 +243,18 @@ class UserList extends StatelessWidget {
                       // ผู้รับบริการ
                     } else if (role == 1) {
                       if (pid != null && pid.isNotEmpty) {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => ApproveProvider(pid: pid),
-                          ),
-                        );
+                        // Navigator.push(
+                        //   context,
+                        //   MaterialPageRoute(
+                        //     builder: (context) => ApproveProvider(pid: pid),
+                        //   ),
+                        // );
                       } else {
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(
-                            content: Text('ไม่พบข้อมูล PID ของผู้ให้บริการท่านนี้'),
+                            content: Text(
+                              'ไม่พบข้อมูล PID ของผู้ให้บริการท่านนี้',
+                            ),
                           ),
                         );
                       }

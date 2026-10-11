@@ -3,6 +3,7 @@ import 'package:caremate_application/page/Changepassword.dart';
 import 'package:caremate_application/page/admin_price_page.dart';
 import 'package:caremate_application/page/document.dart';
 import 'package:caremate_application/page/driver_pending_approval_page.dart';
+import 'package:caremate_application/page/login.dart';
 import 'package:caremate_application/page/profile_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -10,7 +11,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 class SettingAdmin extends StatefulWidget {
   final String uid;
 
-  const SettingAdmin({super.key, this.uid = "8EyD1RZpK2OVKUViOxEObOurg8w2"});
+  const SettingAdmin({super.key, required this.uid});
 
   @override
   State<SettingAdmin> createState() => _SettingsPageState();
@@ -67,27 +68,7 @@ class _SettingsPageState extends State<SettingAdmin> {
         backgroundColor: Colors.red,
         title: const Text('การตั้งค่า', style: TextStyle(color: Colors.white)),
       ),
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: 3, // ตอนนี้อยู่หน้า "ตั้งค่า"
-        type: BottomNavigationBarType.fixed,
-        selectedItemColor: Colors.red,
-        unselectedItemColor: Colors.grey,
-        items: const [
-          BottomNavigationBarItem(
-            icon: Icon(Icons.home_outlined),
-            label: 'หน้าหลัก',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.calendar_today_outlined),
-            label: 'ปฏิทิน',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.notifications_none),
-            label: 'ข้อความ',
-          ),
-          BottomNavigationBarItem(icon: Icon(Icons.settings), label: 'ตั้งค่า'),
-        ],
-      ),
+
       body: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -136,28 +117,30 @@ class _SettingsPageState extends State<SettingAdmin> {
               onTap: () {
                 Navigator.push(
                   context,
-                  MaterialPageRoute(builder: (context) => DriverPendingApprovalPage()),
+                  MaterialPageRoute(
+                    builder: (context) => DriverPendingApprovalPage(),
+                  ),
                 );
               },
             ),
             const Divider(color: Colors.grey, thickness: 1, height: 30),
             buildMenu(
               'รายงานทั้งหมด',
-              onTap: () {
-                // Navigator.push(
-                //   context,
-                //   MaterialPageRoute(builder: (context) => AdminPricePage()),
-                // );
-              },
+              // onTap: () {
+              //   Navigator.push(
+              //     context,
+              //     MaterialPageRoute(builder: (context) => ReportDetailPage()),
+              //   );
+              // },
             ),
             const Divider(color: Colors.grey, thickness: 1, height: 30),
             buildMenu(
               'อัตราค่าบริการ',
               onTap: () {
-                // Navigator.push(
-                //   context,
-                //   MaterialPageRoute(builder: (context) => AdminPricePage()),
-                // );
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => AdminPricePage()),
+                );
               },
             ),
             const Divider(color: Colors.grey, thickness: 1, height: 30),
@@ -182,7 +165,13 @@ class _SettingsPageState extends State<SettingAdmin> {
                   backgroundColor: Colors.red,
                   padding: const EdgeInsets.symmetric(vertical: 16),
                 ),
-                onPressed: () {},
+                onPressed: () {
+                  Navigator.pushAndRemoveUntil(
+                    context,
+                    MaterialPageRoute(builder: (context) => const LoginPage()),
+                    (route) => false,
+                  );
+                },
                 child: const Text(
                   'ออกจากระบบ',
                   style: TextStyle(color: Colors.white),
