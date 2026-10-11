@@ -58,16 +58,16 @@ class _EditProfilePageState extends State<EditProfileProvider> {
             providerDoc.data() as Map<String, dynamic>;
 
         phoneController.text = providerData['phone']?.toString() ?? '';
-        final gender = providerData['gender'];
 
-        if (gender == 1 || gender == '1') {
+        final rawGender = providerData['gender'];
+        if (rawGender == 1 || rawGender == '1') {
           selectedGender = '1';
-        } else if (gender == 0 || gender == '0') {
+        } else if (rawGender == 0 || rawGender == '0') {
           selectedGender = '0';
         } else {
           selectedGender = null;
         }
-        currentProfileImageUrl = providerData['profile']?.toString();
+        currentProfileImageUrl = providerData['profile']?.toString().trim();
         uid = providerData['provider_uid']
             ?.toString(); // ดึง uid ที่เชื่อมกับ users
 
@@ -137,14 +137,18 @@ class _EditProfilePageState extends State<EditProfileProvider> {
     final username = usernameController.text.trim();
     final phone = phoneController.text.trim();
     final gender = selectedGender;
+    final hasImage =
+        profileImageFile != null ||
+        (currentProfileImageUrl != null && currentProfileImageUrl!.isNotEmpty);
+
     if (name.isEmpty ||
         username.isEmpty ||
         phone.isEmpty ||
         gender == null ||
-        profileImageFile == null) {
+        !hasImage) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('กรุณากรอกข้อมูลและถ่ายรูปโปรไฟล์'),
+          content: Text('กรุณากรอกข้อมูลให้ครบและมีรูปโปรไฟล์'),
           backgroundColor: Colors.red,
         ),
       );
@@ -229,82 +233,65 @@ class _EditProfilePageState extends State<EditProfileProvider> {
                     // รูปโปรไฟล์
                     GestureDetector(
                       onTap: _pickImage,
-                      child: Container(
-                        width: 140,
-                        height: 140,
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          shape: BoxShape.circle,
-                          border: Border.all(color: Colors.grey.shade300),
-                          boxShadow: const [
-                            BoxShadow(blurRadius: 3, color: Colors.black12),
-                          ],
-                        ),
-                        child: Stack(
-                          children: [
-                            Center(
-                              child: ClipOval(
-                                child: profileImageFile != null
-                                    ? Image.file(
-                                        profileImageFile!,
-                                        fit: BoxFit.cover,
-                                        width: 140,
-                                        height: 140,
-                                      )
-                                    : (currentProfileImageUrl != null &&
-                                          currentProfileImageUrl!.isNotEmpty)
-                                    ? (currentProfileImageUrl!.startsWith(
-                                            'data:image',
-                                          )
-                                          ? Image.memory(
-                                              base64Decode(
-                                                currentProfileImageUrl!
-                                                    .split(',')
-                                                    .last,
-                                              ),
-                                              fit: BoxFit.cover,
-                                              width: 140,
-                                              height: 140,
-                                            )
-                                          : Image.network(
-                                              currentProfileImageUrl!,
-                                              fit: BoxFit.cover,
-                                              width: 140,
-                                              height: 140,
-                                              errorBuilder:
-                                                  (
-                                                    context,
-                                                    error,
-                                                    stackTrace,
-                                                  ) => const Icon(
-                                                    Icons.person,
-                                                    size: 90,
-                                                    color: Colors.grey,
-                                                  ),
-                                            ))
-                                    : const Icon(
-                                        Icons.person,
-                                        size: 90,
-                                        color: Colors.grey,
-                                      ),
-                              ),
+                      child: Stack(
+                        children: [
+                          Container(
+                            width: 140,
+                            height: 140,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: Colors.grey.shade200,
+                              border: Border.all(color: Colors.grey.shade300),
+                              boxShadow: const [
+                                BoxShadow(blurRadius: 3, color: Colors.black12),
+                              ],
                             ),
-                            if (isEditing)
-                              const Positioned(
-                                right: 10,
-                                bottom: 10,
-                                child: CircleAvatar(
-                                  backgroundColor: Colors.red,
-                                  radius: 16,
-                                  child: Icon(
-                                    Icons.edit,
-                                    color: Colors.white,
-                                    size: 18,
-                                  ),
-                                ),
-                              ),
-                          ],
-                        ),
+                            child: ClipOval(
+                              child: profileImageFile != null
+                                  ? Image.file(
+                                      profileImageFile!,
+                                      width: 140,
+                                      height: 140,
+                                      fit: BoxFit.cover,
+                                    )
+                                  : (currentProfileImageUrl != null &&
+                                        currentProfileImageUrl!.isNotEmpty)
+                                  ? Image.network(
+                                      currentProfileImageUrl!,
+                                      width: 140,
+                                      height: 140,
+                                      fit: BoxFit.cover,
+                                      loadingBuilder:
+                                          (context, child, progress) {
+                                            if (progress == null) return child;
+                                            return const Center(
+                                              child:
+                                                  CircularProgressIndicator(),
+                                            );
+                                          },
+                                      errorBuilder:
+                                          (context, error, stackTrace) {
+                                            debugPrint('IMAGE ERROR = $error');
+                                            return const Icon(
+                                              Icons.person,
+                                              size: 70,
+                                              color: Colors.grey,
+                                            );
+                                          },
+                                    )
+                                  : const Icon(
+                                      Icons.person,
+                                      size: 70,
+                                      color: Colors.grey,
+                                    ),
+                            ),
+                          ),
+                          const Positioned(
+                            right: 4,
+                            bottom: 4,
+                            child: Icon(Icons.edit_square, color: Colors.black),
+                          ),
+                        ],
                       ),
                     ),
                     const SizedBox(height: 30),

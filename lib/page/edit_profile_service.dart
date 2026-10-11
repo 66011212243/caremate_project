@@ -8,7 +8,7 @@ import 'package:http/http.dart' as http;
 class EditProfileService extends StatefulWidget {
   final String sid;
 
-  const EditProfileService({super.key, this.sid = "5n4H3wdcrI7M4mI6F7iG"});
+  const EditProfileService({super.key, required this.sid});
 
   @override
   State<EditProfileService> createState() => _EditProfilePageState();
@@ -56,16 +56,18 @@ class _EditProfilePageState extends State<EditProfileService> {
           .collection('service')
           .doc(widget.sid)
           .get();
+          debugPrint('SID = ${widget.sid}');
+debugPrint('EXISTS = ${providerDoc.exists}');
+debugPrint('SERVICE DATA = ${providerDoc.data()}');
 
       if (providerDoc.exists && providerDoc.data() != null) {
         Map<String, dynamic> providerData =
             providerDoc.data() as Map<String, dynamic>;
 
-        phoneController.text = providerData['phone']?.toString() ?? '';
+        phoneController.text =providerData['phone']?.toString() ??'';
         weightController.text = providerData['weight']?.toString() ?? '';
         heightController.text = providerData['height']?.toString() ?? '';
         final gender = providerData['gender'];
-
 
         if (gender == 1 || gender == '1') {
           selectedGender = '1';

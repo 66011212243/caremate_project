@@ -5,116 +5,170 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 class ProfileService extends StatefulWidget {
   final String sid;
 
-  const ProfileService({super.key, this.sid = "naw5Oe3VyaVwj89isnzA"});
+  const ProfileService({super.key, required this.sid});
 
   @override
-  State<ProfileService> createState() => _ProfilePageState();
+  State<ProfileService> createState() => _ProfileServiceState();
 }
 
-class _ProfilePageState extends State<ProfileService> {
+class _ProfileServiceState extends State<ProfileService> {
   String realname = '';
   String username = '';
   String? profileImage;
   String phone = '';
-  String gender = '';
-  String weight = '';
-  String height = '';
-  String address = '';
+  String? selectedGender; // '0' = ชาย, '1' = หญิง
 
   bool isLoading = true;
 
   @override
   void initState() {
     super.initState();
-    _fetchUserData(); // ดึงข้อมูลจาก Firebase มาใส่ Controller ตอนเปิดหน้า
+    _fetchUserData();
   }
 
-  // ดึงข้อมูลครั้งแรกจาก Firebase
+  String _genderText(String? g) {
+    switch (g) {
+      case '0':
+        return 'ชาย';
+      case '1':
+        return 'หญิง';
+      default:
+        return 'ไม่ระบุ';
+    }
+  }
+
+  // ดึงข้อมูลจาก Firebase
   Future<void> _fetchUserData() async {
+    if (mounted) setState(() => isLoading = true);
+
     try {
-      // 1. ใช้ sid ค้นหา service ก่อน
-      DocumentSnapshot serviceDoc = await FirebaseFirestore.instance
+      // 1. ดึง provider ด้วย sid
+      final serviceDoc = await FirebaseFirestore.instance
           .collection('service')
           .doc(widget.sid)
           .get();
 
-      debugPrint('SID = ${widget.sid}');
-      debugPrint('SERVICE EXISTS = ${serviceDoc.exists}');
-      debugPrint('SERVICE DATA = ${serviceDoc.data()}');
+      debugPrint('PID = ${widget.sid}');
+      debugPrint('PROVIDER EXISTS = ${serviceDoc.exists}');
+      debugPrint('PROVIDER DATA = ${serviceDoc.data()}');
 
       if (!serviceDoc.exists || serviceDoc.data() == null) {
-        debugPrint('ไม่พบข้อมูล service');
-
-        if (mounted) {
-          setState(() {
-            isLoading = false;
-          });
-        }
+        debugPrint('ไม่พบข้อมูล provider');
+        if (mounted) setState(() => isLoading = false);
         return;
       }
 
-      // 2. ดึง service_uid จาก service
-      Map<String, dynamic> serviceData =
-          serviceDoc.data() as Map<String, dynamic>;
+      final serviceData = serviceDoc.data() as Map<String, dynamic>;
 
-      String serviceUid = serviceData['service_uid']?.toString() ?? '';
-
-      debugPrint('SERVICE UID = $serviceUid');
-
-      if (serviceUid.isEmpty) {
-        debugPrint('ไม่พบ service_uid ใน service');
-
-        if (mounted) {
-          setState(() {
-            isLoading = false;
-          });
-        }
-        return;
-      }
-
-      // 3. ใช้ service_uid ไปค้น users
-      DocumentSnapshot userDoc = await FirebaseFirestore.instance
-          .collection('users')
-          .doc(serviceUid)
-          .get();
-
-      debugPrint('USER EXISTS = ${userDoc.exists}');
-      debugPrint('USER DATA = ${userDoc.data()}');
+      // 2. ดึง provider_uid
+      final providerUid = serviceData['service_uid']?.toString() ?? '';
+      debugPrint('SERVICE UID = $providerUid');
 
       Map<String, dynamic> userData = {};
 
-      if (userDoc.exists && userDoc.data() != null) {
-        userData = userDoc.data() as Map<String, dynamic>;
+      // 3. ดึงข้อมูลจาก users
+      if (providerUid.isNotEmpty) {
+        final userDoc = await FirebaseFirestore.instance
+            .collection('users')
+            .doc(providerUid)
+            .get();
+
+        debugPrint('USER EXISTS = ${userDoc.exists}');
+        debugPrint('USER DATA = ${userDoc.data()}');
+
+        if (userDoc.exists && userDoc.data() != null) {
+          userData = userDoc.data() as Map<String, dynamic>;
+        }
+      } else {
+        debugPrint('ไม่พบ provider_uid ใน provider');
       }
 
-      // 4. เอาข้อมูลไปแสดง
+      // 4. เตรียมค่าเพศ (รองรับ int / String)
+      final rawGender = serviceData['gender'];
+      String? genderValue;
+      if (rawGender == 0 || rawGender == '0') {
+        genderValue = '0';
+      } else if (rawGender == 1 || rawGender == '1') {
+        genderValue = '1';
+      }
+
+      // 5. รูปโปรไฟล์: ใช้ 'profile' เป็นหลัก, 'profileImage' เป็นตัวสำรอง
+      final image =
+          (serviceData['profile'] ?? serviceData['profileImage'])
+              ?.toString()
+              .trim();
+
+      debugPrint('PROFILE IMAGE = $image');
+
       if (mounted) {
         setState(() {
-          // ข้อมูลจาก users
-          realname = userData['realname'] ?? '';
-          username = userData['username'] ?? '';
-
-          // ข้อมูลจาก service
-          phone = serviceData['phone'] ?? '';
-          gender = serviceData['gender'] ?? '';
-          address = serviceData['address'] ?? '';
-          height = serviceData['height'] ?? '';
-          weight = serviceData['weight'] ?? '';
-          profileImage = serviceData['profileImage']?.toString();
-
+          realname = userData['realname']?.toString() ?? '';
+          username = userData['username']?.toString() ?? '';
+          phone = serviceData['phone']?.toString() ?? '';
+          selectedGender = genderValue;
+          profileImage = image;
           isLoading = false;
         });
       }
     } catch (e, stackTrace) {
       debugPrint('ERROR = $e');
       debugPrint('STACK = $stackTrace');
-
-      if (mounted) {
-        setState(() {
-          isLoading = false;
-        });
-      }
+      if (mounted) setState(() => isLoading = false);
     }
+  }
+
+  Widget _buildProfileImage() {
+    final hasImage = profileImage != null && profileImage!.isNotEmpty;
+
+    return SizedBox(
+      width: 140,
+      height: 140,
+      child: Stack(
+        children: [
+          Container(
+            width: 140,
+            height: 140,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: Colors.grey.shade200,
+              border: Border.all(color: Colors.grey.shade300),
+              boxShadow: const [
+                BoxShadow(blurRadius: 3, color: Colors.black12),
+              ],
+            ),
+            child: ClipOval(
+              child: hasImage
+                  ? Image.network(
+                      profileImage!,
+                      width: 140,
+                      height: 140,
+                      fit: BoxFit.cover,
+                      loadingBuilder: (context, child, progress) {
+                        if (progress == null) return child;
+                        return const Center(
+                          child: CircularProgressIndicator(),
+                        );
+                      },
+                      errorBuilder: (context, error, stackTrace) {
+                        debugPrint('IMAGE ERROR = $error');
+                        return const Icon(
+                          Icons.person,
+                          size: 70,
+                          color: Colors.grey,
+                        );
+                      },
+                    )
+                  : const Icon(Icons.person, size: 70, color: Colors.grey),
+            ),
+          ),
+          const Positioned(
+            right: 4,
+            bottom: 4,
+            child: Icon(Icons.edit_square, color: Colors.black),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -130,99 +184,71 @@ class _ProfilePageState extends State<ProfileService> {
         elevation: 0,
         title: const Text('โปรไฟล์', style: TextStyle(color: Colors.black)),
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          children: [
-            Container(
-              width: 140,
-              height: 140,
-              decoration: BoxDecoration(
-                color: Colors.white,
-                border: Border.all(color: Colors.grey.shade300),
-                boxShadow: const [
-                  BoxShadow(blurRadius: 3, color: Colors.black12),
-                ],
-              ),
-              child: Stack(
-                children: [
-                  Center(
-                    child: CircleAvatar(
-                      radius: 28,
-                      backgroundImage:
-                          profileImage != null && profileImage!.isNotEmpty
-                          ? NetworkImage(profileImage!)
-                          : null,
-                      child: profileImage == null || profileImage!.isEmpty
-                          ? const Icon(Icons.person)
-                          : null,
-                    ),
-                  ),
-                  Positioned(
-                    right: 10,
-                    bottom: 10,
-                    child: Icon(Icons.edit_square, color: Colors.black),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 30),
-            Card(
-              color: const Color.fromARGB(255, 255, 253, 253),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
+      body: isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : SingleChildScrollView(
               child: Padding(
                 padding: const EdgeInsets.all(16),
                 child: Column(
                   children: [
-                    ProfileRow(title: 'ชื่อ:', value: realname),
-                    Divider(),
-                    ProfileRow(title: 'ชื่อผู้ใช้:', value: username),
-                    Divider(),
-                    ProfileRow(title: 'เพศ:', value: gender),
-                    Divider(),
-                    ProfileRow(title: 'โทรศัพท์:', value: phone),
-                    Divider(),
-                    ProfileRow(title: 'ส่วนสูง:', value: height),
-                    Divider(),
-                    ProfileRow(title: 'น้ำหนัก :', value: weight),
-                    Divider(),
-                    ProfileRow(title: 'พิกัดที่อยู่ :', value: address),
+                    _buildProfileImage(),
+                    const SizedBox(height: 30),
+                    Card(
+                      color: const Color.fromARGB(255, 255, 253, 253),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Column(
+                          children: [
+                            ProfileRow(title: 'ชื่อ:', value: realname),
+                            const Divider(),
+                            ProfileRow(title: 'ชื่อผู้ใช้:', value: username),
+                            const Divider(),
+                            ProfileRow(
+                              title: 'เพศ:',
+                              value: _genderText(selectedGender),
+                            ),
+                            const Divider(),
+                            ProfileRow(title: 'โทรศัพท์:', value: phone),
+                            const Divider(),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 40),
+                    ElevatedButton.icon(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.red,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      onPressed: () async {
+                        final result = await Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) =>
+                                EditProfileService(sid: widget.sid),
+                          ),
+                        );
+
+                        // กลับมาจากหน้าแก้ไขแล้ว โหลดข้อมูลใหม่
+                        if (result == true) {
+                          await _fetchUserData();
+                        }
+                      },
+                      icon: const Icon(Icons.edit, color: Colors.white),
+                      label: const Text(
+                        'แก้ไขข้อมูล',
+                        style: TextStyle(color: Colors.white),
+                      ),
+                    ),
                   ],
                 ),
               ),
             ),
-            const SizedBox(height: 40),
-            ElevatedButton.icon(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.red,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-              ),
-              onPressed: () async {
-                final result = await Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => EditProfileService(sid: widget.sid),
-                  ),
-                );
-
-                // กลับมาจากหน้าแก้ไขแล้ว
-                if (result == true) {
-                  await _fetchUserData();
-                }
-              },
-              icon: const Icon(Icons.edit, color: Colors.white),
-              label: const Text(
-                'แก้ไขข้อมูล',
-                style: TextStyle(color: Colors.white),
-              ),
-            ),
-          ],
-        ),
-      ),
     );
   }
 }
@@ -245,7 +271,7 @@ class ProfileRow extends StatelessWidget {
           ),
           Expanded(
             child: Text(
-              value,
+              value.isEmpty ? '-' : value,
               style: const TextStyle(fontSize: 18, color: Colors.grey),
             ),
           ),
