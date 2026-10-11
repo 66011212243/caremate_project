@@ -66,7 +66,6 @@ class _EditProfilePageState extends State<EditProfileService> {
         heightController.text = providerData['height']?.toString() ?? '';
         final gender = providerData['gender'];
 
-
         if (gender == 1 || gender == '1') {
           selectedGender = '1';
         } else if (gender == 0 || gender == '0') {

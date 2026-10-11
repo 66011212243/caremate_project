@@ -59,19 +59,19 @@ class _HomepageProviderState extends State<HomepageProvider> {
       isAccountLoaded = true;
     });
 
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
+    // WidgetsBinding.instance.addPostFrameCallback((_) {
+    //   if (!mounted) return;
 
-      if (statusAccount == 0) {
-        showAccountPendingDialog(context);
-      } else if (statusAccount == 2) {
-        showAccountApproveDialog(context);
-      } else if (statusAccount == 3) {
-        showAccountRejectDialog(context, rejectReason);
-      } else if (statusAccount == 4) {
-        showAccountDisableDialog(context);
-      }
-    });
+    //   if (statusAccount == 0) {
+    //     showAccountPendingDialog(context, pid);
+    //   } else if (statusAccount == 2) {
+    //     showAccountApproveDialog(context);
+    //   } else if (statusAccount == 3) {
+    //     showAccountRejectDialog(context, rejectReason, pid);
+    //   } else if (statusAccount == 4) {
+    //     showAccountDisableDialog(context);
+    //   }
+    // });
   }
 
   @override
@@ -79,7 +79,7 @@ class _HomepageProviderState extends State<HomepageProvider> {
     final List<Widget> pages = [
       Container(),
       MyjobPovider(pid: pid),
-      NotificationsPage(),
+      NotificationsPage(uid: widget.uid),
       SettingsProvider(pid: pid),
     ];
     return Scaffold(
@@ -104,18 +104,6 @@ class _HomepageProviderState extends State<HomepageProvider> {
       body: _selectedIndex == 0
           ? !isAccountLoaded
                 ? Center(child: CircularProgressIndicator())
-                : statusAccount == 0
-                ? const Center(
-                    child: Text('กรุณายืนยันเอกสารก่อนจึงจะสามารถสมัครงานได้'),
-                  )
-                : statusAccount == 2
-                ? const Center(
-                    child: Text(
-                      'ขณะนี้เอกสารของคุณอยู่ระหว่างการตรวจสอบโดยผู้ดูแลระบบ',
-                    ),
-                  )
-                : statusAccount == 3
-                ? const Center(child: Text('เอกสารของคุณไม่ผ่านการตรวจสอบ'))
                 : statusAccount == 4
                 ? const Center(
                     child: Text(

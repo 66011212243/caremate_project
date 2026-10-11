@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:caremate_application/page/document.dart';
 import 'package:flutter/material.dart';
 
@@ -217,8 +219,9 @@ Future<void> showVehicleMismatchDialog(BuildContext context) {
     title: 'ไม่สามารถสมัครงานได้',
     icon: Icons.directions_car,
     content: const Text(
-      'ประเภทยานพาหนะของคุณไม่ตรงกับที่งานนี้ต้องการ\n\n'
-      'กรุณาเพิ่มเอกสารยานพาหนะประเภทที่ตรงกับงาน แล้วลองใหม่อีกครั้ง',
+      'คุณยังไม่สามารถรับงานนี้ได้ เนื่องจากประเภทยานพาหนะไม่ตรงกับที่งานต้องการ หรือเอกสารยานพาหนะยังไม่ได้รับการอนุมัติ\n\n'
+      'กรุณาตรวจสอบประเภทรถและสถานะเอกสารของคุณ แล้วลองอีกครั้ง',
+
       style: TextStyle(fontSize: 16),
     ),
   );
@@ -282,7 +285,7 @@ Future<void> showTimeMismatchDialog(BuildContext context) {
 
 // ===================== dialog ที่เรียกใช้จริงหน้าหลักผู้ให้บริการ =====================
 
-Future<void> showAccountPendingDialog(BuildContext context) {
+Future<void> showAccountPendingDialog(BuildContext context, String pid) {
   return _showRedDialogHompage(
     context: context,
     title: 'กรุณายืนยันเอกสาร',
@@ -301,10 +304,10 @@ Future<void> showAccountPendingDialog(BuildContext context) {
         child: ElevatedButton(
           style: _confirmStyle(),
           onPressed: () {
-            // Navigator.push(
-            //   dialogContext,
-            //   MaterialPageRoute(builder: (context) => DocumentPage()),
-            // );
+            Navigator.push(
+              dialogContext,
+              MaterialPageRoute(builder: (context) => DocumentPage(pid: pid)),
+            );
           },
           child: const Text('กรอกเอกสาร', style: TextStyle(fontSize: 16)),
         ),
@@ -350,6 +353,7 @@ Future<void> showAccountDisableDialog(BuildContext context) {
 Future<void> showAccountRejectDialog(
   BuildContext context,
   String? rejectReason,
+  String pid,
 ) {
   return _showRedDialogHompage(
     context: context,
@@ -366,10 +370,10 @@ Future<void> showAccountRejectDialog(
         child: ElevatedButton(
           style: _confirmStyle(),
           onPressed: () {
-            // Navigator.push(
-            //   dialogContext,
-            //   MaterialPageRoute(builder: (context) => DocumentPage()),
-            // );
+            Navigator.push(
+              dialogContext,
+              MaterialPageRoute(builder: (context) => DocumentPage(pid: pid)),
+            );
           },
           child: const Text('แก้ไขเอกสาร', style: TextStyle(fontSize: 16)),
         ),

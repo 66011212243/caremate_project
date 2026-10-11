@@ -1,6 +1,7 @@
 import 'package:caremate_application/page/Bank.dart';
 import 'package:caremate_application/page/Changepassword.dart';
 import 'package:caremate_application/page/document.dart';
+import 'package:caremate_application/page/history_job_provider.dart';
 import 'package:caremate_application/page/login.dart';
 import 'package:caremate_application/page/profile_provider.dart';
 import 'package:flutter/material.dart';
@@ -19,6 +20,7 @@ class _SettingsPageState extends State<SettingsProvider> {
   String realname = '';
   String? profileImage;
   bool isLoading = true;
+  String? uid;
 
   @override
   void initState() {
@@ -87,6 +89,7 @@ class _SettingsPageState extends State<SettingsProvider> {
       // 4. เอาข้อมูลไปแสดง
       if (mounted) {
         setState(() {
+          uid = providerUid;
           realname = userData['realname'] ?? '';
 
           profileImage = providerData['profile']?.toString();
@@ -174,45 +177,49 @@ class _SettingsPageState extends State<SettingsProvider> {
             buildMenu(
               'ประวัติการทำงาน',
               onTap: () {
-                // Navigator.push(
-                //   context,
-                //   MaterialPageRoute(builder: (context) => const JobHistoryPage()),
-                // );
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => HistoryJobProvider(pid: widget.pid),
+                  ),
+                );
               },
             ),
             const Divider(color: Colors.grey, thickness: 1, height: 30),
             buildMenu(
               'เอกสารที่เกี่ยวข้อง',
               onTap: () {
-                // Navigator.push(
-                //   context,
-                //   MaterialPageRoute(
-                //     builder: (context) => const DocumentPage(),
-                //   ),
-                // );
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => DocumentPage(pid: widget.pid),
+                  ),
+                );
               },
             ),
             const Divider(color: Colors.grey, thickness: 1, height: 30),
             buildMenu(
               'บัญชีธนาคาร',
-              // onTap: () {
-              //   Navigator.push(
-              //     context,
-              //     MaterialPageRoute(
-              //       builder: (context) => const BankPage(pid: widget.pid,),
-              //     ),
-              //   );
-              // },
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => BankPage(pid: widget.pid),
+                  ),
+                );
+              },
             ),
             const Divider(color: Colors.grey, thickness: 1, height: 30),
             buildMenu(
               'เปลี่ยนรหัสผ่าน',
-              // onTap: () {
-              //   Navigator.push(
-              //     context,
-              //     MaterialPageRoute(builder: (context) =>  ChangepasswordPage(userId: widget.sid,)),
-              //   );
-              // },
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => ChangepasswordPage(userId: uid),
+                  ),
+                );
+              },
             ),
             const Divider(color: Colors.grey, thickness: 1, height: 30),
             buildMenu(

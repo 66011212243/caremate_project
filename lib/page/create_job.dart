@@ -1,6 +1,7 @@
 import 'dart:developer';
 import 'package:caremate_application/page/homepage_service.dart';
 import 'package:caremate_application/page/map_page.dart';
+import 'package:caremate_application/page/notification_service.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:longdo_maps_api3_flutter/longdo_maps_api3_flutter.dart';
 import 'package:flutter/material.dart';
@@ -278,7 +279,7 @@ class _CreateJobState extends State<CreateJob> {
                                 const SizedBox(height: 5),
                                 if (distanceKm != null)
                                   Text(
-                                    "ระยะทาง: ${distanceKm!.toStringAsFixed(2)} กม.",
+                                    "ระยะทาง(ไป-กลับ): ${distanceKm!.toStringAsFixed(2)} กม.",
                                     style: const TextStyle(fontSize: 15),
                                   ),
                               ],
@@ -748,6 +749,7 @@ class _CreateJobState extends State<CreateJob> {
     if (placeNameController.text.isEmpty ||
         latitudeLocation == null ||
         longitudeLocation == null ||
+        distanceKm == null ||
         dateController.text.isEmpty ||
         timeStartController.text.isEmpty ||
         timeEndController.text.isEmpty ||
@@ -831,6 +833,7 @@ class _CreateJobState extends State<CreateJob> {
       };
 
       await docRef.set(data);
+      await NotificationService().notifyAllProviders(jobId: docRef.id);
 
       log("Job data added with ID: ${docRef.id}");
 
@@ -946,7 +949,7 @@ class _CreateJobState extends State<CreateJob> {
       }
 
       // แปลงเมตร -> กิโลเมตร
-      final distance = (distanceMeter as num).toDouble() / 1000;
+      final distance = (distanceMeter as num).toDouble() / 1000 * 2;
 
       print("ระยะทางตามถนนจริง: ${distance.toStringAsFixed(2)} km");
 

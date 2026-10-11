@@ -789,6 +789,7 @@ class _DetailsJobState extends State<DetailsJob> {
           .collection('document')
           .where('pid', isEqualTo: widget.pid)
           .where('vehicle_type', isEqualTo: vehicleType)
+          .where('status_doc', isEqualTo: 1)
           .limit(1)
           .get();
 
