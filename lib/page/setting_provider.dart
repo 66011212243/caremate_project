@@ -20,7 +20,7 @@ class _SettingsPageState extends State<SettingsProvider> {
   String realname = '';
   String? profileImage;
   bool isLoading = true;
-  String? uid;
+  String uid = '';
 
   @override
   void initState() {

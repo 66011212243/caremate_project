@@ -21,6 +21,7 @@ class _SettingsPageState extends State<SettingsService> {
   String realname = '';
   String? profileImage;
   bool isLoading = true;
+  String uid = '';
 
   @override
   void initState() {
@@ -89,6 +90,7 @@ class _SettingsPageState extends State<SettingsService> {
       // 4. เอาข้อมูลไปแสดง
       if (mounted) {
         setState(() {
+          uid = serviceUid;
           realname = userData['realname']?.toString() ?? '';
 
           profileImage = serviceData['profile']?.toString();
@@ -203,7 +205,7 @@ class _SettingsPageState extends State<SettingsService> {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (context) => ChangepasswordPage(sid: widget.sid),
+                    builder: (context) => ChangepasswordPage(userId: uid),
                   ),
                 );
               },
