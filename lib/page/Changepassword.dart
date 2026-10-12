@@ -24,10 +24,6 @@ class _ChangepasswordPageState extends State<ChangepasswordPage> {
   // ชื่อฟิลด์รหัสผ่านที่เป็นไปได้
   static const List<String> _passwordKeys = [
     'password',
-    'pass',
-    'passwd',
-    'pwd',
-    'user_password',
   ];
 
   @override
@@ -94,15 +90,17 @@ class _ChangepasswordPageState extends State<ChangepasswordPage> {
       return;
     }
 
-    if (oldPassword.isEmpty ||
-        newPassword.isEmpty ||
-        confirmPassword.isEmpty) {
+    if (oldPassword.isEmpty || newPassword.isEmpty || confirmPassword.isEmpty) {
       _showMessage('กรุณากรอกข้อมูลให้ครบทุกช่อง');
       return;
     }
 
     if (newPassword != confirmPassword) {
       _showMessage('รหัสผ่านใหม่ไม่ตรงกัน');
+      return;
+    }
+    if (!RegExp(r'^[A-Z]').hasMatch(newPassword)) {
+      _showMessage('ตัวอักษรแรกของรหัสผ่านต้องเป็นตัวพิมพ์ใหญ่ (A-Z)');
       return;
     }
 
