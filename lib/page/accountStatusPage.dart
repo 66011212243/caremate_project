@@ -1,4 +1,5 @@
 import 'package:caremate_application/page/document.dart';
+import 'package:caremate_application/page/homepage_provider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 
@@ -316,7 +317,12 @@ class _AccountStatusPageState extends State<AccountStatusPage> {
         height: 50,
         child: ElevatedButton(
           onPressed: () {
-            // Navigator ไปหน้าหลัก HomepageService
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(
+                builder: (context) => HomepageProvider(uid: widget.uid),
+              ),
+            );
           },
           style: ElevatedButton.styleFrom(
             backgroundColor: Colors.green,

@@ -189,7 +189,7 @@ class _HistoryJobProviderState extends State<HistoryJobProvider> {
                                 ),
                               ],
                             ),
-                            
+
                             Row(
                               children: [
                                 Icon(

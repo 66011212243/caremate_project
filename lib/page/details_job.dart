@@ -77,7 +77,7 @@ class _DetailsJobState extends State<DetailsJob> {
           : SingleChildScrollView(
               child: Container(
                 child: Padding(
-                  padding: const EdgeInsets.only(top: 20, left: 30),
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -304,7 +304,7 @@ class _DetailsJobState extends State<DetailsJob> {
                       Row(
                         children: [
                           Text(
-                            "ระยะทาง:",
+                            "ระยะทาง(ไป-กลับ):",
                             style: TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.bold,
@@ -405,50 +405,13 @@ class _DetailsJobState extends State<DetailsJob> {
                         ),
                       SizedBox(height: 30),
                       Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
-                          Center(
-                            child: TextButton(
-                              style: TextButton.styleFrom(
-                                backgroundColor: isApplying
-                                    ? const Color.fromARGB(255, 110, 110, 110)
-                                    : statusDrivers == null
-                                    ? Color.fromARGB(255, 255, 0, 0)
-                                    : statusDrivers == 0
-                                    ? const Color.fromARGB(255, 110, 110, 110)
-                                    : statusDrivers == 1
-                                    ? Color.fromARGB(255, 15, 221, 0)
-                                    : statusDrivers == 2
-                                    ? const Color.fromARGB(255, 220, 109, 102)
-                                    : statusDrivers == 6
-                                    ? const Color.fromARGB(255, 220, 109, 102)
-                                    : Colors.black,
-
-                                foregroundColor: Colors.white,
-
-                                disabledBackgroundColor: isApplying
-                                    ? const Color.fromARGB(255, 110, 110, 110)
-                                    : statusDrivers == 0
-                                    ? const Color.fromARGB(255, 110, 110, 110)
-                                    : statusDrivers == 1
-                                    ? Color.fromARGB(255, 15, 221, 0)
-                                    : statusDrivers == 2
-                                    ? const Color.fromARGB(255, 220, 109, 102)
-                                    : statusDrivers == 6
-                                    ? const Color.fromARGB(255, 220, 109, 102)
-                                    : const Color.fromARGB(255, 15, 221, 0),
-
-                                disabledForegroundColor: Colors.white,
-
-                                padding: EdgeInsets.symmetric(
-                                  horizontal: 30,
-                                  vertical: 10,
-                                ),
-
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                              ),
-
+                          // ปุ่มสมัครงาน / แสดงสถานะ
+                          SizedBox(
+                            width: double.infinity,
+                            height: 48,
+                            child: TextButton.icon(
                               onPressed: isApplying || statusDrivers != null
                                   ? null
                                   : () async {
@@ -466,7 +429,6 @@ class _DetailsJobState extends State<DetailsJob> {
                                         return;
                                       }
 
-                                      // 2) เช็คว่ามียานพาหนะตรงกับงานไหม
                                       final vehicleOk =
                                           await checkVehicleTypeComplete(
                                             detailsJob['vehicle_type'],
@@ -493,125 +455,161 @@ class _DetailsJobState extends State<DetailsJob> {
 
                                       await applyJob(widget.jobId);
 
+                                      if (!mounted) return;
                                       setState(() {
                                         isApplying = false;
                                         statusDrivers = 0;
                                       });
                                     },
-
-                              child: isApplying
-                                  ? SizedBox(
-                                      width: 22,
-                                      height: 22,
+                              icon: isApplying
+                                  ? const SizedBox(
+                                      width: 18,
+                                      height: 18,
                                       child: CircularProgressIndicator(
-                                        strokeWidth: 2.5,
+                                        strokeWidth: 2,
                                         color: Colors.white,
                                       ),
                                     )
-                                  : Text(
+                                  : Icon(
                                       statusDrivers == null
-                                          ? "สมัครงาน"
+                                          ? Icons.work_outline
                                           : statusDrivers == 0
-                                          ? "รอคัดเลือก"
+                                          ? Icons.hourglass_empty
                                           : statusDrivers == 1
-                                          ? "ได้รับงานแล้ว"
-                                          : statusDrivers == 2
-                                          ? "ตำแหน่งเต็ม"
-                                          : statusDrivers == 6
-                                          ? "ไม่สามารถสมัครงานได้"
-                                          : "พร้อมทำงาน",
-                                      style: TextStyle(fontSize: 18),
+                                          ? Icons.check_circle_outline
+                                          : statusDrivers == 2 ||
+                                                statusDrivers == 6
+                                          ? Icons.info_outline
+                                          : Icons.directions_car,
+                                      size: 22,
                                     ),
+                              label: Text(
+                                isApplying
+                                    ? 'กำลังสมัครงาน...'
+                                    : statusDrivers == null
+                                    ? 'สมัครงาน'
+                                    : statusDrivers == 0
+                                    ? 'รอคัดเลือก'
+                                    : statusDrivers == 1
+                                    ? 'ได้รับงานแล้ว'
+                                    : statusDrivers == 2
+                                    ? 'ตำแหน่งเต็ม'
+                                    : statusDrivers == 6
+                                    ? 'ไม่สามารถสมัครงานได้'
+                                    : 'พร้อมทำงาน',
+                                style: const TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              style: TextButton.styleFrom(
+                                backgroundColor: isApplying
+                                    ? const Color.fromARGB(255, 110, 110, 110)
+                                    : statusDrivers == null
+                                    ? Colors.red
+                                    : statusDrivers == 0
+                                    ? const Color.fromARGB(255, 110, 110, 110)
+                                    : statusDrivers == 1
+                                    ? const Color.fromARGB(255, 15, 221, 0)
+                                    : statusDrivers == 2 || statusDrivers == 6
+                                    ? const Color.fromARGB(255, 220, 109, 102)
+                                    : Colors.black,
+                                foregroundColor: Colors.white,
+                                disabledBackgroundColor: isApplying
+                                    ? const Color.fromARGB(255, 110, 110, 110)
+                                    : statusDrivers == 0
+                                    ? const Color.fromARGB(255, 110, 110, 110)
+                                    : statusDrivers == 1
+                                    ? const Color.fromARGB(255, 15, 221, 0)
+                                    : statusDrivers == 2 || statusDrivers == 6
+                                    ? const Color.fromARGB(255, 220, 109, 102)
+                                    : const Color.fromARGB(255, 15, 221, 0),
+                                disabledForegroundColor: Colors.white,
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                ),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                              ),
                             ),
                           ),
-                          if (statusDrivers == 0)
-                            Padding(
-                              padding: const EdgeInsets.all(8.0),
-                              child: Center(
-                                child: TextButton(
-                                  style: TextButton.styleFrom(
-                                    backgroundColor: Color.fromARGB(
-                                      255,
-                                      255,
-                                      65,
-                                      65,
-                                    ),
 
-                                    foregroundColor: Colors.white,
-
-                                    disabledForegroundColor: Colors.white,
-
-                                    padding: EdgeInsets.symmetric(
-                                      horizontal: 30,
-                                      vertical: 10,
-                                    ),
-
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(12),
-                                    ),
+                          // ปุ่มยกเลิกสมัครงาน
+                          if (statusDrivers == 0) ...[
+                            const SizedBox(height: 10),
+                            SizedBox(
+                              width: double.infinity,
+                              height: 48,
+                              child: OutlinedButton.icon(
+                                onPressed: () {
+                                  showCancelApplyDialog(
+                                    context,
+                                    onConfirm: () async {
+                                      await cancelApplyJob();
+                                    },
+                                  );
+                                },
+                                icon: const Icon(
+                                  Icons.cancel_outlined,
+                                  size: 20,
+                                ),
+                                label: const Text(
+                                  'ยกเลิกสมัครงาน',
+                                  style: TextStyle(
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.bold,
                                   ),
-
-                                  onPressed: () {
-                                    showCancelApplyDialog(
-                                      context,
-                                      onConfirm: () async {
-                                        await cancelApplyJob();
-                                      },
-                                    );
-                                  },
-                                  child: Text(
-                                    "ยกเลิกสมัครงาน",
-                                    style: TextStyle(fontSize: 18),
+                                ),
+                                style: OutlinedButton.styleFrom(
+                                  foregroundColor: Colors.red,
+                                  side: const BorderSide(color: Colors.red),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(10),
                                   ),
                                 ),
                               ),
                             ),
-                          if (statusDrivers == 1)
-                            Padding(
-                              padding: const EdgeInsets.all(8.0),
-                              child: Center(
-                                child: TextButton(
-                                  style: TextButton.styleFrom(
-                                    backgroundColor: Color.fromARGB(
-                                      255,
-                                      255,
-                                      65,
-                                      65,
-                                    ),
+                          ],
 
-                                    foregroundColor: Colors.white,
-
-                                    disabledForegroundColor: Colors.white,
-
-                                    padding: EdgeInsets.symmetric(
-                                      horizontal: 30,
-                                      vertical: 10,
-                                    ),
-
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(12),
-                                    ),
+                          // ปุ่มยกเลิกงานที่ได้รับแล้ว
+                          if (statusDrivers == 1) ...[
+                            const SizedBox(height: 10),
+                            SizedBox(
+                              width: double.infinity,
+                              height: 48,
+                              child: OutlinedButton.icon(
+                                onPressed: () {
+                                  showCancelJobDialog(
+                                    context,
+                                    onConfirm: () async {
+                                      await cancelJob();
+                                      if (!mounted) return;
+                                      Navigator.of(context).pop(true);
+                                    },
+                                  );
+                                },
+                                icon: const Icon(
+                                  Icons.cancel_outlined,
+                                  size: 20,
+                                ),
+                                label: const Text(
+                                  'ยกเลิกงาน',
+                                  style: TextStyle(
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.bold,
                                   ),
-
-                                  onPressed: () {
-                                    showCancelJobDialog(
-                                      context,
-                                      onConfirm: () async {
-                                        await cancelJob();
-                                        if (!mounted) return;
-                                        Navigator.of(
-                                          context,
-                                        ).pop(true); // กลับไป MyjobPovider
-                                      },
-                                    );
-                                  },
-                                  child: Text(
-                                    "ยกเลิกงาน",
-                                    style: TextStyle(fontSize: 18),
+                                ),
+                                style: OutlinedButton.styleFrom(
+                                  foregroundColor: Colors.red,
+                                  side: const BorderSide(color: Colors.red),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(10),
                                   ),
                                 ),
                               ),
                             ),
+                          ],
                         ],
                       ),
                       SizedBox(height: 50),
