@@ -2,22 +2,23 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 
 class ReportDetailPage extends StatelessWidget {
-  final String reports_id; // ส่ง reportId มาจากหน้าก่อนหน้า
+  final String reportsId; // ส่ง reportId มาจากหน้าก่อนหน้า
 
-  const ReportDetailPage({super.key, required this.reports_id});
+  const ReportDetailPage({super.key, required this.reportsId});
 
   // ฟังก์ชันดึงข้อมูลรายละเอียดรายงาน และข้อมูล Provider / User ที่ถูกรายงาน
   Future<Map<String, dynamic>> fetchReportDetails() async {
     final db = FirebaseFirestore.instance;
 
     // 1. ดึงข้อมูลจากคอลเลกชัน reports
-    final reportDoc = await db.collection('reports').doc(reports_id).get();
+    final reportDoc = await db.collection('reports').doc(reportsId).get();
     if (!reportDoc.exists) {
       throw Exception('ไม่พบข้อมูลการรายงาน');
     }
 
     final reportData = reportDoc.data()!;
     final description = reportData['description'] ?? 'ไม่มีรายละเอียด';
+    final status_report = reportData['status_re'];
 
     // ดึง ID ของ Provider ที่ถูกรายงาน (หรือ reporter_id ของผู้รายงาน)
     final reportedProviderId =
@@ -28,6 +29,7 @@ class ReportDetailPage extends StatelessWidget {
     String phoneNo = 'ไม่ระบุเบอร์โทรศัพท์';
     String vehicleRegistration = 'ไม่ระบุทะเบียนรถ';
     String profileUrl = '';
+    int? reportsNum;
 
     // 2. ดึงข้อมูล provider
     if (reportedProviderId.isNotEmpty) {
@@ -44,7 +46,8 @@ class ReportDetailPage extends StatelessWidget {
             'ไม่ระบุเบอร์โทรศัพท์';
 
         // --- ดึง URL รูปโปรไฟล์จาก provider ---
-        profileUrl = providerData['photo']?.toString() ?? '';
+        profileUrl = providerData['profile']?.toString() ?? '';
+        reportsNum = providerData['reports_num'];
 
         final providerUid =
             (providerData['provider_uid'] ?? providerData['uid'])?.toString() ??
@@ -75,30 +78,8 @@ class ReportDetailPage extends StatelessWidget {
             final userData = userDoc.data() as Map<String, dynamic>;
 
             // --- ดึงชื่อจาก users ---
-            driverName = userData['username']?.toString() ?? 'ไม่ระบุชื่อ';
+            driverName = userData['realname']?.toString() ?? 'ไม่ระบุชื่อ';
           }
-        }
-
-        // 4. ดึงข้อมูลทะเบียนรถจาก document
-        var docSnap = await db
-            .collection('document')
-            .where('pid', isEqualTo: reportedProviderId)
-            .limit(1)
-            .get();
-
-        if (docSnap.docs.isEmpty) {
-          docSnap = await db
-              .collection('document')
-              .where('provider_id', isEqualTo: reportedProviderId)
-              .limit(1)
-              .get();
-        }
-
-        if (docSnap.docs.isNotEmpty) {
-          final docData = docSnap.docs.first.data();
-          vehicleRegistration =
-              docData['vehicle_Registration']?.toString() ?? 'ไม่ระบุทะเบียนรถ';
-
         }
       }
     }
@@ -107,32 +88,50 @@ class ReportDetailPage extends StatelessWidget {
       'description': description,
       'driverName': driverName,
       'phoneNo': phoneNo,
-      'photo': profileUrl,
+      'profile': profileUrl,
       'vehicle_Registration': vehicleRegistration,
       'reportedProviderId': reportedProviderId,
+      'reportsNum': reportsNum,
+      'statusReport': status_report,
     };
   }
 
   // ฟังก์ชันสำหรับการแบนบัญชีผู้ใช้
+
   Future<void> _banAccount(BuildContext context, String providerId) async {
     try {
       final db = FirebaseFirestore.instance;
 
-      // ดึง provider_uid เพื่อไประงับบัญชีใน collection users
+      // 1. ดึง provider_uid เพื่อไประงับบัญชีใน collection users
       final providerDoc = await db.collection('provider').doc(providerId).get();
-      if (providerDoc.exists) {
-        final providerUid = providerDoc.data()?['provider_uid']?.toString();
-        if (providerUid != null && providerUid.isNotEmpty) {
-          await db.collection('users').doc(providerUid).update({
-            'status_account': 'banned', // ปรับเปลี่ยนสถานะตามที่ระบบใช้จริง
-          });
-        }
+
+      if (!providerDoc.exists) {
+        throw Exception('ไม่พบข้อมูลผู้ให้บริการ');
       }
 
+      final providerUid = providerDoc.data()?['provider_uid']?.toString();
+
+      if (providerUid == null || providerUid.isEmpty) {
+        throw Exception('ไม่พบ provider_uid ของผู้ให้บริการ');
+      }
+
+      // 2. อัปเดตสถานะบัญชีเป็น 4 (ถูกระงับ)
+      await db.collection('users').doc(providerUid).update({
+        'status_account': 4,
+      });
+
+      // 3. อัปเดตสถานะรายงานเป็น 1 (ดำเนินการแล้ว)
+      await db.collection('reports').doc(reportsId).update({'status_re': 1});
+
+      // 4. แจ้งผลลัพธ์
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('ทำการแบนบัญชีเรียบร้อยแล้ว')),
+          const SnackBar(
+            content: Text('แบนบัญชีและอัปเดตสถานะรายงานเรียบร้อยแล้ว'),
+          ),
         );
+
+        Navigator.pop(context);
       }
     } catch (e) {
       if (context.mounted) {
@@ -155,12 +154,11 @@ class ReportDetailPage extends StatelessWidget {
         title: const Padding(
           padding: EdgeInsets.only(left: 0),
           child: Text(
-            "Admin",
+            "รายละเอียดการรายงาน",
             style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
           ),
         ),
         backgroundColor: const Color.fromARGB(255, 255, 0, 0),
-        toolbarHeight: 90,
       ),
       body: SafeArea(
         child: FutureBuilder<Map<String, dynamic>>(
@@ -175,7 +173,7 @@ class ReportDetailPage extends StatelessWidget {
             }
 
             final data = snapshot.data ?? {};
-            final String profileUrl = data['photoUrl'] ?? '';
+            final String profileUrl = data['profile'] ?? '';
 
             return SingleChildScrollView(
               padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 18),
@@ -248,7 +246,7 @@ class ReportDetailPage extends StatelessWidget {
                             ),
                             const SizedBox(height: 4),
                             Text(
-                              'ทะเบียนรถ: ${data['vehicle_Registration']}',
+                              'จำนวนการถูกรายงาน: ${data['reportsNum']}',
                               style: const TextStyle(
                                 fontSize: 14,
                                 color: Color.fromARGB(255, 92, 89, 89),
@@ -301,36 +299,272 @@ class ReportDetailPage extends StatelessWidget {
 
                   const SizedBox(height: 42),
 
-                  // ปุ่มแบนบัญชี
-                  Center(
-                    child: SizedBox(
-                      width: 100,
-                      height: 38,
-                      child: ElevatedButton(
-                        onPressed: () {
-                          if (data['reportedProviderId'] != null) {
-                            _banAccount(context, data['reportedProviderId']);
-                          }
-                        },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.red,
-                          foregroundColor: Colors.white,
-                          elevation: 0,
-                          padding: EdgeInsets.zero,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8),
+                  if (data['statusReport'] == 0)
+                    // ปุ่มแบนบัญชี
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 60),
+                      child: Row(
+                        children: [
+                          SizedBox(
+                            width: 100,
+                            height: 38,
+                            child: ElevatedButton(
+                              onPressed: () async {
+                                final providerId = data['reportedProviderId'];
+
+                                if (providerId == null ||
+                                    providerId.toString().isEmpty) {
+                                  return;
+                                }
+
+                                final confirm = await showDialog<bool>(
+                                  context: context,
+                                  barrierDismissible: false,
+                                  builder: (dialogContext) {
+                                    return AlertDialog(
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(16),
+                                      ),
+                                      title: const Row(
+                                        children: [
+                                          Icon(
+                                            Icons.notifications_active_outlined,
+                                            color: Color.fromARGB(
+                                              255,
+                                              3,
+                                              164,
+                                              22,
+                                            ),
+                                            size: 28,
+                                          ),
+                                          SizedBox(width: 8),
+                                          Expanded(
+                                            child: Text(
+                                              'ยืนยันการตักเตือน',
+                                              style: TextStyle(
+                                                fontSize: 18,
+                                                fontWeight: FontWeight.bold,
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      content: const Text(
+                                        'คุณต้องการส่งคำเตือนไปยังผู้ให้บริการรายนี้ใช่หรือไม่?\n\n'
+                                        'โปรดตรวจสอบข้อมูลรายงานก่อนยืนยันการตักเตือน',
+                                        style: TextStyle(fontSize: 14),
+                                      ),
+                                      actions: [
+                                        TextButton(
+                                          onPressed: () {
+                                            Navigator.of(
+                                              dialogContext,
+                                            ).pop(false);
+                                          },
+                                          child: const Text(
+                                            'ยกเลิก',
+                                            style: TextStyle(
+                                              color: Colors.grey,
+                                            ),
+                                          ),
+                                        ),
+                                        ElevatedButton(
+                                          onPressed: () {
+                                            Navigator.of(
+                                              dialogContext,
+                                            ).pop(true);
+                                          },
+                                          style: ElevatedButton.styleFrom(
+                                            backgroundColor:
+                                                const Color.fromARGB(
+                                                  255,
+                                                  3,
+                                                  164,
+                                                  22,
+                                                ),
+                                            foregroundColor: Colors.white,
+                                            shape: RoundedRectangleBorder(
+                                              borderRadius:
+                                                  BorderRadius.circular(8),
+                                            ),
+                                          ),
+                                          child: const Text(
+                                            'ยืนยันการตักเตือน',
+                                          ),
+                                        ),
+                                      ],
+                                    );
+                                  },
+                                );
+
+                                if (confirm == true && context.mounted) {
+                                  // TODO: เรียกฟังก์ชันตักเตือนผู้ให้บริการตรงนี้
+                                  // เช่น await _warnProvider(context, providerId);
+                                }
+                              },
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color.fromARGB(
+                                  255,
+                                  3,
+                                  164,
+                                  22,
+                                ),
+                                foregroundColor: Colors.white,
+                                elevation: 0,
+                                padding: EdgeInsets.zero,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                              ),
+                              child: const Text(
+                                'ตักเตือน',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
                           ),
-                        ),
-                        child: const Text(
-                          'แบนบัญชี',
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
+                          SizedBox(width: 20),
+
+                          SizedBox(
+                            width: 100,
+                            height: 38,
+                            child: ElevatedButton(
+                              onPressed: () async {
+                                final providerId = data['reportedProviderId'];
+
+                                if (providerId == null ||
+                                    providerId.toString().isEmpty) {
+                                  return;
+                                }
+
+                                // แสดงไดอาลอคยืนยัน
+                                final confirm = await showDialog<bool>(
+                                  context: context,
+                                  barrierDismissible: false,
+                                  builder: (dialogContext) {
+                                    return AlertDialog(
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(16),
+                                      ),
+                                      title: const Row(
+                                        children: [
+                                          Icon(
+                                            Icons.warning_amber_rounded,
+                                            color: Colors.red,
+                                            size: 28,
+                                          ),
+                                          SizedBox(width: 8),
+                                          Text(
+                                            'ยืนยันการแบนบัญชี',
+                                            style: TextStyle(
+                                              fontSize: 18,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      content: const Text(
+                                        'คุณต้องการแบนบัญชีผู้ให้บริการรายนี้ใช่หรือไม่?\n\n'
+                                        'เมื่อยืนยันแล้ว บัญชีอาจไม่สามารถใช้บริการได้ '
+                                        'โปรดตรวจสอบข้อมูลก่อนดำเนินการ',
+                                        style: TextStyle(fontSize: 14),
+                                      ),
+                                      actions: [
+                                        TextButton(
+                                          onPressed: () {
+                                            Navigator.of(
+                                              dialogContext,
+                                            ).pop(false);
+                                          },
+                                          child: const Text(
+                                            'ยกเลิก',
+                                            style: TextStyle(
+                                              color: Colors.grey,
+                                            ),
+                                          ),
+                                        ),
+                                        ElevatedButton(
+                                          onPressed: () {
+                                            Navigator.of(
+                                              dialogContext,
+                                            ).pop(true);
+                                          },
+                                          style: ElevatedButton.styleFrom(
+                                            backgroundColor: Colors.red,
+                                            foregroundColor: Colors.white,
+                                            shape: RoundedRectangleBorder(
+                                              borderRadius:
+                                                  BorderRadius.circular(8),
+                                            ),
+                                          ),
+                                          child: const Text('ยืนยันการแบน'),
+                                        ),
+                                      ],
+                                    );
+                                  },
+                                );
+
+                                // เรียกฟังก์ชันแบนเมื่อกดยืนยันเท่านั้น
+                                if (confirm == true && context.mounted) {
+                                  await _banAccount(context, providerId);
+                                }
+                              },
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.red,
+                                foregroundColor: Colors.white,
+                                elevation: 0,
+                                padding: EdgeInsets.zero,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                              ),
+                              child: const Text(
+                                'แบนบัญชี',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+
+                  if (data['statusReport'] == 1)
+                    // ปุ่มแบนบัญชี
+                    Center(
+                      child: SizedBox(
+                        width: 100,
+                        height: 38,
+                        child: ElevatedButton(
+                          onPressed: () {},
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color.fromARGB(
+                              255,
+                              3,
+                              164,
+                              22,
+                            ),
+                            foregroundColor: Colors.white,
+                            elevation: 0,
+                            padding: EdgeInsets.zero,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                          ),
+                          child: const Text(
+                            'ตรวจสอบแล้ว',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
                         ),
                       ),
                     ),
-                  ),
                 ],
               ),
             );

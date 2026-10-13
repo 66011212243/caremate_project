@@ -320,6 +320,8 @@ class _RegisterUsersState extends State<RegisterUsers> {
         await providerRef.set({
           'provider_uid': userRef.id,
           'cancel_job': 0,
+          'cancel_month':
+              '${DateTime.now().year}-${DateTime.now().month.toString().padLeft(2, '0')}',
           'reports_num': 0,
         });
 

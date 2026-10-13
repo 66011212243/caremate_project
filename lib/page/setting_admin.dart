@@ -1,5 +1,6 @@
 import 'package:caremate_application/page/Bank.dart';
 import 'package:caremate_application/page/Changepassword.dart';
+import 'package:caremate_application/page/admin_all_report.dart';
 import 'package:caremate_application/page/admin_price_page.dart';
 import 'package:caremate_application/page/document.dart';
 import 'package:caremate_application/page/driver_pending_approval_page.dart';
@@ -82,6 +83,7 @@ class _SettingsPageState extends State<SettingAdmin> {
                       radius: 28,
                       child: const Icon(Icons.person, size: 28),
                     ),
+                    SizedBox(width: 20),
                     Expanded(
                       child: isLoading
                           ? const Text('กำลังโหลด...')
@@ -126,12 +128,12 @@ class _SettingsPageState extends State<SettingAdmin> {
             const Divider(color: Colors.grey, thickness: 1, height: 30),
             buildMenu(
               'รายงานทั้งหมด',
-              // onTap: () {
-              //   Navigator.push(
-              //     context,
-              //     MaterialPageRoute(builder: (context) => ReportDetailPage()),
-              //   );
-              // },
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => AdminAllReport()),
+                );
+              },
             ),
             const Divider(color: Colors.grey, thickness: 1, height: 30),
             buildMenu(

@@ -1,6 +1,8 @@
 import 'package:caremate_application/page/Review_history_provider.dart';
 import 'package:caremate_application/page/approve_provider.dart';
 import 'package:caremate_application/page/notifications_page.dart';
+import 'package:caremate_application/page/provider_detail_page.dart';
+import 'package:caremate_application/page/service_detail_page.dart';
 import 'package:caremate_application/page/setting_admin.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -158,6 +160,7 @@ class UserList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    
     return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
       stream: FirebaseFirestore.instance
           .collection('users')
@@ -240,15 +243,34 @@ class UserList extends StatelessWidget {
 
                   onTap: () {
                     if (role == 0) {
-                      // ผู้รับบริการ
-                    } else if (role == 1) {
+                      print(pid);
                       if (pid != null && pid.isNotEmpty) {
-                        // Navigator.push(
-                        //   context,
-                        //   MaterialPageRoute(
-                        //     builder: (context) => ApproveProvider(pid: pid),
-                        //   ),
-                        // );
+                        //print(pid);
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => ServiceDetailPage(sid: pid),
+                          ),
+                        );
+                      } else {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text(
+                              'ไม่พบข้อมูล PID ของผู้ให้บริการท่านนี้',
+                            ),
+                          ),
+                        );
+                      }
+                    } else if (role == 1) {
+                      print(pid);
+                      if (pid != null && pid.isNotEmpty) {
+                        //print(pid);
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => ProviderDetailPage(pid: pid),
+                          ),
+                        );
                       } else {
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(

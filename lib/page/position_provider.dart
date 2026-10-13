@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:developer';
 import 'package:caremate_application/page/payment_page.dart';
+import 'package:caremate_application/page/review.dart';
 import 'package:flutter/services.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
@@ -22,6 +23,7 @@ class _PositionProviderState extends State<PositionProvider> {
   var db = FirebaseFirestore.instance;
   int activeStep = 0;
   int jobStatus = 0;
+  int? vehicleType;
   int moneyAmount = 0;
   StreamSubscription? jobSubscription;
   StreamSubscription<DocumentSnapshot<Map<String, dynamic>>>?
@@ -42,6 +44,9 @@ class _PositionProviderState extends State<PositionProvider> {
   bool hasPayment = false;
   bool isCheckingPayment = true;
 
+  bool hasReview = false;
+  bool isCheckingReview = true;
+
   bool _followRider = true;
   double? _providerLat;
   double? _providerLon;
@@ -60,6 +65,7 @@ class _PositionProviderState extends State<PositionProvider> {
     loadAll(); // งาน + ที่อยู่ -> ไรเดอร์ + listener ตำแหน่ง -> วาดหมุด
     listenJobStatus(); // ฟังสถานะงานแยกต่างหาก
     checkPayment();
+    checkReview();
   }
 
   Future<void> loadAll() async {
@@ -167,7 +173,7 @@ class _PositionProviderState extends State<PositionProvider> {
           DraggableScrollableSheet(
             initialChildSize: 0.28,
             minChildSize: 0.12,
-            maxChildSize: 0.72,
+            maxChildSize: 0.80,
             builder: (context, scrollController) {
               return Container(
                 decoration: BoxDecoration(
@@ -263,6 +269,7 @@ class _PositionProviderState extends State<PositionProvider> {
                           ],
                         ),
                       ),
+
                     const SizedBox(height: 18),
                     const Padding(
                       padding: EdgeInsets.symmetric(horizontal: 25),
@@ -380,6 +387,37 @@ class _PositionProviderState extends State<PositionProvider> {
                             ],
                           ),
 
+                          if (jobStatus == 9) SizedBox(height: 18),
+                          if (isCheckingReview)
+                            const CircularProgressIndicator()
+                          else if (jobStatus == 9 && !hasReview)
+                            _paymentButton(
+                              icon: Icons.person_outline,
+                              text: "รีวิวผู้ให้บริการ",
+                              onPressed: () async {
+                                print('provider pid: ${providerData['pid']}');
+                                print('รหัสงาน: ${widget.jobId}');
+                                final result = await Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => ReviewPage(
+                                      jobId: widget.jobId,
+                                      pid: providerData['pid'],
+                                    ),
+                                  ),
+                                );
+
+                                if (result == true) {
+                                  checkReview();
+                                }
+                              },
+                            )
+                          else if (jobStatus == 9 && hasReview)
+                            _paymentButton(
+                              icon: Icons.check_circle_outline,
+                              text: "รีวิวผู้ให้บริการแล้ว",
+                              onPressed: null,
+                            ),
                           const SizedBox(height: 20),
 
                           // เส้นแบ่ง
@@ -803,6 +841,31 @@ class _PositionProviderState extends State<PositionProvider> {
     }
   }
 
+  Future<void> checkReview() async {
+    try {
+      final snapshot = await db
+          .collection('review')
+          .where('job_id', isEqualTo: widget.jobId)
+          .where('provider_id', isEqualTo: providerData['pid'])
+          .get();
+
+      if (!mounted) return;
+
+      setState(() {
+        hasReview = snapshot.docs.isNotEmpty;
+        isCheckingReview = false;
+      });
+    } catch (e) {
+      print("เกิดข้อผิดพลาดในการตรวจสอบการชำระเงิน: $e");
+
+      if (!mounted) return;
+
+      setState(() {
+        isCheckingReview = false;
+      });
+    }
+  }
+
   Future<void> queryJobData() async {
     setState(() {
       isLoading = true;
@@ -819,6 +882,7 @@ class _PositionProviderState extends State<PositionProvider> {
       }
 
       jobStatus = detailsJob['job_status'] ?? 0;
+      vehicleType = detailsJob['vehicle_type'];
       updateActiveStep(jobStatus);
 
       // 2. ดึงข้อมูล Service
@@ -929,6 +993,7 @@ class _PositionProviderState extends State<PositionProvider> {
       final documentSnapshot = await db
           .collection('document')
           .where('pid', isEqualTo: providerId)
+          .where('vehicle_type', isEqualTo: vehicleType)
           .get();
 
       Map<String, dynamic> tempDocumentData = {};

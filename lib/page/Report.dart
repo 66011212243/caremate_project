@@ -1,26 +1,30 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
-class ReportPage extends StatelessWidget {
-  final String job_id;
-  final String reporter_id;
-  final String status_re;
-  final String reported_provider_id;
-  
+class ReportPage extends StatefulWidget {
+  final String jobId;
+  final String reporterId;
+  final String reportedId;
+
   ReportPage({
     super.key,
-    this.job_id = "001",
-    this.reporter_id = "01",
-    this.status_re = "1",
-    this.reported_provider_id = "01",
+    required this.jobId,
+    required this.reporterId,
+    required this.reportedId,
   });
 
+  @override
+  State<ReportPage> createState() => _ReportPageState();
+}
+
+class _ReportPageState extends State<ReportPage> {
   //  2. สร้างตัวแปรเก็บข้อความ และ คะแนนดาว (ใช้ ValueNotifier แบบง่าย ไม่ต้องแปลงเป็น StatefulWidget)
   final TextEditingController commentController = TextEditingController();
+
   final ValueNotifier<int> ratingNotifier = ValueNotifier<int>(5);
 
   //  3. ฟังก์ชันบันทึกลง Firebase
-  void _saveReport(BuildContext context) async {
+  Future<void> _saveReport(BuildContext context) async {
     if (commentController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('กรุณากรอกรายละเอียดเพิ่มเติม')),
@@ -29,97 +33,160 @@ class ReportPage extends StatelessWidget {
     }
 
     try {
-      await FirebaseFirestore.instance.collection('reports').add({
-        'job_id': job_id,
-        'reporter_id': reporter_id,
-        'status_re': status_re,
-        'description': commentController.text.trim(),
+      final db = FirebaseFirestore.instance;
+      final pid = widget.reportedId;
+
+      // อ้างอิงเอกสาร provider ด้วย pid
+      final providerRef = db.collection('provider').doc(pid);
+
+      // สร้าง ID สำหรับรายงานใหม่
+      final reportRef = db.collection('reports').doc();
+
+      await db.runTransaction((transaction) async {
+        // อ่านข้อมูล provider
+        final providerDoc = await transaction.get(providerRef);
+
+        if (!providerDoc.exists) {
+          throw Exception('ไม่พบข้อมูลผู้ให้บริการ');
+        }
+
+        // อ่านจำนวนรายงานปัจจุบัน
+        final currentCount =
+            (providerDoc.data()?['reports_num'] as num?)?.toInt() ?? 0;
+
+        // บันทึกรายงาน
+        transaction.set(reportRef, {
+          'job_id': widget.jobId,
+          'reporter_id': widget.reporterId,
+          'reported_provider_id': widget.reportedId,
+          'status_re': 0,
+          'description': commentController.text.trim(),
+        });
+
+        // เพิ่มจำนวนรายงานใน provider
+        transaction.update(providerRef, {'reports_num': currentCount + 1});
       });
 
-      if (context.mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('บันทึกรีวิวสำเร็จ!')));
-        Navigator.pop(context);
-      }
+      if (!context.mounted) return;
+
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('บันทึกการรายงานสำเร็จ!')));
+
+      Navigator.pop(context, true);
     } catch (e) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('เกิดข้อผิดพลาด: $e')));
-      }
+      if (!context.mounted) return;
+
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('เกิดข้อผิดพลาด: $e')));
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color.fromARGB(255, 255, 255, 255),
+      backgroundColor: Colors.white,
       appBar: AppBar(
-        leading: const Icon(Icons.arrow_back, color: Colors.black),
+        elevation: 0,
+        backgroundColor: Colors.white,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios_new, color: Colors.black87),
+          onPressed: () => Navigator.maybePop(context),
+        ),
         title: const Text(
           'รายงาน',
-          style: TextStyle(fontSize: 25, fontWeight: FontWeight.bold),
+          style: TextStyle(
+            fontSize: 22,
+            fontWeight: FontWeight.bold,
+            color: Colors.black87,
+          ),
         ),
-        backgroundColor: Colors.white,
+        //centerTitle: true,
       ),
       body: SingleChildScrollView(
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            children: [
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  const Text(
-                    "รายงานพฤติดรรมคนขับ ",
-                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-                  ),
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // หัวข้อหน้า
+            const Text(
+              "รายงานพฤติกรรมคนขับ",
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: Colors.black87,
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              "กรุณาอธิบายรายละเอียด หรือพฤติกรรมที่ไม่เหมาะสมที่พบเจอ",
+              style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+            ),
+            const SizedBox(height: 20),
 
-                  Center(
-                    child: SizedBox(
-                      width: 300,
-                      height: 150,
-
-                      child: TextField(
-                        controller: commentController,
-                        maxLines: null,
-                        expands: true,
-
-                        decoration: InputDecoration(
-                          hintText: 'รายละเอียด...',
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(15),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 65),
-                  SizedBox(
-                    width: 150,
-                    child: ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color.fromARGB(255, 255, 0, 0),
-                        foregroundColor: const Color.fromARGB(
-                          255,
-                          255,
-                          255,
-                          255,
-                        ),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(25),
-                        ),
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                      ),
-                      onPressed: () => _saveReport(context),
-                      child: const Text("รายงาน"),
-                    ),
+            // ช่องกรอกรายละเอียดข้อความ
+            Container(
+              decoration: BoxDecoration(
+                color: Colors.grey[50],
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.03),
+                    blurRadius: 10,
+                    offset: const Offset(0, 4),
                   ),
                 ],
               ),
-            ],
-          ),
+              child: TextField(
+                controller: commentController,
+                maxLines: 6,
+                style: const TextStyle(fontSize: 15, color: Colors.black87),
+                decoration: InputDecoration(
+                  hintText: 'รายละเอียด...',
+                  hintStyle: TextStyle(color: Colors.grey[400], fontSize: 15),
+                  alignLabelWithHint: true,
+                  contentPadding: const EdgeInsets.all(16),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(16),
+                    borderSide: BorderSide(color: Colors.grey[300]!),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(16),
+                    borderSide: BorderSide(color: Colors.grey[300]!),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(16),
+                    borderSide: const BorderSide(color: Colors.red, width: 1.5),
+                  ),
+                ),
+              ),
+            ),
+
+            const SizedBox(height: 40),
+
+            // ปุ่มกดส่งรายงาน
+            SizedBox(
+              width: double.infinity,
+              height: 50,
+              child: ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFFD32F2F),
+                  foregroundColor: Colors.white,
+                  elevation: 2,
+                  shadowColor: Colors.red.withOpacity(0.4),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(25),
+                  ),
+                ),
+                onPressed: () => _saveReport(context),
+                child: const Text(
+                  "รายงาน",
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );

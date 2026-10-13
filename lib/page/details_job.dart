@@ -496,7 +496,9 @@ class _DetailsJobState extends State<DetailsJob> {
                                     ? 'ตำแหน่งเต็ม'
                                     : statusDrivers == 6
                                     ? 'ไม่สามารถสมัครงานได้'
-                                    : 'พร้อมทำงาน',
+                                    : statusDrivers == 3
+                                    ? 'พร้อมทำงาน'
+                                    : 'กำลังทำงาน',
                                 style: const TextStyle(
                                   fontSize: 16,
                                   fontWeight: FontWeight.bold,
@@ -573,19 +575,22 @@ class _DetailsJobState extends State<DetailsJob> {
                           ],
 
                           // ปุ่มยกเลิกงานที่ได้รับแล้ว
-                          if (statusDrivers == 1) ...[
+                          if (statusDrivers == 1 &&
+                              detailsJob['job_status'] == 1) ...[
                             const SizedBox(height: 10),
                             SizedBox(
                               width: double.infinity,
                               height: 48,
                               child: OutlinedButton.icon(
-                                onPressed: () {
-                                  showCancelJobDialog(
+                                onPressed: () async {
+                                  await showCancelJobDialog(
                                     context,
+                                    cancelCount:
+                                        (detailsJob['cancel_job'] as num?)
+                                            ?.toInt() ??
+                                        0,
                                     onConfirm: () async {
                                       await cancelJob();
-                                      if (!mounted) return;
-                                      Navigator.of(context).pop(true);
                                     },
                                   );
                                 },
@@ -650,6 +655,19 @@ class _DetailsJobState extends State<DetailsJob> {
               'province': addressData['province'],
             };
           }
+        }
+
+        final providerSnapshot = await db
+            .collection('provider')
+            .doc(widget.pid)
+            .get();
+
+        if (providerSnapshot.exists) {
+          final providerData = providerSnapshot.data()!;
+          detailsJob = {
+            ...detailsJob,
+            'cancel_job': providerData['cancel_job'] ?? 0,
+          };
         }
       }
 
@@ -721,22 +739,100 @@ class _DetailsJobState extends State<DetailsJob> {
   }
 
   Future<void> cancelJob() async {
-    var snapshot = await db
-        .collection('all_drivers')
-        .where('job_id', isEqualTo: widget.jobId)
-        .get();
+    final allowed = await canCancelJob();
 
-    for (var doc in snapshot.docs) {
-      var data = doc.data();
+    if (!allowed) return;
+    try {
+      // 1. ค้นหาผู้สมัครทั้งหมดของงานนี้
+      final snapshot = await db
+          .collection('all_drivers')
+          .where('job_id', isEqualTo: widget.jobId)
+          .get();
 
-      if (data['provider_id'] == widget.pid) {
-        // คนที่ได้งาน → เปลี่ยนสถานะเป็น 6 ไม่ลบ application
-        await doc.reference.update({'status_drivers': 6});
-      } else if (data['status_drivers'] == 2) {
-        // คนที่ตำแหน่งเต็ม → ลบออก
-        await doc.reference.delete();
+      for (final doc in snapshot.docs) {
+        final data = doc.data();
+
+        if (data['provider_id'] == widget.pid) {
+          // คนขับที่ได้รับงานยกเลิก → เปลี่ยนสถานะเป็น 6
+          await doc.reference.update({'status_drivers': 6});
+        } else if (data['status_drivers'] == 2) {
+          // ผู้สมัครที่ตำแหน่งเต็ม → ลบออกตามระบบเดิม
+          await doc.reference.delete();
+        }
       }
+
+      // 2. เปลี่ยนสถานะงานกลับเป็น 0
+      await db.collection('jobs').doc(widget.jobId).update({'job_status': 0});
+      await incrementCancelCount();
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('ยกเลิกงานเรียบร้อยแล้ว คนขับคนอื่นสามารถสมัครได้'),
+        ),
+      );
+    } catch (e) {
+      debugPrint('เกิดข้อผิดพลาดในการยกเลิกงาน: $e');
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('ยกเลิกงานไม่สำเร็จ กรุณาลองใหม่')),
+      );
     }
+  }
+
+  Future<bool> canCancelJob() async {
+    final now = DateTime.now();
+
+    final currentMonth = '${now.year}-${now.month.toString().padLeft(2, '0')}';
+
+    final providerRef = db.collection('provider').doc(widget.pid);
+
+    final snapshot = await providerRef.get();
+    final data = snapshot.data();
+
+    final savedMonth = data?['cancel_month'] as String?;
+    final cancelCount = (data?['cancel_job'] as num?)?.toInt() ?? 0;
+
+    // ถ้าเป็นเดือนใหม่ ให้ถือว่ายังยกเลิกไป 0 ครั้ง
+    final count = savedMonth == currentMonth ? cancelCount : 0;
+
+    if (count >= 3) {
+      if (!mounted) return false;
+
+      await showCancelLimitDialog(context);
+
+      return false;
+    }
+
+    return true;
+  }
+
+  Future<void> incrementCancelCount() async {
+    final now = DateTime.now();
+
+    // รูปแบบปี-เดือน เช่น 2026-10
+    final currentMonth = '${now.year}-${now.month.toString().padLeft(2, '0')}';
+
+    final providerRef = db.collection('provider').doc(widget.pid);
+
+    await db.runTransaction((transaction) async {
+      final snapshot = await transaction.get(providerRef);
+      final data = snapshot.data();
+
+      final savedMonth = data?['cancel_month'] as String?;
+      final currentCount = (data?['cancel_job'] as num?)?.toInt() ?? 0;
+
+      // เดือนเดิมให้นับต่อ เดือนใหม่เริ่มนับจาก 1
+      final nextCount = savedMonth == currentMonth ? currentCount + 1 : 1;
+
+      transaction.set(providerRef, {
+        'cancel_job': nextCount,
+        'cancel_month': currentMonth,
+      }, SetOptions(merge: true));
+    });
   }
 
   bool _hasValue(dynamic v) => v != null && v.toString().trim().isNotEmpty;

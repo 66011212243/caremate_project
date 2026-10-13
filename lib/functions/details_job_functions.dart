@@ -227,6 +227,19 @@ Future<void> showVehicleMismatchDialog(BuildContext context) {
   );
 }
 
+Future<void> showCancelLimitDialog(BuildContext context) {
+  return _showInfoDialog(
+    context: context,
+    title: 'ไม่สามารถยกเลิกงานได้',
+    icon: Icons.event_busy,
+    content: const Text(
+      'คุณยกเลิกงานครบ 3 ครั้งสำหรับเดือนนี้แล้ว '
+      'กรุณารอจนถึงเดือนถัดไปจึงจะยกเลิกงานได้อีกครั้ง',
+      style: TextStyle(fontSize: 16),
+    ),
+  );
+}
+
 Future<void> showCancelApplyDialog(
   BuildContext context, {
   required Future<void> Function() onConfirm,
@@ -245,6 +258,7 @@ Future<void> showCancelApplyDialog(
 
 Future<void> showCancelJobDialog(
   BuildContext context, {
+  required int cancelCount,
   required Future<void> Function() onConfirm,
 }) {
   return _showConfirmDialog(
@@ -252,13 +266,14 @@ Future<void> showCancelJobDialog(
     title: 'ยืนยันการยกเลิกงาน',
     icon: Icons.warning_amber_rounded,
     content: RichText(
-      text: const TextSpan(
-        style: TextStyle(color: Colors.black, fontSize: 16),
+      text: TextSpan(
+        style: const TextStyle(color: Colors.black, fontSize: 16),
         children: [
           TextSpan(
-            text: 'ในแต่ละเดือนสามารถยกเลิกงานได้สูงสุด 3 งาน (0/3)\n\n',
+            text:
+                'ในแต่ละเดือนสามารถยกเลิกงานได้สูงสุด 3 งาน ($cancelCount/3)\n\n',
           ),
-          TextSpan(
+          const TextSpan(
             text: 'คุณต้องการยกเลิกงานนี้หรือไม่?',
             style: TextStyle(fontWeight: FontWeight.bold),
           ),
