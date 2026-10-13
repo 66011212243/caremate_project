@@ -2,27 +2,23 @@ import 'package:caremate_application/page/Report.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
-class ReviewPage extends StatelessWidget {
-  final String job_id;
-  final String driverName;
-  final String provider_id;
-  final String phoneNumber;
-  final String licensePlate;
-  final String promptPay;
+class ReviewPage extends StatefulWidget {
+  final String jobId;
+  final String pid;
 
-  ReviewPage({
-    super.key,
-    this.job_id = "001",
-    this.driverName = "พิชยกรณ์ ยามรัมย์",
-    this.provider_id = "01",
-    this.phoneNumber = "095588291",
-    this.licensePlate = "กข1234",
-    this.promptPay = "1234567890",
-  });
+  ReviewPage({super.key, required this.jobId, required this.pid});
 
+  @override
+  State<ReviewPage> createState() => _ReviewPageState();
+}
+
+class _ReviewPageState extends State<ReviewPage> {
   //  2. สร้างตัวแปรเก็บข้อความ และ คะแนนดาว (ใช้ ValueNotifier แบบง่าย ไม่ต้องแปลงเป็น StatefulWidget)
   final TextEditingController commentController = TextEditingController();
+
   final ValueNotifier<int> ratingNotifier = ValueNotifier<int>(5);
+  bool hasReport = false;
+  bool isCheckingReport = true;
 
   //  3. ฟังก์ชันบันทึกลง Firebase
   void _saveReview(BuildContext context) async {
@@ -35,8 +31,8 @@ class ReviewPage extends StatelessWidget {
 
     try {
       await FirebaseFirestore.instance.collection('review').add({
-        'job_id': job_id,
-        'provider_id': provider_id,
+        'job_id': widget.jobId,
+        'provider_id': widget.pid,
         'rating': ratingNotifier.value,
         'comment': commentController.text.trim(),
       });
@@ -45,7 +41,7 @@ class ReviewPage extends StatelessWidget {
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(const SnackBar(content: Text('บันทึกรีวิวสำเร็จ!')));
-        Navigator.pop(context);
+        Navigator.pop(context, true);
       }
     } catch (e) {
       if (context.mounted) {
@@ -54,6 +50,79 @@ class ReviewPage extends StatelessWidget {
         ).showSnackBar(SnackBar(content: Text('เกิดข้อผิดพลาด: $e')));
       }
     }
+  }
+
+  var db = FirebaseFirestore.instance;
+  Map<String, dynamic>? providerData;
+  Map<String, dynamic>? userData;
+  Map<String, dynamic>? jobData;
+  List<Map<String, dynamic>> documentData = [];
+
+  bool isLoading = true;
+
+  String? imageUrl;
+  int? vehicleType;
+  String sid = '';
+
+  Future<void> queryProviderDetails() async {
+    try {
+      setState(() {
+        isLoading = true;
+      });
+
+      // ดึงข้อมูล provider
+      var providerDoc = await db.collection('provider').doc(widget.pid).get();
+
+      if (!providerDoc.exists) {
+        print('ไม่พบข้อมูล provider');
+        return;
+      }
+
+      providerData = providerDoc.data();
+
+      // เอา provider_uid ไปดึงข้อมูล user
+      var uid = providerData?['provider_uid'];
+      imageUrl = providerData?['profile'];
+
+      if (uid != null) {
+        var userDoc = await db.collection('users').doc(uid).get();
+
+        if (userDoc.exists) {
+          userData = userDoc.data();
+        }
+      }
+
+      var jobDoc = await db.collection('jobs').doc(widget.jobId).get();
+
+      if (jobDoc.exists) {
+        jobData = jobDoc.data();
+        vehicleType = jobData!['vehicle_type'];
+        sid = jobData!['service_id'];
+      }
+
+      var documentSnapshot = await db
+          .collection('document')
+          .where('pid', isEqualTo: widget.pid)
+          .where('vehicle_type', isEqualTo: vehicleType)
+          .get();
+
+      documentData = documentSnapshot.docs.map((doc) => doc.data()).toList();
+    } catch (e) {
+      print('เกิดข้อผิดพลาด: $e');
+    } finally {
+      if (mounted) {
+        setState(() {
+          isLoading = false;
+        });
+      }
+    }
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    queryProviderDetails();
+    checkReport();
   }
 
   @override
@@ -88,33 +157,39 @@ class ReviewPage extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               /// ปุ่มรายงาน
-              Row(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.white,
-                      foregroundColor: Colors.black,
-                      elevation: 3,
+              if (isCheckingReport)
+                const CircularProgressIndicator()
+              else if (!hasReport)
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.white,
+                        foregroundColor: Colors.black,
+                        elevation: 3,
+                      ),
+                      onPressed: () async {
+                        final result = await Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => ReportPage(
+                              jobId: widget.jobId,
+                              reporterId: sid,
+                              reportedId: widget.pid,
+                            ),
+                          ),
+                        );
+
+                        if (result == true) {
+                          await checkReport();
+                        }
+                      },
+                      child: const Text("รายงาน"),
                     ),
-
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (context) => ReportPage()),
-                      );
-                    },
-
-                    child: const Text("รายงาน"),
-                  ),
-
-                  const SizedBox(width: 10),
-
-                  const Icon(Icons.more_vert),
-                ],
-              ),
-
-              const SizedBox(height: 20),
+                    const SizedBox(width: 10),
+                  ],
+                ),
 
               /// หัวข้อคนขับ
               const Text(
@@ -150,7 +225,7 @@ class ReviewPage extends StatelessWidget {
                             "ชื่อ: ",
                             style: TextStyle(fontWeight: FontWeight.bold),
                           ),
-                          Text(driverName),
+                          Text(userData?['realname'] ?? 'ไม่พบชื่อ'),
                         ],
                       ),
 
@@ -162,7 +237,7 @@ class ReviewPage extends StatelessWidget {
                             "หมายเลขโทรศัพท์: ",
                             style: TextStyle(fontWeight: FontWeight.bold),
                           ),
-                          Text(phoneNumber),
+                          Text(providerData?['phone'] ?? '-'),
                         ],
                       ),
 
@@ -174,27 +249,22 @@ class ReviewPage extends StatelessWidget {
                             "ทะเบียนรถ: ",
                             style: TextStyle(fontWeight: FontWeight.bold),
                           ),
-                          Text(licensePlate),
+                          Text(
+                            documentData.isNotEmpty
+                                ? documentData.first['vehicle_Registration'] ??
+                                      '-'
+                                : '-',
+                          ),
                         ],
                       ),
 
                       SizedBox(height: 5),
-
-                      Row(
-                        children: [
-                          const Text(
-                            "เลขบัญชี: ",
-                            style: TextStyle(fontWeight: FontWeight.bold),
-                          ),
-                          Text(promptPay),
-                        ],
-                      ),
                     ],
                   ),
                 ],
               ),
 
-              const SizedBox(height: 40),
+              const SizedBox(height: 20),
 
               /// ให้คะแนน
               const Text(
@@ -238,7 +308,7 @@ class ReviewPage extends StatelessWidget {
                 ),
               ),
 
-              const SizedBox(height: 50),
+              const SizedBox(height: 40),
 
               /// รายละเอียดเพิ่มเติม
               const Text(
@@ -254,6 +324,7 @@ class ReviewPage extends StatelessWidget {
 
                 child: TextField(
                   controller: commentController, //  ผูก controller ดึงข้อความ
+                  textAlignVertical: TextAlignVertical.top,
                   maxLines: null,
                   expands: true,
 
@@ -297,5 +368,30 @@ class ReviewPage extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  Future<void> checkReport() async {
+    try {
+      final snapshot = await db
+          .collection('reports')
+          .where('job_id', isEqualTo: widget.jobId)
+          .where('reported_provider_id', isEqualTo: widget.pid)
+          .get();
+
+      if (!mounted) return;
+
+      setState(() {
+        hasReport = snapshot.docs.isNotEmpty;
+        isCheckingReport = false;
+      });
+    } catch (e) {
+      print("เกิดข้อผิดพลาดในการตรวจสอบการชำระเงิน: $e");
+
+      if (!mounted) return;
+
+      setState(() {
+        isCheckingReport = false;
+      });
+    }
   }
 }

@@ -22,9 +22,7 @@ class _ChangepasswordPageState extends State<ChangepasswordPage> {
   bool hideConfirmPassword = true;
 
   // ชื่อฟิลด์รหัสผ่านที่เป็นไปได้
-  static const List<String> _passwordKeys = [
-    'password',
-  ];
+  static const List<String> _passwordKeys = ['password'];
 
   @override
   void dispose() {
@@ -301,6 +299,14 @@ class _ChangepasswordPageState extends State<ChangepasswordPage> {
                 alignment: Alignment.centerLeft,
                 child: Text(
                   '* รหัสผ่านต้องมีอย่างน้อย 8 ตัวอักษร',
+                  style: TextStyle(color: Colors.grey, fontSize: 12),
+                ),
+              ),
+              const SizedBox(height: 12),
+              const Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  '* รหัสผ่านต้องขึ้นต้นด้วยตัวพิมพ์ใหญ่',
                   style: TextStyle(color: Colors.grey, fontSize: 12),
                 ),
               ),

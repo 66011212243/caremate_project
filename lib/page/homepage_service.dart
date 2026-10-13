@@ -74,222 +74,231 @@ class _HomepageServiceState extends State<HomepageService> {
                       ),
                     ),
                   )
-                : ListView.builder(
-                    padding: const EdgeInsets.only(bottom: 30),
-                    itemCount: serviceJobs.length + 1,
-                    itemBuilder: (context, index) {
-                      if (index == 0) {
-                        return const Padding(
-                          padding: EdgeInsets.only(
-                            top: 20,
-                            left: 20,
-                            right: 20,
-                            bottom: 15,
-                          ),
-                          child: Text(
-                            "งานของฉัน",
-                            style: TextStyle(
-                              fontSize: 20,
-                              fontWeight: FontWeight.bold,
+                : RefreshIndicator(
+                    onRefresh: queryJobData,
+                    child: ListView.builder(
+                      padding: const EdgeInsets.only(bottom: 30),
+                      itemCount: serviceJobs.length + 1,
+                      itemBuilder: (context, index) {
+                        if (index == 0) {
+                          return const Padding(
+                            padding: EdgeInsets.only(
+                              top: 20,
+                              left: 20,
+                              right: 20,
+                              bottom: 15,
                             ),
-                          ),
-                        );
-                      }
-                      var job = serviceJobs[index - 1];
-                      final int status = job['job_status'] ?? 0;
-                      final statusInfo = getJobStatusInfo(status);
-                      final Color statusColor = statusInfo['color'];
-
-                      return Padding(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 8,
-                        ),
-                        child: Container(
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(16),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withOpacity(0.06),
-                                blurRadius: 10,
-                                offset: const Offset(0, 4),
+                            child: Text(
+                              "งานของฉัน",
+                              style: TextStyle(
+                                fontSize: 20,
+                                fontWeight: FontWeight.bold,
                               ),
-                            ],
+                            ),
+                          );
+                        }
+                        var job = serviceJobs[index - 1];
+                        final int status = job['job_status'] ?? 0;
+                        final statusInfo = getJobStatusInfo(status);
+                        final Color statusColor = statusInfo['color'];
+
+                        return Padding(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 8,
                           ),
-                          child: Material(
-                            color: Colors.transparent,
-                            borderRadius: BorderRadius.circular(16),
-                            child: InkWell(
+                          child: Container(
+                            decoration: BoxDecoration(
+                              color: Colors.white,
                               borderRadius: BorderRadius.circular(16),
-                              onTap: () async {
-                                final selectedJobId = job['job_id'];
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withOpacity(0.06),
+                                  blurRadius: 10,
+                                  offset: const Offset(0, 4),
+                                ),
+                              ],
+                            ),
+                            child: Material(
+                              color: Colors.transparent,
+                              borderRadius: BorderRadius.circular(16),
+                              child: InkWell(
+                                borderRadius: BorderRadius.circular(16),
+                                onTap: () async {
+                                  final selectedJobId = job['job_id'];
 
-                                final result = await Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (context) =>
-                                        DetailsJobService(jobId: selectedJobId),
-                                  ),
-                                );
+                                  final result = await Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) => DetailsJobService(
+                                        jobId: selectedJobId,
+                                      ),
+                                    ),
+                                  );
 
-                                if (result == true) {
-                                  setState(() {
-                                    serviceJobs.removeWhere(
-                                      (item) => item['job_id'] == selectedJobId,
-                                    );
-                                  });
-                                } else if (result == 'edited') {
-                                  await queryJobData();
-                                }
-                              },
-                              child: Padding(
-                                padding: const EdgeInsets.all(16),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    // --- Header: ชื่อสถานที่ + Status Badge (อยู่ภายในกรอบ) ---
-                                    Row(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Expanded(
-                                          child: Text(
-                                            job['place_name'] ??
-                                                'ไม่ระบุสถานที่',
-                                            style: const TextStyle(
-                                              fontSize: 18,
-                                              fontWeight: FontWeight.bold,
-                                              color: Colors.black87,
-                                            ),
-                                            maxLines: 1,
-                                            overflow: TextOverflow.ellipsis,
-                                          ),
-                                        ),
-                                        const SizedBox(width: 8),
-                                        Container(
-                                          padding: const EdgeInsets.symmetric(
-                                            horizontal: 10,
-                                            vertical: 5,
-                                          ),
-                                          decoration: BoxDecoration(
-                                            color: statusColor.withOpacity(
-                                              0.12,
-                                            ),
-                                            borderRadius: BorderRadius.circular(
-                                              20,
-                                            ),
-                                          ),
-                                          child: Row(
-                                            mainAxisSize: MainAxisSize.min,
-                                            children: [
-                                              Icon(
-                                                statusInfo['icon'],
-                                                size: 14,
-                                                color: statusColor,
+                                  if (result == true) {
+                                    setState(() {
+                                      serviceJobs.removeWhere(
+                                        (item) =>
+                                            item['job_id'] == selectedJobId,
+                                      );
+                                    });
+                                  } else if (result == 'edited') {
+                                    await queryJobData();
+                                  }
+                                },
+                                child: Padding(
+                                  padding: const EdgeInsets.all(16),
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      // --- Header: ชื่อสถานที่ + Status Badge (อยู่ภายในกรอบ) ---
+                                      Row(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Expanded(
+                                            child: Text(
+                                              job['place_name'] ??
+                                                  'ไม่ระบุสถานที่',
+                                              style: const TextStyle(
+                                                fontSize: 18,
+                                                fontWeight: FontWeight.bold,
+                                                color: Colors.black87,
                                               ),
-                                              const SizedBox(width: 4),
-                                              Text(
-                                                statusInfo['title'],
-                                                style: TextStyle(
-                                                  fontSize: 12,
-                                                  fontWeight: FontWeight.w600,
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
+                                          ),
+                                          const SizedBox(width: 8),
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 10,
+                                              vertical: 5,
+                                            ),
+                                            decoration: BoxDecoration(
+                                              color: statusColor.withOpacity(
+                                                0.12,
+                                              ),
+                                              borderRadius:
+                                                  BorderRadius.circular(20),
+                                            ),
+                                            child: Row(
+                                              mainAxisSize: MainAxisSize.min,
+                                              children: [
+                                                Icon(
+                                                  statusInfo['icon'],
+                                                  size: 14,
                                                   color: statusColor,
                                                 ),
-                                              ),
-                                            ],
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-
-                                    const Divider(height: 20, thickness: 0.8),
-
-                                    // --- Body: วันที่ และ เวลา ---
-                                    Row(
-                                      children: [
-                                        const Icon(
-                                          Icons.calendar_month,
-                                          size: 18,
-                                          color: Colors.redAccent,
-                                        ),
-                                        const SizedBox(width: 6),
-                                        Text(
-                                          job['date'] ?? '',
-                                          style: const TextStyle(fontSize: 14),
-                                        ),
-                                        const SizedBox(width: 20),
-                                        const Icon(
-                                          Icons.access_time,
-                                          size: 18,
-                                          color: Colors.redAccent,
-                                        ),
-                                        const SizedBox(width: 6),
-                                        Text(
-                                          "${job['start_time']} - ${job['end_time']}",
-                                          style: const TextStyle(fontSize: 14),
-                                        ),
-                                      ],
-                                    ),
-
-                                    const SizedBox(height: 10),
-
-                                    // --- Footer: รถ และ ราคาสุทธิ ---
-                                    Row(
-                                      children: [
-                                        Icon(
-                                          job['vehicle_type'] == 0
-                                              ? Icons.two_wheeler
-                                              : Icons.directions_car,
-                                          size: 18,
-                                          color: Colors.grey.shade700,
-                                        ),
-                                        const SizedBox(width: 6),
-                                        Text(
-                                          job['vehicle_type'] == 1
-                                              ? "Car"
-                                              : "Bike",
-                                          style: const TextStyle(
-                                            fontSize: 14,
-                                            fontWeight: FontWeight.w500,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-
-                                    const SizedBox(height: 10),
-
-                                    Row(
-                                      children: [
-                                        const Icon(
-                                          Icons.payments_outlined,
-                                          size: 18,
-                                          color: Colors.green,
-                                        ),
-                                        const SizedBox(width: 4),
-                                        Text(
-                                          " ${job['service_fee']} บาท",
-                                          style: const TextStyle(
-                                            fontSize: 16,
-                                            fontWeight: FontWeight.bold,
-                                            color: Color.fromARGB(
-                                              255,
-                                              220,
-                                              0,
-                                              0,
+                                                const SizedBox(width: 4),
+                                                Text(
+                                                  statusInfo['title'],
+                                                  style: TextStyle(
+                                                    fontSize: 12,
+                                                    fontWeight: FontWeight.w600,
+                                                    color: statusColor,
+                                                  ),
+                                                ),
+                                              ],
                                             ),
                                           ),
-                                        ),
-                                      ],
-                                    ),
-                                  ],
+                                        ],
+                                      ),
+
+                                      const Divider(height: 20, thickness: 0.8),
+
+                                      // --- Body: วันที่ และ เวลา ---
+                                      Row(
+                                        children: [
+                                          const Icon(
+                                            Icons.calendar_month,
+                                            size: 18,
+                                            color: Colors.redAccent,
+                                          ),
+                                          const SizedBox(width: 6),
+                                          Text(
+                                            job['date'] ?? '',
+                                            style: const TextStyle(
+                                              fontSize: 14,
+                                            ),
+                                          ),
+                                          const SizedBox(width: 20),
+                                          const Icon(
+                                            Icons.access_time,
+                                            size: 18,
+                                            color: Colors.redAccent,
+                                          ),
+                                          const SizedBox(width: 6),
+                                          Text(
+                                            "${job['start_time']} - ${job['end_time']}",
+                                            style: const TextStyle(
+                                              fontSize: 14,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+
+                                      const SizedBox(height: 10),
+
+                                      // --- Footer: รถ และ ราคาสุทธิ ---
+                                      Row(
+                                        children: [
+                                          Icon(
+                                            job['vehicle_type'] == 0
+                                                ? Icons.two_wheeler
+                                                : Icons.directions_car,
+                                            size: 18,
+                                            color: Colors.grey.shade700,
+                                          ),
+                                          const SizedBox(width: 6),
+                                          Text(
+                                            job['vehicle_type'] == 1
+                                                ? "Car"
+                                                : "Bike",
+                                            style: const TextStyle(
+                                              fontSize: 14,
+                                              fontWeight: FontWeight.w500,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+
+                                      const SizedBox(height: 10),
+
+                                      Row(
+                                        children: [
+                                          const Icon(
+                                            Icons.payments_outlined,
+                                            size: 18,
+                                            color: Colors.green,
+                                          ),
+                                          const SizedBox(width: 4),
+                                          Text(
+                                            " ${job['service_fee']} บาท",
+                                            style: const TextStyle(
+                                              fontSize: 16,
+                                              fontWeight: FontWeight.bold,
+                                              color: Color.fromARGB(
+                                                255,
+                                                220,
+                                                0,
+                                                0,
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ],
+                                  ),
                                 ),
                               ),
                             ),
                           ),
-                        ),
-                      );
-                    },
+                        );
+                      },
+                    ),
                   )
           : pages[_selectedIndex],
       floatingActionButton: _selectedIndex == 0
@@ -456,67 +465,67 @@ class _HomepageServiceState extends State<HomepageService> {
       case 0:
         return {
           'title': 'รอผู้สมัคร',
-          'color': Colors.orange.shade800,
-          'icon': Icons.hourglass_empty_rounded,
+          'color': Colors.amber.shade800,
+          'icon': Icons.hourglass_empty_rounded, // นาฬิกาทราย = รอผู้สมัคร
         };
       case 1:
         return {
           'title': 'ได้ผู้ให้บริการแล้ว',
           'color': Colors.blue.shade700,
-          'icon': Icons.assignment_ind_rounded,
+          'icon': Icons.person_add_alt_1_rounded, // ได้ผู้ให้บริการ
         };
       case 2:
         return {
-          'title': 'กำลังเดินทาง',
-          'color': Colors.indigo,
-          'icon': Icons.directions_car_rounded,
+          'title': 'ได้ผู้ให้บริการแล้ว',
+          'color': Colors.indigo.shade600,
+          'icon': Icons.assignment_ind_rounded, // แสดงสถานะผู้ให้บริการ
         };
       case 3:
         return {
-          'title': 'ถึงจุดหมายแล้ว',
-          'color': Colors.teal,
-          'icon': Icons.location_on_rounded,
+          'title': 'กำลังเดินทาง',
+          'color': Colors.lightBlue.shade800,
+          'icon': Icons.directions_car_rounded, // รถยนต์ = เดินทาง
         };
       case 4:
         return {
-          'title': 'กำลังให้บริการ',
-          'color': Colors.amber.shade900,
-          'icon': Icons.medical_services_rounded,
+          'title': 'ถึงผู้รับบริการ',
+          'color': Colors.teal.shade700,
+          'icon': Icons.medical_services_rounded, // บริการ/ดูแลผู้รับบริการ
         };
       case 5:
         return {
-          'title': 'ให้บริการเสร็จสิ้น',
+          'title': 'ถึงปลายทาง',
           'color': Colors.cyan.shade800,
-          'icon': Icons.task_alt_rounded,
+          'icon': Icons.where_to_vote_rounded, // หมุดปลายทาง
         };
       case 6:
         return {
-          'title': 'รอการชำระเงิน',
-          'color': Colors.deepOrange,
-          'icon': Icons.payment_rounded,
+          'title': 'กำลังให้บริการ',
+          'color': Colors.orange.shade800,
+          'icon': Icons.miscellaneous_services_rounded, // กำลังให้บริการ
         };
       case 7:
         return {
-          'title': 'ชำระเงินแล้ว',
+          'title': 'กำลังเดินทาง',
           'color': Colors.lightGreen.shade800,
-          'icon': Icons.account_balance_wallet_rounded,
+          'icon': Icons.navigation_rounded, // นำทาง/เดินทาง
         };
       case 8:
         return {
-          'title': 'ยกเลิก',
-          'color': Colors.red.shade700,
-          'icon': Icons.cancel_outlined,
+          'title': 'ถึงจุดรับงาน',
+          'color': Colors.purple.shade700,
+          'icon': Icons.location_on_rounded, // หมุดจุดรับงาน
         };
       case 9:
         return {
           'title': 'สำเร็จ',
           'color': Colors.green.shade700,
-          'icon': Icons.check_circle_rounded,
+          'icon': Icons.check_circle_rounded, // สำเร็จ
         };
       default:
         return {
           'title': 'ไม่ทราบสถานะ',
-          'color': Colors.grey,
+          'color': Colors.grey.shade600,
           'icon': Icons.help_outline_rounded,
         };
     }
