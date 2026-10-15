@@ -6,8 +6,9 @@ import 'package:caremate_application/page/homepage_provider.dart';
 import 'package:caremate_application/page/homepage_service.dart';
 import 'package:caremate_application/page/notification_system.dart';
 import 'package:caremate_application/page/register_users.dart';
+import 'package:caremate_application/page/app_session.dart';
 import 'package:caremate_application/page/signIn_Google.dart';
-
+import 'package:caremate_application/page/app_session.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:bcrypt/bcrypt.dart';
@@ -18,12 +19,7 @@ class LoginPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'caremate',
-      theme: ThemeData(fontFamily: 'Prompt'),
-      debugShowCheckedModeBanner: false,
-      home: const WelcomePage(),
-    );
+    return const WelcomePage();
   }
 }
 
@@ -323,6 +319,7 @@ class _WelcomePageState extends State<WelcomePage> {
       // --------------------------------
 
       log("Login สำเร็จ");
+      await AppSession.save(userId, role as int);
 
       setState(() {
         isLoading = false;

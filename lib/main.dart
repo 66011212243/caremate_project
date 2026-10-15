@@ -32,6 +32,8 @@ import 'package:caremate_application/page/myJob_povider.dart';
 import 'package:caremate_application/page/position_provider.dart';
 import 'package:caremate_application/page/review.dart';
 import 'package:caremate_application/page/setting_admin.dart';
+import 'package:caremate_application/page/app_session.dart';
+import 'package:caremate_application/page/startup_gate.dart';
 import 'package:caremate_application/page/status_job.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
@@ -60,11 +62,13 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Flutter Demo',
+      title: 'caremate',
+      debugShowCheckedModeBanner: false,
       theme: ThemeData(
+        fontFamily: 'Prompt',
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
       ),
-      home: LoginPage(),
+      home: const StartupGate(),
     );
   }
 }

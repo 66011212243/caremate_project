@@ -1,3 +1,4 @@
+import 'package:caremate_application/page/notification_service.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 
@@ -163,7 +164,28 @@ class _DriversPageState extends State<DriversPage> {
           ),
 
           ElevatedButton(
-            onPressed: isSubmitting ? null : () => _onSelectPressed(driver),
+            onPressed: isSubmitting
+                ? null
+                : () async {
+                    final canSelect = await canSelectDriver(widget.JobId);
+
+                    if (!mounted) return;
+
+                    if (!canSelect) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text(
+                            'งานนี้เลยเวลาเริ่มงานแล้ว ไม่สามารถเลือกคนขับได้',
+                          ),
+                          backgroundColor: Colors.red,
+                        ),
+                      );
+                      return;
+                    }
+
+                    // ถ้ายังไม่ถึงเวลาเริ่มงาน ให้ทำงานตามขั้นตอนเดิม
+                    await _onSelectPressed(driver);
+                  },
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.red,
               foregroundColor: Colors.white,
@@ -268,6 +290,39 @@ class _DriversPageState extends State<DriversPage> {
           content: Text('เลือกผู้ให้บริการไม่สำเร็จ หรืองานนี้ถูกเลือกไปแล้ว'),
         ),
       );
+    }
+  }
+
+  Future<bool> canSelectDriver(String jobId) async {
+    try {
+      final doc = await FirebaseFirestore.instance
+          .collection('jobs')
+          .doc(jobId)
+          .get();
+
+      if (!doc.exists) return false;
+
+      final data = doc.data()!;
+
+      // วันที่รูปแบบ dd/MM/yyyy เช่น 14/10/2026
+      final dateParts = (data['date'] as String).split('/');
+
+      // เวลาเริ่มงานรูปแบบ HH:mm เช่น 14:30
+      final timeParts = (data['start_time'] as String).split(':');
+
+      final startDateTime = DateTime(
+        int.parse(dateParts[2]), // ปี
+        int.parse(dateParts[1]), // เดือน
+        int.parse(dateParts[0]), // วัน
+        int.parse(timeParts[0]), // ชั่วโมง
+        int.parse(timeParts[1]), // นาที
+      );
+
+      // เลือกคนขับได้เฉพาะก่อนเวลาเริ่มงาน
+      return DateTime.now().isBefore(startDateTime);
+    } catch (e) {
+      debugPrint('ตรวจสอบวันเวลาไม่สำเร็จ: $e');
+      return false;
     }
   }
 
@@ -390,6 +445,11 @@ class _DriversPageState extends State<DriversPage> {
 
     // ลบใบสมัครอื่นของคนขับคนนี้ที่เวลาชนกัน
     await deleteConflictingApplications(driverId);
+    //สร้างการแจ้งเตือน
+    await NotificationService().notifyProviderJobAccepted(
+      jobId: widget.JobId,
+      providerId: driverId,
+    );
   }
 
   Future<void> deleteConflictingApplications(String driverId) async {

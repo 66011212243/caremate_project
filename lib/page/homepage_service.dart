@@ -26,6 +26,50 @@ class _HomepageServiceState extends State<HomepageService> {
   int _selectedIndex = 0;
   bool isServiceDataComplete = false;
 
+  int selectedTab = 0;
+
+  List<Map<String, dynamic>> get filteredJobs {
+    final now = DateTime.now();
+
+    return serviceJobs.where((job) {
+      final status = job['job_status'] as int? ?? -1;
+
+      // ปุ่มแรก: งานของฉัน
+      if (selectedTab == 0) {
+        // แสดงงานสถานะ 1–7 ทุกงาน
+        if ([1, 2, 3, 4, 5, 6, 7, 8].contains(status)) {
+          return true;
+        }
+
+        // สถานะ 0: ยังไม่มีคนรับงาน
+        if (status == 0) {
+          final startDateTime = getJobStartDateTime(job);
+
+          // ถ้าอ่านวันเวลาไม่ได้ ไม่แสดงในหมวดนี้
+          if (startDateTime == null) return false;
+
+          // แสดงเฉพาะงานที่ยังไม่เลยเวลาเริ่ม
+          return startDateTime.isAfter(now) ||
+              startDateTime.isAtSameMomentAs(now);
+        }
+
+        return false;
+      }
+
+      // ปุ่มสอง: งานที่ผ่านมา
+      if (selectedTab == 1) {
+        if (status != 0) return false;
+
+        final startDateTime = getJobStartDateTime(job);
+
+        // แสดงเฉพาะงานที่ไม่มีคนรับและเลยเวลาเริ่มแล้ว
+        return startDateTime != null && startDateTime.isBefore(now);
+      }
+
+      return false;
+    }).toList();
+  }
+
   @override
   void initState() {
     super.initState();
@@ -76,28 +120,109 @@ class _HomepageServiceState extends State<HomepageService> {
                   )
                 : RefreshIndicator(
                     onRefresh: queryJobData,
+
                     child: ListView.builder(
                       padding: const EdgeInsets.only(bottom: 30),
-                      itemCount: serviceJobs.length + 1,
+                      itemCount: filteredJobs.length + 1,
                       itemBuilder: (context, index) {
                         if (index == 0) {
-                          return const Padding(
-                            padding: EdgeInsets.only(
+                          return Padding(
+                            padding: const EdgeInsets.only(
                               top: 20,
                               left: 20,
                               right: 20,
                               bottom: 15,
                             ),
-                            child: Text(
-                              "งานของฉัน",
-                              style: TextStyle(
-                                fontSize: 20,
-                                fontWeight: FontWeight.bold,
-                              ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                // หัวข้อ
+                                const Text(
+                                  'งานของฉัน',
+                                  style: TextStyle(
+                                    fontSize: 20,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.black87,
+                                  ),
+                                ),
+
+                                const SizedBox(height: 16),
+
+                                // ปุ่มเลือกหมวดหมู่
+                                // ปุ่มเลือกหมวดหมู่
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      child: _buildJobTab(
+                                        title: 'งานที่กำลังจะถึง',
+                                        icon: Icons.calendar_month_outlined,
+                                        isSelected: selectedTab == 0,
+                                        onTap: () {
+                                          setState(() {
+                                            selectedTab = 0;
+                                          });
+                                        },
+                                      ),
+                                    ),
+                                    const SizedBox(width: 10),
+                                    Expanded(
+                                      child: _buildJobTab(
+                                        title: 'งานที่ผ่านมา',
+                                        icon: Icons.history,
+                                        isSelected: selectedTab == 1,
+                                        onTap: () {
+                                          setState(() {
+                                            selectedTab = 1;
+                                          });
+                                        },
+                                      ),
+                                    ),
+                                  ],
+                                ),
+
+                                // เพิ่มส่วนนี้ต่อจาก Row ภายใน Column
+                                if (filteredJobs.isEmpty) ...[
+                                  const SizedBox(height: 50),
+                                  Center(
+                                    child: Column(
+                                      children: [
+                                        Icon(
+                                          Icons.work_off_outlined,
+                                          size: 60,
+                                          color: Colors.grey.shade400,
+                                        ),
+                                        const SizedBox(height: 16),
+                                        Text(
+                                          selectedTab == 0
+                                              ? 'ไม่มีงานที่กำลังจะถึง'
+                                              : 'ไม่มีงานที่ผ่านมา',
+                                          style: const TextStyle(
+                                            fontSize: 16,
+                                            fontWeight: FontWeight.w600,
+                                            color: Colors.black54,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 8),
+                                        Text(
+                                          selectedTab == 0
+                                              ? 'งานที่คุณโพสต์จะแสดงที่นี่'
+                                              : 'ยังไม่มีงานที่เลยเวลาแล้วและไม่มีผู้รับงาน',
+                                          textAlign: TextAlign.center,
+                                          style: TextStyle(
+                                            fontSize: 13,
+                                            color: Colors.grey.shade500,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ],
                             ),
                           );
                         }
-                        var job = serviceJobs[index - 1];
+
+                        final job = filteredJobs[index - 1];
                         final int status = job['job_status'] ?? 0;
                         final statusInfo = getJobStatusInfo(status);
                         final Color statusColor = statusInfo['color'];
@@ -361,14 +486,45 @@ class _HomepageServiceState extends State<HomepageService> {
             _selectedIndex = index;
           });
         },
-        items: const [
+        items: [
           BottomNavigationBarItem(icon: Icon(Icons.home), label: "หน้าหลัก"),
           BottomNavigationBarItem(
             icon: Icon(Icons.calendar_month),
             label: "ปฏิทิน",
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.notifications),
+            icon: StreamBuilder(
+              stream: FirebaseFirestore.instance
+                  .collection('notifications')
+                  .where('uid', isEqualTo: widget.uid)
+                  .where('notification_status', isEqualTo: 0)
+                  .snapshots(),
+              builder: (context, snapshot) {
+                final hasUnread =
+                    snapshot.hasData && snapshot.data!.docs.isNotEmpty;
+
+                return Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    const Icon(Icons.notifications),
+
+                    if (hasUnread)
+                      Positioned(
+                        right: -3,
+                        top: -2,
+                        child: Container(
+                          width: 10,
+                          height: 10,
+                          decoration: const BoxDecoration(
+                            color: Colors.red,
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                      ),
+                  ],
+                );
+              },
+            ),
             label: "ข้อความ",
           ),
           BottomNavigationBarItem(icon: Icon(Icons.settings), label: "ตั้งค่า"),
@@ -383,25 +539,23 @@ class _HomepageServiceState extends State<HomepageService> {
     });
 
     try {
-      var querySnapshot = await db
+      final querySnapshot = await db
           .collection('jobs')
           .where('service_id', isEqualTo: sid)
-          .where('job_status', whereNotIn: [9, 10])
+          .where('job_status', whereIn: [0, 1, 2, 3, 4, 5, 6, 7, 8])
           .get();
 
       serviceJobs = querySnapshot.docs.map((doc) {
         return {...doc.data(), 'job_id': doc.id};
       }).toList();
-
-      setState(() {
-        isLoading = false;
-      });
     } catch (e) {
-      print("Error fetching jobs: $e");
-
-      setState(() {
-        isLoading = false;
-      });
+      debugPrint('Error fetching jobs: $e');
+    } finally {
+      if (mounted) {
+        setState(() {
+          isLoading = false;
+        });
+      }
     }
   }
 
@@ -529,5 +683,100 @@ class _HomepageServiceState extends State<HomepageService> {
           'icon': Icons.help_outline_rounded,
         };
     }
+  }
+
+  DateTime? getJobStartDateTime(Map<String, dynamic> job) {
+    final rawDate = job['date'];
+    final rawTime = job['start_time'];
+
+    DateTime? date;
+
+    if (rawDate is Timestamp) {
+      date = rawDate.toDate();
+    } else if (rawDate is DateTime) {
+      date = rawDate;
+    } else if (rawDate is String) {
+      date = DateTime.tryParse(rawDate);
+
+      // รองรับ dd/MM/yyyy
+      if (date == null) {
+        final parts = rawDate.split('/');
+        if (parts.length == 3) {
+          final day = int.tryParse(parts[0]);
+          final month = int.tryParse(parts[1]);
+          final year = int.tryParse(parts[2]);
+
+          if (day != null && month != null && year != null) {
+            date = DateTime(year, month, day);
+          }
+        }
+      }
+    }
+
+    if (date == null || rawTime == null) return null;
+
+    final timeParts = rawTime.toString().split(':');
+    if (timeParts.length < 2) return null;
+
+    final hour = int.tryParse(timeParts[0]);
+    final minute = int.tryParse(timeParts[1]);
+
+    if (hour == null ||
+        minute == null ||
+        hour < 0 ||
+        hour > 23 ||
+        minute < 0 ||
+        minute > 59) {
+      return null;
+    }
+
+    return DateTime(date.year, date.month, date.day, hour, minute);
+  }
+
+  Widget _buildJobTab({
+    required String title,
+    required IconData icon,
+    required bool isSelected,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(vertical: 13, horizontal: 8),
+        decoration: BoxDecoration(
+          color: isSelected ? const Color(0xFFD32F2F) : Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: isSelected ? const Color(0xFFD32F2F) : Colors.grey.shade300,
+          ),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              icon,
+              size: 19,
+              color: isSelected ? Colors.white : Colors.grey.shade700,
+            ),
+
+            const SizedBox(width: 6),
+
+            Flexible(
+              child: Text(
+                title,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: isSelected ? Colors.white : Colors.grey.shade700,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }

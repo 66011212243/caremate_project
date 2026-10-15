@@ -79,7 +79,38 @@ class _HomepageAdminState extends State<HomepageAdmin> {
             BottomNavigationBarItem(icon: Icon(Icons.home), label: "หน้าหลัก"),
 
             BottomNavigationBarItem(
-              icon: Icon(Icons.notifications),
+              icon: StreamBuilder(
+                stream: FirebaseFirestore.instance
+                    .collection('notifications')
+                    .where('uid', isEqualTo: widget.uid)
+                    .where('notification_status', isEqualTo: 0)
+                    .snapshots(),
+                builder: (context, snapshot) {
+                  final hasUnread =
+                      snapshot.hasData && snapshot.data!.docs.isNotEmpty;
+
+                  return Stack(
+                    clipBehavior: Clip.none,
+                    children: [
+                      const Icon(Icons.notifications),
+
+                      if (hasUnread)
+                        Positioned(
+                          right: -3,
+                          top: -2,
+                          child: Container(
+                            width: 10,
+                            height: 10,
+                            decoration: const BoxDecoration(
+                              color: Colors.red,
+                              shape: BoxShape.circle,
+                            ),
+                          ),
+                        ),
+                    ],
+                  );
+                },
+              ),
               label: "ข้อความ",
             ),
             BottomNavigationBarItem(
@@ -160,7 +191,6 @@ class UserList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    
     return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
       stream: FirebaseFirestore.instance
           .collection('users')

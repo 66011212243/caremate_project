@@ -1,4 +1,3 @@
-
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
@@ -6,18 +5,14 @@ class AdminReportedDriversPage extends StatefulWidget {
   // กำหนดค่าไว้สำหรับทดสอบหน้าแยก
   final String reports_id;
 
-  const AdminReportedDriversPage({
-    super.key,
-    this.reports_id = "FmUc2xg51fXoU2JhKrDT",
-  });
+  const AdminReportedDriversPage({super.key, required this.reports_id});
 
   @override
   State<AdminReportedDriversPage> createState() =>
       _AdminReportedDriversPageState();
 }
 
-class _AdminReportedDriversPageState
-    extends State<AdminReportedDriversPage> {
+class _AdminReportedDriversPageState extends State<AdminReportedDriversPage> {
   bool isLoading = true;
   String? errorMessage;
 
@@ -36,8 +31,7 @@ class _AdminReportedDriversPageState
 
       // 1. ดึงข้อมูลจาก review
       // สมมติว่า review แต่ละเอกสารมี pid ของคนขับ
-      final reviewSnapshot =
-          await db.collection('review').get();
+      final reviewSnapshot = await db.collection('review').get();
 
       final List<Map<String, dynamic>> result = [];
       final Set<String> addedPids = {};
@@ -59,8 +53,10 @@ class _AdminReportedDriversPageState
 
         // 3. ค้นหา provider ด้วย pid
         // กรณี Document ID ของ provider เท่ากับ pid
-        DocumentSnapshot<Map<String, dynamic>> providerDoc =
-            await db.collection('provider').doc(pid).get();
+        DocumentSnapshot<Map<String, dynamic>> providerDoc = await db
+            .collection('provider')
+            .doc(pid)
+            .get();
 
         // ถ้า Document ID ไม่ใช่ pid ให้ลองค้นจากฟิลด์ pid
         if (!providerDoc.exists) {
@@ -84,9 +80,8 @@ class _AdminReportedDriversPageState
 
         // 4. ดึง uid จาก provider
         final uid =
-            (providerData['uid'] ?? providerData['provider_uid'])
-                    ?.toString() ??
-                '';
+            (providerData['uid'] ?? providerData['provider_uid'])?.toString() ??
+            '';
 
         if (uid.isEmpty) {
           debugPrint('ไม่พบ uid ของ pid: $pid');
@@ -94,8 +89,10 @@ class _AdminReportedDriversPageState
         }
 
         // 5. ค้นหาข้อมูล users ด้วย uid
-        DocumentSnapshot<Map<String, dynamic>> userDoc =
-            await db.collection('users').doc(uid).get();
+        DocumentSnapshot<Map<String, dynamic>> userDoc = await db
+            .collection('users')
+            .doc(uid)
+            .get();
 
         // ถ้า Document ID ไม่ใช่ uid ให้ค้นจากฟิลด์ uid
         if (!userDoc.exists) {
@@ -118,13 +115,12 @@ class _AdminReportedDriversPageState
         final userData = userDoc.data()!;
 
         // 6. ดึงชื่อคนขับจาก users
-        final name = (
-                  userData['username'] ??
-                  userData['realname'] ??
-                  userData['fullname'] ??
-                  'ไม่ระบุชื่อ'
-                )
-            .toString();
+        final name =
+            (userData['username'] ??
+                    userData['realname'] ??
+                    userData['fullname'] ??
+                    'ไม่ระบุชื่อ')
+                .toString();
 
         result.add({
           'pid': pid,
@@ -227,10 +223,7 @@ class _AdminReportedDriversPageState
             icon: Icon(Icons.notifications_none),
             label: 'ข้อความ',
           ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.settings),
-            label: 'ตั้งค่า',
-          ),
+          BottomNavigationBarItem(icon: Icon(Icons.settings), label: 'ตั้งค่า'),
         ],
       ),
     );
@@ -238,9 +231,7 @@ class _AdminReportedDriversPageState
 
   Widget _buildBody() {
     if (isLoading) {
-      return const Center(
-        child: CircularProgressIndicator(),
-      );
+      return const Center(child: CircularProgressIndicator());
     }
 
     if (errorMessage != null) {
@@ -250,24 +241,14 @@ class _AdminReportedDriversPageState
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(
-                Icons.error_outline,
-                color: Colors.red,
-                size: 48,
-              ),
+              const Icon(Icons.error_outline, color: Colors.red, size: 48),
               const SizedBox(height: 12),
               const Text(
                 'โหลดรายชื่อไม่สำเร็จ',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                ),
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 8),
-              Text(
-                errorMessage!,
-                textAlign: TextAlign.center,
-              ),
+              Text(errorMessage!, textAlign: TextAlign.center),
               const SizedBox(height: 16),
               ElevatedButton(
                 onPressed: () {
@@ -287,34 +268,25 @@ class _AdminReportedDriversPageState
 
     if (reportedDrivers.isEmpty) {
       return const Center(
-        child: Text(
-          'ไม่พบรายชื่อคนขับ',
-          style: TextStyle(fontSize: 16),
-        ),
+        child: Text('ไม่พบรายชื่อคนขับ', style: TextStyle(fontSize: 16)),
       );
     }
 
     return ListView.separated(
       padding: const EdgeInsets.all(16),
       itemCount: reportedDrivers.length,
-      separatorBuilder: (context, index) =>
-          const Divider(height: 1),
+      separatorBuilder: (context, index) => const Divider(height: 1),
       itemBuilder: (context, index) {
         final driver = reportedDrivers[index];
 
         return ListTile(
           leading: const CircleAvatar(
             backgroundColor: Colors.red,
-            child: Icon(
-              Icons.person,
-              color: Colors.white,
-            ),
+            child: Icon(Icons.person, color: Colors.white),
           ),
           title: Text(
             driver['name'].toString(),
-            style: const TextStyle(
-              fontWeight: FontWeight.bold,
-            ),
+            style: const TextStyle(fontWeight: FontWeight.bold),
           ),
           subtitle: Text('PID: ${driver['pid']}'),
           trailing: const Icon(Icons.chevron_right),
@@ -324,4 +296,3 @@ class _AdminReportedDriversPageState
     );
   }
 }
-

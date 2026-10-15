@@ -3,6 +3,7 @@ import 'package:caremate_application/page/drivers_page.dart';
 import 'package:caremate_application/page/edit_job.dart';
 import 'package:caremate_application/page/map_details_page.dart';
 import 'package:caremate_application/page/map_page.dart';
+import 'package:caremate_application/page/notification_service.dart';
 import 'package:caremate_application/page/position_provider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
@@ -74,696 +75,756 @@ class _DetailsJobServiceState extends State<DetailsJobService> {
                 ),
               ),
             )
-          : SingleChildScrollView(
-              child: Container(
-                child: Padding(
-                  padding: const EdgeInsets.only(top: 20, left: 30),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      SizedBox(height: 15),
-                      Row(
-                        children: [
-                          Text(
-                            "สถานที่ :",
-                            style: TextStyle(
-                              fontSize: 20,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          SizedBox(width: 10),
-                          SizedBox(
-                            width: 220,
-                            child: Text(
-                              detailsJob['place_name'],
-                              style: TextStyle(fontSize: 20),
-                            ),
-                          ),
-                        ],
-                      ),
-
-                      Padding(
-                        padding: const EdgeInsets.only(bottom: 30, top: 30),
-                        child: Center(
-                          child: SizedBox(
-                            width: 300,
-                            height: 150,
-                            child: Stack(
-                              children: [
-                                // Longdo Map
-                                MapPreview(
-                                  latitude: (detailsJob['latitude'] as num)
-                                      .toDouble(),
-                                  longitude: (detailsJob['longitude'] as num)
-                                      .toDouble(),
-                                ),
-
-                                // ปุ่มใสครอบ Map
-                                Positioned.fill(
-                                  child: Material(
-                                    color: Colors.transparent,
-                                    child: InkWell(
-                                      onTap: () {
-                                        print("Map Clicked");
-                                        print("=== ก่อนเปิด Map ===");
-                                        print("Lat: ${detailsJob['latitude']}");
-                                        print(
-                                          "Lon: ${detailsJob['longitude']}",
-                                        );
-
-                                        Navigator.push(
-                                          context,
-                                          MaterialPageRoute(
-                                            builder: (context) =>
-                                                MapDetailsPage(
-                                                  latitude:
-                                                      detailsJob['latitude'],
-                                                  longitude:
-                                                      detailsJob['longitude'],
-                                                ),
-                                          ),
-                                        );
-                                      },
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ),
-
-                      Row(
-                        children: [
-                          Text(
-                            "วันที่ :",
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          SizedBox(width: 10),
-                          SizedBox(
-                            width: 200,
-                            child: Text(
-                              detailsJob['date'],
-                              style: TextStyle(fontSize: 16),
-                            ),
-                          ),
-                        ],
-                      ),
-                      SizedBox(height: 15),
-                      Row(
-                        children: [
-                          Text(
-                            "เวลางาน :",
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          SizedBox(width: 10),
-                          Text("จาก", style: TextStyle(fontSize: 14)),
-                          SizedBox(width: 10),
-                          SizedBox(
-                            child: Text(
-                              detailsJob['start_time'],
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ),
-                          SizedBox(width: 10),
-                          Text("ถึง", style: TextStyle(fontSize: 14)),
-                          SizedBox(width: 10),
-                          SizedBox(
-                            child: Text(
-                              detailsJob['end_time'],
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                      SizedBox(height: 15),
-                      Row(
-                        children: [
-                          Text(
-                            "ระยะทาง:",
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          SizedBox(width: 10),
-                          SizedBox(
-                            width: 120,
-                            child: Text(
-                              "${detailsJob['distance_km'] ?? '-'} กิโลเมตร",
-                              style: TextStyle(fontSize: 16),
-                            ),
-                          ),
-                        ],
-                      ),
-
-                      SizedBox(height: 15),
-                      Row(
-                        children: [
-                          Text(
-                            "เรทค่าบริการ:",
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          SizedBox(width: 10),
-                          SizedBox(
-                            width: 120,
-                            child: Text(
-                              "${detailsJob['service_fee']} บาท",
-                              style: TextStyle(fontSize: 16),
-                            ),
-                          ),
-                        ],
-                      ),
-
-                      SizedBox(height: 15),
-                      Row(
-                        children: [
-                          Text(
-                            "ประเภทรถ:",
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          SizedBox(width: 10),
-
-                          Text(
-                            detailsJob['vehicle_type'] == 0
-                                ? "Bike (มอเตอร์ไซค์)"
-                                : "Car (รถยนต์)",
-                            style: TextStyle(fontSize: 16),
-                          ),
-
-                          SizedBox(width: 10),
-                        ],
-                      ),
-                      SizedBox(height: 10),
-                      Row(
-                        children: [
-                          Text(
-                            "ลักษณะงาน:",
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          SizedBox(width: 10),
-                          SizedBox(
-                            width: 200,
-                            child: Text(
-                              detailsJob['job_type'],
-                              style: TextStyle(fontSize: 16),
-                            ),
-                          ),
-                        ],
-                      ),
-                      SizedBox(height: 15),
-                      if (detailsJob['additional_info'] != null)
+          : RefreshIndicator(
+              onRefresh: queryJobDetails,
+              child: SingleChildScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                child: Container(
+                  child: Padding(
+                    padding: const EdgeInsets.only(top: 20, left: 30),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        SizedBox(height: 15),
                         Row(
                           children: [
                             Text(
-                              "ข้อมูลพิเศษ:",
+                              "สถานที่ :",
+                              style: TextStyle(
+                                fontSize: 20,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            SizedBox(width: 10),
+                            SizedBox(
+                              width: 220,
+                              child: Text(
+                                detailsJob['place_name'],
+                                style: TextStyle(fontSize: 20),
+                              ),
+                            ),
+                          ],
+                        ),
+
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 30, top: 30),
+                          child: Center(
+                            child: SizedBox(
+                              width: 300,
+                              height: 150,
+                              child: Stack(
+                                children: [
+                                  // Longdo Map
+                                  MapPreview(
+                                    latitude: (detailsJob['latitude'] as num)
+                                        .toDouble(),
+                                    longitude: (detailsJob['longitude'] as num)
+                                        .toDouble(),
+                                  ),
+
+                                  // ปุ่มใสครอบ Map
+                                  Positioned.fill(
+                                    child: Material(
+                                      color: Colors.transparent,
+                                      child: InkWell(
+                                        onTap: () {
+                                          print("Map Clicked");
+                                          print("=== ก่อนเปิด Map ===");
+                                          print(
+                                            "Lat: ${detailsJob['latitude']}",
+                                          );
+                                          print(
+                                            "Lon: ${detailsJob['longitude']}",
+                                          );
+
+                                          Navigator.push(
+                                            context,
+                                            MaterialPageRoute(
+                                              builder: (context) =>
+                                                  MapDetailsPage(
+                                                    latitude:
+                                                        detailsJob['latitude'],
+                                                    longitude:
+                                                        detailsJob['longitude'],
+                                                  ),
+                                            ),
+                                          );
+                                        },
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+
+                        Row(
+                          children: [
+                            Text(
+                              "วันที่ :",
                               style: TextStyle(
                                 fontSize: 16,
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
                             SizedBox(width: 10),
-                            Text(
-                              detailsJob['additional_info'] == 0
-                                  ? "ผู้ป่วยติดเตียง"
-                                  : "ผู้ป่วยนั่งวิลแชร์",
-                              style: TextStyle(fontSize: 16),
+                            SizedBox(
+                              width: 200,
+                              child: Text(
+                                detailsJob['date'],
+                                style: TextStyle(fontSize: 16),
+                              ),
                             ),
                           ],
                         ),
-                      SizedBox(height: 30),
-
-                      const SizedBox(height: 30),
-
-                      // ส่วนจัดการประกาศงาน
-                      if (![9, 10].contains(detailsJob['job_status']))
-                        Container(
-                          width: double.infinity,
-                          margin: const EdgeInsets.only(right: 30),
-                          padding: const EdgeInsets.all(18),
-                          decoration: BoxDecoration(
-                            color: Colors.grey.shade50,
-                            borderRadius: BorderRadius.circular(16),
-                            border: Border.all(color: Colors.grey.shade300),
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const Text(
-                                "จัดการประกาศงาน",
+                        SizedBox(height: 15),
+                        Row(
+                          children: [
+                            Text(
+                              "เวลางาน :",
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            SizedBox(width: 10),
+                            Text("จาก", style: TextStyle(fontSize: 14)),
+                            SizedBox(width: 10),
+                            SizedBox(
+                              child: Text(
+                                detailsJob['start_time'],
                                 style: TextStyle(
-                                  fontSize: 18,
+                                  fontSize: 16,
                                   fontWeight: FontWeight.bold,
                                 ),
                               ),
+                            ),
+                            SizedBox(width: 10),
+                            Text("ถึง", style: TextStyle(fontSize: 14)),
+                            SizedBox(width: 10),
+                            SizedBox(
+                              child: Text(
+                                detailsJob['end_time'],
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        SizedBox(height: 15),
+                        Row(
+                          children: [
+                            Text(
+                              "ระยะทาง:",
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            SizedBox(width: 10),
+                            SizedBox(
+                              width: 120,
+                              child: Text(
+                                "${detailsJob['distance_km'] ?? '-'} กิโลเมตร",
+                                style: TextStyle(fontSize: 16),
+                              ),
+                            ),
+                          ],
+                        ),
 
-                              const SizedBox(height: 15),
+                        SizedBox(height: 15),
+                        Row(
+                          children: [
+                            Text(
+                              "เรทค่าบริการ:",
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            SizedBox(width: 10),
+                            SizedBox(
+                              width: 120,
+                              child: Text(
+                                "${detailsJob['service_fee']} บาท",
+                                style: TextStyle(fontSize: 16),
+                              ),
+                            ),
+                          ],
+                        ),
 
-                              // ดูผู้สมัคร / ดูผู้ให้บริการ
-                              if (detailsJob['job_status'] == 0)
-                                SizedBox(
-                                  width: double.infinity,
-                                  height: 48,
-                                  child: ElevatedButton.icon(
-                                    onPressed: () async {
-                                      final result = await Navigator.push(
-                                        context,
-                                        MaterialPageRoute(
-                                          builder: (context) =>
-                                              DriversPage(JobId: widget.jobId),
-                                        ),
-                                      );
+                        SizedBox(height: 15),
+                        Row(
+                          children: [
+                            Text(
+                              "ประเภทรถ:",
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            SizedBox(width: 10),
 
-                                      if (result == true) {
-                                        await queryJobDetails();
-                                      }
-                                    },
-                                    icon: const Icon(
-                                      Icons.people_outline,
-                                      size: 22,
-                                    ),
-                                    label: const Text(
-                                      "ดูผู้สมัครงาน",
-                                      style: TextStyle(
-                                        fontSize: 16,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: Colors.red,
-                                      foregroundColor: Colors.white,
-                                      elevation: 0,
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(10),
-                                      ),
-                                    ),
+                            Text(
+                              detailsJob['vehicle_type'] == 0
+                                  ? "Bike (มอเตอร์ไซค์)"
+                                  : "Car (รถยนต์)",
+                              style: TextStyle(fontSize: 16),
+                            ),
+
+                            SizedBox(width: 10),
+                          ],
+                        ),
+                        SizedBox(height: 10),
+                        Row(
+                          children: [
+                            Text(
+                              "ลักษณะงาน:",
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            SizedBox(width: 10),
+                            SizedBox(
+                              width: 200,
+                              child: Text(
+                                detailsJob['job_type'],
+                                style: TextStyle(fontSize: 16),
+                              ),
+                            ),
+                          ],
+                        ),
+                        SizedBox(height: 15),
+                        if (detailsJob['additional_info'] != null)
+                          Row(
+                            children: [
+                              Text(
+                                "ข้อมูลพิเศษ:",
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              SizedBox(width: 10),
+                              Text(
+                                detailsJob['additional_info'] == 0
+                                    ? "ผู้ป่วยติดเตียง"
+                                    : "ผู้ป่วยนั่งวิลแชร์",
+                                style: TextStyle(fontSize: 16),
+                              ),
+                            ],
+                          ),
+                        SizedBox(height: 30),
+
+                        const SizedBox(height: 30),
+
+                        // ส่วนจัดการประกาศงาน
+                        if (![9, 10].contains(detailsJob['job_status']))
+                          Container(
+                            width: double.infinity,
+                            margin: const EdgeInsets.only(right: 30),
+                            padding: const EdgeInsets.all(18),
+                            decoration: BoxDecoration(
+                              color: Colors.grey.shade50,
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(color: Colors.grey.shade300),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text(
+                                  "จัดการประกาศงาน",
+                                  style: TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.bold,
                                   ),
                                 ),
 
-                              if (detailsJob['job_status'] == 1 ||
-                                  detailsJob['job_status'] == 2)
-                                SizedBox(
-                                  width: double.infinity,
-                                  height: 48,
-                                  child: ElevatedButton.icon(
-                                    onPressed: () async {
-                                      print("ดูข้อมูลผู้ให้บริการ");
+                                const SizedBox(height: 15),
 
-                                      String? providerId = await queryDriver();
+                                // ดูผู้สมัคร / ดูผู้ให้บริการ
+                                if (detailsJob['job_status'] == 0)
+                                  SizedBox(
+                                    width: double.infinity,
+                                    height: 48,
+                                    child: ElevatedButton.icon(
+                                      onPressed: () async {
+                                        final result = await Navigator.push(
+                                          context,
+                                          MaterialPageRoute(
+                                            builder: (context) => DriversPage(
+                                              JobId: widget.jobId,
+                                            ),
+                                          ),
+                                        );
 
-                                      if (providerId == null) {
-                                        print("ไม่พบผู้ให้บริการ");
-                                        return;
-                                      }
-
-                                      Navigator.push(
-                                        context,
-                                        MaterialPageRoute(
-                                          builder: (context) => DetailsProvider(
-                                            pid: providerId,
-                                            vehicle_type:
-                                                detailsJob['vehicle_type'],
+                                        if (result == true) {
+                                          await queryJobDetails();
+                                        }
+                                      },
+                                      icon: const Icon(
+                                        Icons.people_outline,
+                                        size: 22,
+                                      ),
+                                      label: const Text(
+                                        "ดูผู้สมัครงาน",
+                                        style: TextStyle(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: Colors.red,
+                                        foregroundColor: Colors.white,
+                                        elevation: 0,
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(
+                                            10,
                                           ),
                                         ),
-                                      );
-                                    },
-                                    icon: const Icon(
-                                      Icons.person_outline,
-                                      size: 22,
-                                    ),
-                                    label: const Text(
-                                      "ดูข้อมูลผู้ให้บริการ",
-                                      style: TextStyle(
-                                        fontSize: 16,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: Colors.red,
-                                      foregroundColor: Colors.white,
-                                      elevation: 0,
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(10),
                                       ),
                                     ),
                                   ),
-                                ),
 
-                              const SizedBox(height: 12),
+                                if (detailsJob['job_status'] == 1 ||
+                                    detailsJob['job_status'] == 2)
+                                  SizedBox(
+                                    width: double.infinity,
+                                    height: 48,
+                                    child: ElevatedButton.icon(
+                                      onPressed: () async {
+                                        print("ดูข้อมูลผู้ให้บริการ");
 
-                              if (detailsJob['job_status'] >= 3 &&
-                                  detailsJob['job_status'] <= 8)
-                                SizedBox(
-                                  width: double.infinity,
-                                  height: 48,
-                                  child: ElevatedButton.icon(
-                                    onPressed: () async {
-                                      Navigator.push(
-                                        context,
-                                        MaterialPageRoute(
-                                          builder: (context) =>
-                                              PositionProvider(
-                                                jobId: widget.jobId,
-                                              ),
+                                        String? providerId =
+                                            await queryDriver();
+
+                                        if (providerId == null) {
+                                          print("ไม่พบผู้ให้บริการ");
+                                          return;
+                                        }
+
+                                        Navigator.push(
+                                          context,
+                                          MaterialPageRoute(
+                                            builder: (context) =>
+                                                DetailsProvider(
+                                                  pid: providerId,
+                                                  vehicle_type:
+                                                      detailsJob['vehicle_type'],
+                                                ),
+                                          ),
+                                        );
+                                      },
+                                      icon: const Icon(
+                                        Icons.person_outline,
+                                        size: 22,
+                                      ),
+                                      label: const Text(
+                                        "ดูข้อมูลผู้ให้บริการ",
+                                        style: TextStyle(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.bold,
                                         ),
-                                      );
-                                    },
-                                    icon: const Icon(
-                                      Icons.person_outline,
-                                      size: 22,
-                                    ),
-                                    label: const Text(
-                                      "ดูพิกัดผู้ให้บริการ",
-                                      style: TextStyle(
-                                        fontSize: 16,
-                                        fontWeight: FontWeight.bold,
                                       ),
-                                    ),
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: Colors.red,
-                                      foregroundColor: Colors.white,
-                                      elevation: 0,
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(10),
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: Colors.red,
+                                        foregroundColor: Colors.white,
+                                        elevation: 0,
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(
+                                            10,
+                                          ),
+                                        ),
                                       ),
                                     ),
                                   ),
-                                ),
 
-                              if (detailsJob['job_status'] == 1)
-                                // ปุ่มยกเลิกงาน
-                                SizedBox(
-                                  width: double.infinity,
-                                  height: 48,
-                                  child: OutlinedButton.icon(
-                                    onPressed: isDeleting
-                                        ? null
-                                        : () {
-                                            print("ยกเลิกงาน ${widget.jobId}");
+                                const SizedBox(height: 12),
 
-                                            if (detailsJob['job_status'] != 1) {
+                                if (detailsJob['job_status'] >= 3 &&
+                                    detailsJob['job_status'] <= 8)
+                                  SizedBox(
+                                    width: double.infinity,
+                                    height: 48,
+                                    child: ElevatedButton.icon(
+                                      onPressed: () async {
+                                        Navigator.push(
+                                          context,
+                                          MaterialPageRoute(
+                                            builder: (context) =>
+                                                PositionProvider(
+                                                  jobId: widget.jobId,
+                                                ),
+                                          ),
+                                        );
+                                      },
+                                      icon: const Icon(
+                                        Icons.person_outline,
+                                        size: 22,
+                                      ),
+                                      label: const Text(
+                                        "ดูพิกัดผู้ให้บริการ",
+                                        style: TextStyle(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: Colors.red,
+                                        foregroundColor: Colors.white,
+                                        elevation: 0,
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(
+                                            10,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+
+                                if (detailsJob['job_status'] == 1)
+                                  // ปุ่มยกเลิกงาน
+                                  SizedBox(
+                                    width: double.infinity,
+                                    height: 48,
+                                    child: OutlinedButton.icon(
+                                      onPressed: isDeleting
+                                          ? null
+                                          : () {
+                                              print(
+                                                "ยกเลิกงาน ${widget.jobId}",
+                                              );
+
+                                              if (detailsJob['job_status'] !=
+                                                  1) {
+                                                ScaffoldMessenger.of(
+                                                  context,
+                                                ).showSnackBar(
+                                                  const SnackBar(
+                                                    content: Text(
+                                                      "ไม่สามารถยกเลิกงานได้ เนื่องจากงานอยู่ระหว่างดำเนินการ",
+                                                    ),
+                                                  ),
+                                                );
+                                                return;
+                                              }
+
+                                              showDialog(
+                                                context: context,
+                                                builder: (dialogContext) {
+                                                  return AlertDialog(
+                                                    title: const Text(
+                                                      "ยืนยันการยกเลิกงาน",
+                                                    ),
+                                                    content: const Text(
+                                                      "คุณต้องการยกเลิกประกาศงานนี้ใช่หรือไม่?",
+                                                    ),
+                                                    actions: [
+                                                      TextButton(
+                                                        onPressed: () {
+                                                          Navigator.pop(
+                                                            dialogContext,
+                                                          );
+                                                        },
+                                                        child: const Text(
+                                                          "กลับ",
+                                                          style: TextStyle(
+                                                            color: Colors.grey,
+                                                          ),
+                                                        ),
+                                                      ),
+                                                      TextButton(
+                                                        onPressed: () {
+                                                          Navigator.pop(
+                                                            dialogContext,
+                                                          );
+                                                          cancelJob(
+                                                            widget.jobId,
+                                                          );
+                                                        },
+                                                        child: const Text(
+                                                          "ยืนยันการยกเลิก",
+                                                          style: TextStyle(
+                                                            color: Colors.red,
+                                                            fontWeight:
+                                                                FontWeight.bold,
+                                                          ),
+                                                        ),
+                                                      ),
+                                                    ],
+                                                  );
+                                                },
+                                              );
+                                            },
+                                      icon: isDeleting
+                                          ? const SizedBox(
+                                              width: 18,
+                                              height: 18,
+                                              child: CircularProgressIndicator(
+                                                strokeWidth: 2,
+                                                color: Colors.red,
+                                              ),
+                                            )
+                                          : const Icon(
+                                              Icons.cancel_outlined,
+                                              size: 20,
+                                            ),
+                                      label: Text(
+                                        isDeleting
+                                            ? "กำลังยกเลิกงาน..."
+                                            : "ยกเลิกงาน",
+                                        style: const TextStyle(
+                                          fontSize: 15,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                      style: OutlinedButton.styleFrom(
+                                        foregroundColor: Colors.red,
+                                        disabledForegroundColor: Colors.red,
+                                        side: const BorderSide(
+                                          color: Colors.red,
+                                        ),
+                                        padding: const EdgeInsets.symmetric(
+                                          vertical: 12,
+                                        ),
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(
+                                            10,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+
+                                // แก้ไข / ลบ
+                                if (detailsJob['job_status'] == 0)
+                                  Row(
+                                    children: [
+                                      // ปุ่มแก้ไข
+                                      Expanded(
+                                        child: OutlinedButton.icon(
+                                          onPressed: () async {
+                                            print("แก้ไขงาน ${widget.jobId}");
+                                            if (detailsJob['job_status'] != 0) {
                                               ScaffoldMessenger.of(
                                                 context,
                                               ).showSnackBar(
                                                 const SnackBar(
                                                   content: Text(
-                                                    "ไม่สามารถยกเลิกงานได้ เนื่องจากงานอยู่ระหว่างดำเนินการ",
+                                                    "ไม่สามารถแก้ไขงานได้ เนื่องจากงานอยู่ระหว่างดำเนินการ",
+                                                  ),
+                                                ),
+                                              );
+
+                                              return;
+                                            }
+                                            try {
+                                              final hasApplied =
+                                                  await hasApplicants(
+                                                    widget.jobId,
+                                                  );
+
+                                              if (!mounted) return;
+
+                                              if (hasApplied) {
+                                                ScaffoldMessenger.of(
+                                                  context,
+                                                ).showSnackBar(
+                                                  const SnackBar(
+                                                    content: Text(
+                                                      "ไม่สามารถแก้ไขงานได้ เนื่องจากมีผู้สมัครงานนี้แล้ว",
+                                                    ),
+                                                    backgroundColor: Colors.red,
+                                                  ),
+                                                );
+                                                return;
+                                              }
+                                            } catch (e) {
+                                              if (!mounted) return;
+
+                                              ScaffoldMessenger.of(
+                                                context,
+                                              ).showSnackBar(
+                                                const SnackBar(
+                                                  content: Text(
+                                                    "ตรวจสอบผู้สมัครไม่สำเร็จ กรุณาลองใหม่อีกครั้ง",
                                                   ),
                                                 ),
                                               );
                                               return;
                                             }
 
-                                            showDialog(
-                                              context: context,
-                                              builder: (dialogContext) {
-                                                return AlertDialog(
-                                                  title: const Text(
-                                                    "ยืนยันการยกเลิกงาน",
-                                                  ),
-                                                  content: const Text(
-                                                    "คุณต้องการยกเลิกประกาศงานนี้ใช่หรือไม่?",
-                                                  ),
-                                                  actions: [
-                                                    TextButton(
-                                                      onPressed: () {
-                                                        Navigator.pop(
-                                                          dialogContext,
-                                                        );
-                                                      },
-                                                      child: const Text(
-                                                        "กลับ",
-                                                        style: TextStyle(
-                                                          color: Colors.grey,
-                                                        ),
-                                                      ),
-                                                    ),
-                                                    TextButton(
-                                                      onPressed: () {
-                                                        Navigator.pop(
-                                                          dialogContext,
-                                                        );
-                                                        cancelJob(widget.jobId);
-                                                      },
-                                                      child: const Text(
-                                                        "ยืนยันการยกเลิก",
-                                                        style: TextStyle(
-                                                          color: Colors.red,
-                                                          fontWeight:
-                                                              FontWeight.bold,
-                                                        ),
-                                                      ),
-                                                    ),
-                                                  ],
-                                                );
-                                              },
-                                            );
-                                          },
-                                    icon: isDeleting
-                                        ? const SizedBox(
-                                            width: 18,
-                                            height: 18,
-                                            child: CircularProgressIndicator(
-                                              strokeWidth: 2,
-                                              color: Colors.red,
-                                            ),
-                                          )
-                                        : const Icon(
-                                            Icons.cancel_outlined,
-                                            size: 20,
-                                          ),
-                                    label: Text(
-                                      isDeleting
-                                          ? "กำลังยกเลิกงาน..."
-                                          : "ยกเลิกงาน",
-                                      style: const TextStyle(
-                                        fontSize: 15,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                    style: OutlinedButton.styleFrom(
-                                      foregroundColor: Colors.red,
-                                      disabledForegroundColor: Colors.red,
-                                      side: const BorderSide(color: Colors.red),
-                                      padding: const EdgeInsets.symmetric(
-                                        vertical: 12,
-                                      ),
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(10),
-                                      ),
-                                    ),
-                                  ),
-                                ),
-
-                              // แก้ไข / ลบ
-                              if (detailsJob['job_status'] == 0)
-                                Row(
-                                  children: [
-                                    // ปุ่มแก้ไข
-                                    Expanded(
-                                      child: OutlinedButton.icon(
-                                        onPressed: () async {
-                                          print("แก้ไขงาน ${widget.jobId}");
-                                          if (detailsJob['job_status'] != 0) {
-                                            ScaffoldMessenger.of(
+                                            final result = await Navigator.push(
                                               context,
-                                            ).showSnackBar(
-                                              const SnackBar(
-                                                content: Text(
-                                                  "ไม่สามารถแก้ไขงานได้ เนื่องจากงานอยู่ระหว่างดำเนินการ",
+                                              MaterialPageRoute(
+                                                builder: (context) => EditJob(
+                                                  sid: detailsJob['service_id']
+                                                      .toString(),
+                                                  jobId: widget.jobId,
                                                 ),
                                               ),
                                             );
 
-                                            return;
-                                          }
-
-                                          final result = await Navigator.push(
-                                            context,
-                                            MaterialPageRoute(
-                                              builder: (context) => EditJob(
-                                                sid: detailsJob['service_id']
-                                                    .toString(),
-                                                jobId: widget.jobId,
-                                              ),
+                                            // ถ้าแก้ไขสำเร็จ ให้โหลดข้อมูลใหม่
+                                            if (result == 'edited') {
+                                              queryJobDetails();
+                                            }
+                                          },
+                                          icon: const Icon(
+                                            Icons.edit_outlined,
+                                            size: 20,
+                                          ),
+                                          label: const Text(
+                                            "แก้ไขงาน",
+                                            style: TextStyle(
+                                              fontSize: 15,
+                                              fontWeight: FontWeight.bold,
                                             ),
-                                          );
-
-                                          // ถ้าแก้ไขสำเร็จ ให้โหลดข้อมูลใหม่
-                                          if (result == 'edited') {
-                                            queryJobDetails();
-                                          }
-                                        },
-                                        icon: const Icon(
-                                          Icons.edit_outlined,
-                                          size: 20,
-                                        ),
-                                        label: const Text(
-                                          "แก้ไขงาน",
-                                          style: TextStyle(
-                                            fontSize: 15,
-                                            fontWeight: FontWeight.bold,
                                           ),
-                                        ),
-                                        style: OutlinedButton.styleFrom(
-                                          foregroundColor: Colors.black87,
-                                          side: const BorderSide(
-                                            color: Colors.grey,
-                                          ),
-                                          padding: const EdgeInsets.symmetric(
-                                            vertical: 12,
-                                          ),
-                                          shape: RoundedRectangleBorder(
-                                            borderRadius: BorderRadius.circular(
-                                              10,
+                                          style: OutlinedButton.styleFrom(
+                                            foregroundColor: Colors.black87,
+                                            side: const BorderSide(
+                                              color: Colors.grey,
+                                            ),
+                                            padding: const EdgeInsets.symmetric(
+                                              vertical: 12,
+                                            ),
+                                            shape: RoundedRectangleBorder(
+                                              borderRadius:
+                                                  BorderRadius.circular(10),
                                             ),
                                           ),
                                         ),
                                       ),
-                                    ),
 
-                                    const SizedBox(width: 10),
+                                      const SizedBox(width: 10),
 
-                                    // ปุ่มลบ
-                                    Expanded(
-                                      child: OutlinedButton.icon(
-                                        onPressed: isDeleting
-                                            ? null
-                                            : () {
-                                                print("ลบงาน ${widget.jobId}");
-
-                                                if (detailsJob['job_status'] !=
-                                                    0) {
-                                                  ScaffoldMessenger.of(
-                                                    context,
-                                                  ).showSnackBar(
-                                                    const SnackBar(
-                                                      content: Text(
-                                                        "ไม่สามารถยกเลิกงานได้ เนื่องจากงานอยู่ระหว่างดำเนินการ",
-                                                      ),
-                                                    ),
+                                      // ปุ่มลบ
+                                      Expanded(
+                                        child: OutlinedButton.icon(
+                                          onPressed: isDeleting
+                                              ? null
+                                              : () {
+                                                  print(
+                                                    "ลบงาน ${widget.jobId}",
                                                   );
-                                                  return;
-                                                }
 
-                                                showDialog(
-                                                  context: context,
-                                                  builder: (dialogContext) {
-                                                    return AlertDialog(
-                                                      title: const Text(
-                                                        "ยืนยันการลบงาน",
-                                                      ),
-                                                      content: const Text(
-                                                        "คุณต้องการลบประกาศงานนี้ใช่หรือไม่?",
-                                                      ),
-                                                      actions: [
-                                                        TextButton(
-                                                          onPressed: () {
-                                                            Navigator.pop(
-                                                              dialogContext,
-                                                            );
-                                                          },
-                                                          child: const Text(
-                                                            "กลับ",
-                                                            style: TextStyle(
-                                                              color:
-                                                                  Colors.grey,
-                                                            ),
-                                                          ),
+                                                  if (detailsJob['job_status'] !=
+                                                      0) {
+                                                    ScaffoldMessenger.of(
+                                                      context,
+                                                    ).showSnackBar(
+                                                      const SnackBar(
+                                                        content: Text(
+                                                          "ไม่สามารถยกเลิกงานได้ เนื่องจากงานอยู่ระหว่างดำเนินการ",
                                                         ),
-                                                        TextButton(
-                                                          onPressed: () {
-                                                            Navigator.pop(
-                                                              dialogContext,
-                                                            );
-                                                            deleteJob(
-                                                              widget.jobId,
-                                                            );
-                                                          },
-                                                          child: const Text(
-                                                            "ยืนยันการลบ",
-                                                            style: TextStyle(
-                                                              color: Colors.red,
-                                                              fontWeight:
-                                                                  FontWeight
-                                                                      .bold,
-                                                            ),
-                                                          ),
-                                                        ),
-                                                      ],
+                                                      ),
                                                     );
-                                                  },
-                                                );
-                                              },
-                                        icon: isDeleting
-                                            ? const SizedBox(
-                                                width: 18,
-                                                height: 18,
-                                                child:
-                                                    CircularProgressIndicator(
-                                                      strokeWidth: 2,
-                                                      color: Colors.red,
-                                                    ),
-                                              )
-                                            : const Icon(
-                                                Icons.cancel_outlined,
-                                                size: 20,
-                                              ),
-                                        label: Text(
-                                          isDeleting
-                                              ? "กำลังลบงาน..."
-                                              : "ลบงาน",
-                                          style: const TextStyle(
-                                            fontSize: 15,
-                                            fontWeight: FontWeight.bold,
+                                                    return;
+                                                  }
+
+                                                  showDialog(
+                                                    context: context,
+                                                    builder: (dialogContext) {
+                                                      return AlertDialog(
+                                                        title: const Text(
+                                                          "ยืนยันการลบงาน",
+                                                        ),
+                                                        content: const Text(
+                                                          "คุณต้องการลบประกาศงานนี้ใช่หรือไม่?",
+                                                        ),
+                                                        actions: [
+                                                          TextButton(
+                                                            onPressed: () {
+                                                              Navigator.pop(
+                                                                dialogContext,
+                                                              );
+                                                            },
+                                                            child: const Text(
+                                                              "กลับ",
+                                                              style: TextStyle(
+                                                                color:
+                                                                    Colors.grey,
+                                                              ),
+                                                            ),
+                                                          ),
+                                                          TextButton(
+                                                            onPressed: () {
+                                                              Navigator.pop(
+                                                                dialogContext,
+                                                              );
+                                                              deleteJob(
+                                                                widget.jobId,
+                                                              );
+                                                            },
+                                                            child: const Text(
+                                                              "ยืนยันการลบ",
+                                                              style: TextStyle(
+                                                                color:
+                                                                    Colors.red,
+                                                                fontWeight:
+                                                                    FontWeight
+                                                                        .bold,
+                                                              ),
+                                                            ),
+                                                          ),
+                                                        ],
+                                                      );
+                                                    },
+                                                  );
+                                                },
+                                          icon: isDeleting
+                                              ? const SizedBox(
+                                                  width: 18,
+                                                  height: 18,
+                                                  child:
+                                                      CircularProgressIndicator(
+                                                        strokeWidth: 2,
+                                                        color: Colors.red,
+                                                      ),
+                                                )
+                                              : const Icon(
+                                                  Icons.cancel_outlined,
+                                                  size: 20,
+                                                ),
+                                          label: Text(
+                                            isDeleting
+                                                ? "กำลังลบงาน..."
+                                                : "ลบงาน",
+                                            style: const TextStyle(
+                                              fontSize: 15,
+                                              fontWeight: FontWeight.bold,
+                                            ),
                                           ),
-                                        ),
-                                        style: OutlinedButton.styleFrom(
-                                          foregroundColor: Colors.red,
-                                          disabledForegroundColor: Colors.red,
-                                          side: const BorderSide(
-                                            color: Colors.red,
-                                          ),
-                                          padding: const EdgeInsets.symmetric(
-                                            vertical: 12,
-                                          ),
-                                          shape: RoundedRectangleBorder(
-                                            borderRadius: BorderRadius.circular(
-                                              10,
+                                          style: OutlinedButton.styleFrom(
+                                            foregroundColor: Colors.red,
+                                            disabledForegroundColor: Colors.red,
+                                            side: const BorderSide(
+                                              color: Colors.red,
+                                            ),
+                                            padding: const EdgeInsets.symmetric(
+                                              vertical: 12,
+                                            ),
+                                            shape: RoundedRectangleBorder(
+                                              borderRadius:
+                                                  BorderRadius.circular(10),
                                             ),
                                           ),
                                         ),
                                       ),
-                                    ),
-                                  ],
-                                ),
-                            ],
+                                    ],
+                                  ),
+                              ],
+                            ),
                           ),
-                        ),
 
-                      const SizedBox(height: 20),
-                    ],
+                        const SizedBox(height: 20),
+                      ],
+                    ),
                   ),
                 ),
               ),
@@ -867,10 +928,34 @@ class _DetailsJobServiceState extends State<DetailsJobService> {
           .where('job_id', isEqualTo: jobId)
           .get();
 
+      String? providerId;
+
+      for (final doc in applications.docs) {
+        final data = doc.data();
+
+        if (data['status_drivers'] == 1) {
+          final id = data['provider_id'];
+
+          if (id != null && id.toString().isNotEmpty) {
+            providerId = id.toString();
+            break; // พบแล้ว หยุดค้นหา
+          }
+        }
+      }
+
+      if (providerId != null) {
+        await NotificationService().notifyProviderJobCancelledByService(
+          jobId: jobId,
+          providerId: providerId,
+        );
+      } else {
+        debugPrint('ไม่พบผู้ให้บริการที่มี status_drivers == 1');
+      }
+
       // 2. สร้าง Batch เพื่ออัปเดตสถานะ
       final batch = db.batch();
 
-      // 3. เปลี่ยนสถานะผู้สมัครเป็น 6 โดยไม่ลบข้อมูล
+      // 3. เปลี่ยนสถานะผู้สมัครเป็น 7 โดยไม่ลบข้อมูล
       for (final doc in applications.docs) {
         batch.update(doc.reference, {'status_drivers': 7});
       }
@@ -903,6 +988,21 @@ class _DetailsJobServiceState extends State<DetailsJobService> {
           isDeleting = false;
         });
       }
+    }
+  }
+
+  Future<bool> hasApplicants(String jobId) async {
+    try {
+      final snapshot = await FirebaseFirestore.instance
+          .collection('all_drivers')
+          .where('job_id', isEqualTo: jobId)
+          .limit(1)
+          .get();
+
+      return snapshot.docs.isNotEmpty;
+    } catch (e) {
+      debugPrint('ตรวจสอบผู้สมัครไม่สำเร็จ: $e');
+      rethrow;
     }
   }
 }

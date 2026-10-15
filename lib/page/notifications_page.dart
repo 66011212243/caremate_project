@@ -1,3 +1,8 @@
+import 'package:caremate_application/page/admin_all_report.dart';
+import 'package:caremate_application/page/details_job.dart';
+import 'package:caremate_application/page/details_job_service.dart';
+import 'package:caremate_application/page/drivers_page.dart';
+import 'package:caremate_application/page/position_provider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
@@ -14,6 +19,81 @@ class NotificationsPage extends StatefulWidget {
 
 class _NotificationsPageState extends State<NotificationsPage> {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  int? userRole;
+  String? sid;
+  String? pid;
+  bool isUserDataLoading = true;
+  @override
+  void initState() {
+    super.initState();
+    loadUserIdentity();
+  }
+
+  Future<void> loadUserIdentity() async {
+    try {
+      // 1. ตรวจสอบบัญชีผู้ใช้
+      final userDoc = await _firestore
+          .collection('users')
+          .doc(widget.uid)
+          .get();
+
+      if (!userDoc.exists) {
+        debugPrint('ไม่พบบัญชีผู้ใช้');
+        return;
+      }
+
+      final userData = userDoc.data()!;
+      final role = (userData['role'] as num?)?.toInt();
+
+      if (role == null) {
+        debugPrint('ไม่พบ role ของผู้ใช้');
+        return;
+      }
+
+      userRole = role;
+
+      // 2. ถ้าเป็นผู้รับบริการ ให้ค้นหา sid
+      if (role == 0) {
+        final serviceQuery = await _firestore
+            .collection('service')
+            .where('service_uid', isEqualTo: widget.uid)
+            .limit(1)
+            .get();
+
+        if (serviceQuery.docs.isNotEmpty) {
+          sid = serviceQuery.docs.first.id;
+        } else {
+          debugPrint('ไม่พบ sid ของผู้รับบริการ');
+        }
+      }
+      // 3. ถ้าเป็นผู้ให้บริการ ให้ค้นหา pid
+      else if (role == 1) {
+        final providerQuery = await _firestore
+            .collection('provider')
+            .where('provider_uid', isEqualTo: widget.uid)
+            .limit(1)
+            .get();
+
+        if (providerQuery.docs.isNotEmpty) {
+          pid = providerQuery.docs.first.id;
+        } else {
+          debugPrint('ไม่พบ pid ของผู้ให้บริการ');
+        }
+      }
+      // 4. ถ้าเป็นแอดมิน ให้จัดการตาม role ของแอดมิน
+      else {
+        debugPrint('ผู้ใช้มี role อื่น: $role');
+      }
+    } catch (e) {
+      debugPrint('โหลดข้อมูลบัญชีไม่สำเร็จ: $e');
+    } finally {
+      if (mounted) {
+        setState(() {
+          isUserDataLoading = false;
+        });
+      }
+    }
+  }
 
   String formatDate(dynamic value) {
     if (value is Timestamp) {
@@ -153,12 +233,11 @@ class _NotificationsPageState extends State<NotificationsPage> {
               return InkWell(
                 borderRadius: BorderRadius.circular(16),
                 onTap: () async {
-                  if (!isRead) {
-                    await markAsRead(doc.id);
-                  }
-
-                  // TODO: ใช้ jobId นำทางไปหน้ารายละเอียดงาน
-                  debugPrint('Notification job_id: $jobId');
+                  await _handleNotificationTap(
+                    type: type,
+                    jobId: jobId,
+                    notificationId: doc.id,
+                  );
                 },
                 child: Container(
                   margin: const EdgeInsets.only(bottom: 12),
@@ -207,7 +286,7 @@ class _NotificationsPageState extends State<NotificationsPage> {
                               children: [
                                 Expanded(
                                   child: Text(
-                                    title,
+                                    getNotificationMessage(type),
                                     style: TextStyle(
                                       fontSize: 17,
                                       fontWeight: isRead
@@ -233,7 +312,7 @@ class _NotificationsPageState extends State<NotificationsPage> {
                             ),
                             const SizedBox(height: 7),
                             Text(
-                              getNotificationMessage(type),
+                              title,
                               style: TextStyle(
                                 fontSize: 14,
                                 height: 1.5,
@@ -274,6 +353,159 @@ class _NotificationsPageState extends State<NotificationsPage> {
     );
   }
 
+  Future<void> _handleNotificationTap({
+    required int type,
+    required String jobId,
+    required String notificationId,
+  }) async {
+    // 1. ทำเครื่องหมายว่าอ่านแล้ว
+    await markAsRead(notificationId);
+
+    if (!mounted) return;
+
+    // 2. แยกหน้าตามประเภทการแจ้งเตือน
+    switch (type) {
+      case 0:
+        // ผู้รับบริการ: มีผู้สมัครงานใหม่
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => DetailsJobService(jobId: jobId),
+          ),
+        );
+        break;
+
+      case 1:
+        final jobStatus = await getJobStatus(jobId);
+
+        if (!context.mounted) return;
+
+        if (jobStatus == null) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('ไม่พบข้อมูลงาน กรุณาลองใหม่')),
+          );
+          break;
+        }
+
+        if (jobStatus == 9 || jobStatus == 10) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('งานนี้เสร็จสิ้นหรือถูกยกเลิกแล้ว')),
+          );
+          break;
+        }
+
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => PositionProvider(jobId: jobId),
+          ),
+        );
+        break;
+
+      case 2:
+        final jobStatus = await getJobStatus(jobId);
+
+        if (!context.mounted) return;
+
+        if (jobStatus == null) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('ไม่พบข้อมูลงาน กรุณาลองใหม่')),
+          );
+          break;
+        }
+
+        if (jobStatus != 0) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('งานนี้มีผู้ให้บริการแล้ว')),
+          );
+          break;
+        }
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => DetailsJob(jobId: jobId, pid: pid!),
+          ),
+        );
+        break;
+
+      case 3:
+        final jobStatus = await getJobStatus(jobId);
+
+        if (!context.mounted) return;
+
+        if (jobStatus == null) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('ไม่พบข้อมูลงาน กรุณาลองใหม่')),
+          );
+          break;
+        }
+
+        if (jobStatus == 9 || jobStatus == 10) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('งานนี้เสร็จสิ้นหรือถูกยกเลิกแล้ว')),
+          );
+          break;
+        }
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => DetailsJob(jobId: jobId, pid: pid!),
+          ),
+        );
+        break;
+
+      case 4:
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => DetailsJob(jobId: jobId, pid: pid!),
+          ),
+        );
+        break;
+
+      case 5:
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => AdminAllReport()),
+        );
+        break;
+
+      case 6:
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => DetailsJobService(jobId: jobId),
+          ),
+        );
+        break;
+
+      case 7:
+        // แจ้งเตือนงานล่วงหน้า
+        // เปิดรายละเอียดงานตามบทบาทผู้ใช้
+        break;
+
+      default:
+        debugPrint('ไม่รู้จัก notification_type: $type');
+    }
+  }
+
+  Future<int?> getJobStatus(String jobId) async {
+    try {
+      final doc = await _firestore.collection('jobs').doc(jobId).get();
+
+      if (!doc.exists) {
+        debugPrint('ไม่พบงาน jobId: $jobId');
+        return null;
+      }
+
+      final data = doc.data();
+      return (data?['job_status'] as num?)?.toInt();
+    } catch (e) {
+      debugPrint('เกิดข้อผิดพลาดในการดึงสถานะงาน: $e');
+      return null;
+    }
+  }
+
   String getNotificationMessage(int type) {
     switch (type) {
       case 0:
@@ -285,11 +517,13 @@ class _NotificationsPageState extends State<NotificationsPage> {
       case 3:
         return 'ผู้ให้บริการได้งานแล้ว';
       case 4:
-        return 'งานถูกยกเลิก';
+        return 'ผู้รับบริการยกเลิกงาน';
       case 5:
         return 'มีการรายงาน';
       case 6:
-        return 'มีการยกเลิกงาน';
+        return 'ผู้ให้บริการยกเลิกงาน';
+      case 7:
+        return 'แจ้งเตือนงานล่วงหน้า 1 วัน';
       default:
         return 'คุณมีการแจ้งเตือนใหม่';
     }
