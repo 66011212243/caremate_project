@@ -1,3 +1,4 @@
+import 'package:caremate_application/page/notification_service.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 
@@ -19,6 +20,7 @@ class ReportDetailPage extends StatelessWidget {
     final reportData = reportDoc.data()!;
     final description = reportData['description'] ?? 'ไม่มีรายละเอียด';
     final status_report = reportData['status_re'];
+    final job_id = reportData['job_id'];
 
     // ดึง ID ของ Provider ที่ถูกรายงาน (หรือ reporter_id ของผู้รายงาน)
     final reportedProviderId =
@@ -30,6 +32,7 @@ class ReportDetailPage extends StatelessWidget {
     String vehicleRegistration = 'ไม่ระบุทะเบียนรถ';
     String profileUrl = '';
     int? reportsNum;
+    String userId = '';
 
     // 2. ดึงข้อมูล provider
     if (reportedProviderId.isNotEmpty) {
@@ -48,6 +51,7 @@ class ReportDetailPage extends StatelessWidget {
         // --- ดึง URL รูปโปรไฟล์จาก provider ---
         profileUrl = providerData['profile']?.toString() ?? '';
         reportsNum = providerData['reports_num'];
+        userId = providerData['provider_uid'];
 
         final providerUid =
             (providerData['provider_uid'] ?? providerData['uid'])?.toString() ??
@@ -93,6 +97,8 @@ class ReportDetailPage extends StatelessWidget {
       'reportedProviderId': reportedProviderId,
       'reportsNum': reportsNum,
       'statusReport': status_report,
+      'job_id': job_id,
+      'userId': userId,
     };
   }
 
@@ -127,7 +133,41 @@ class ReportDetailPage extends StatelessWidget {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('แบนบัญชีและอัปเดตสถานะรายงานเรียบร้อยแล้ว'),
+            content: Text('ระงับบัญชีและอัปเดตสถานะรายงานเรียบร้อยแล้ว'),
+          ),
+        );
+
+        Navigator.pop(context);
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('เกิดข้อผิดพลาดในการแบนบัญชี: $e')),
+        );
+      }
+    }
+  }
+
+  Future<void> providerWarning(
+    BuildContext context,
+    String jobId,
+    String userId,
+  ) async {
+    try {
+      final db = FirebaseFirestore.instance;
+      await NotificationService().notifyProviderWarning(
+        jobId: jobId,
+        userId: userId,
+      );
+
+      // 3. อัปเดตสถานะรายงานเป็น 1 (ดำเนินการแล้ว)
+      await db.collection('reports').doc(reportsId).update({'status_re': 1});
+
+      // 4. แจ้งผลลัพธ์
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('ตักเตือนและอัปเดตสถานะรายงานเรียบร้อยแล้ว'),
           ),
         );
 
@@ -398,8 +438,11 @@ class ReportDetailPage extends StatelessWidget {
                                 );
 
                                 if (confirm == true && context.mounted) {
-                                  // TODO: เรียกฟังก์ชันตักเตือนผู้ให้บริการตรงนี้
-                                  // เช่น await _warnProvider(context, providerId);
+                                  await providerWarning(
+                                    context,
+                                    data['job_id'],
+                                    data['userId'],
+                                  );
                                 }
                               },
                               style: ElevatedButton.styleFrom(
@@ -457,7 +500,7 @@ class ReportDetailPage extends StatelessWidget {
                                           ),
                                           SizedBox(width: 8),
                                           Text(
-                                            'ยืนยันการแบนบัญชี',
+                                            'ยืนยันการระงับบัญชี',
                                             style: TextStyle(
                                               fontSize: 18,
                                               fontWeight: FontWeight.bold,
@@ -521,7 +564,7 @@ class ReportDetailPage extends StatelessWidget {
                                 ),
                               ),
                               child: const Text(
-                                'แบนบัญชี',
+                                'ระงับบัญชี',
                                 style: TextStyle(
                                   fontSize: 12,
                                   fontWeight: FontWeight.bold,

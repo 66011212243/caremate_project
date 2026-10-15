@@ -2,6 +2,7 @@ import 'dart:developer';
 
 import 'package:caremate_application/page/map_details_page.dart';
 import 'package:caremate_application/page/myJob_povider.dart';
+import 'package:caremate_application/page/notification_service.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:longdo_maps_api3_flutter/longdo_maps_api3_flutter.dart';
@@ -475,10 +476,12 @@ class _DetailsJobState extends State<DetailsJob> {
                                           ? Icons.work_outline
                                           : statusDrivers == 0
                                           ? Icons.hourglass_empty
-                                          : statusDrivers == 1
+                                          : statusDrivers == 1 ||
+                                                statusDrivers == 5
                                           ? Icons.check_circle_outline
                                           : statusDrivers == 2 ||
-                                                statusDrivers == 6
+                                                statusDrivers == 6 ||
+                                                statusDrivers == 7
                                           ? Icons.info_outline
                                           : Icons.directions_car,
                                       size: 22,
@@ -496,9 +499,15 @@ class _DetailsJobState extends State<DetailsJob> {
                                     ? 'ตำแหน่งเต็ม'
                                     : statusDrivers == 6
                                     ? 'ไม่สามารถสมัครงานได้'
+                                    : statusDrivers == 7
+                                    ? 'ถูกยกเลิกแล้ว'
                                     : statusDrivers == 3
                                     ? 'พร้อมทำงาน'
-                                    : 'กำลังทำงาน',
+                                    : statusDrivers == 4
+                                    ? 'กำลังทำงาน'
+                                    : statusDrivers == 5
+                                    ? 'งานเสร็จสิ้น'
+                                    : 'ไม่ทราบสถานะ',
                                 style: const TextStyle(
                                   fontSize: 16,
                                   fontWeight: FontWeight.bold,
@@ -511,9 +520,14 @@ class _DetailsJobState extends State<DetailsJob> {
                                     ? Colors.red
                                     : statusDrivers == 0
                                     ? const Color.fromARGB(255, 110, 110, 110)
-                                    : statusDrivers == 1
+                                    : statusDrivers == 1 ||
+                                          statusDrivers == 3 ||
+                                          statusDrivers == 4 ||
+                                          statusDrivers == 5
                                     ? const Color.fromARGB(255, 15, 221, 0)
-                                    : statusDrivers == 2 || statusDrivers == 6
+                                    : statusDrivers == 2 ||
+                                          statusDrivers == 6 ||
+                                          statusDrivers == 7
                                     ? const Color.fromARGB(255, 220, 109, 102)
                                     : Colors.black,
                                 foregroundColor: Colors.white,
@@ -521,9 +535,14 @@ class _DetailsJobState extends State<DetailsJob> {
                                     ? const Color.fromARGB(255, 110, 110, 110)
                                     : statusDrivers == 0
                                     ? const Color.fromARGB(255, 110, 110, 110)
-                                    : statusDrivers == 1
+                                    : statusDrivers == 1 ||
+                                          statusDrivers == 3 ||
+                                          statusDrivers == 4 ||
+                                          statusDrivers == 5
                                     ? const Color.fromARGB(255, 15, 221, 0)
-                                    : statusDrivers == 2 || statusDrivers == 6
+                                    : statusDrivers == 2 ||
+                                          statusDrivers == 6 ||
+                                          statusDrivers == 7
                                     ? const Color.fromARGB(255, 220, 109, 102)
                                     : const Color.fromARGB(255, 15, 221, 0),
                                 disabledForegroundColor: Colors.white,
@@ -694,6 +713,7 @@ class _DetailsJobState extends State<DetailsJob> {
     log("data ที่กำลังบันทึก: $data");
 
     await driverDoc.set(data);
+    await NotificationService().notifyService(jobId: jobId);
   }
 
   Future<void> checkApplied() async {
@@ -766,6 +786,9 @@ class _DetailsJobState extends State<DetailsJob> {
       await incrementCancelCount();
 
       if (!mounted) return;
+      await NotificationService().notifyServiceProviderCancelledJob(
+        jobId: widget.jobId,
+      );
 
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(

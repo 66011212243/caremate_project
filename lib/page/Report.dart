@@ -1,3 +1,4 @@
+import 'package:caremate_application/page/notification_service.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
@@ -68,6 +69,7 @@ class _ReportPageState extends State<ReportPage> {
       });
 
       if (!context.mounted) return;
+      await NotificationService().notifyAdminsNewReport(jobId: widget.jobId);
 
       ScaffoldMessenger.of(
         context,

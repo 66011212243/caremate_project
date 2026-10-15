@@ -2,12 +2,15 @@ import 'package:caremate_application/page/Bank.dart';
 import 'package:caremate_application/page/Changepassword.dart';
 import 'package:caremate_application/page/admin_all_report.dart';
 import 'package:caremate_application/page/admin_price_page.dart';
+import 'package:caremate_application/page/app_session.dart';
 import 'package:caremate_application/page/document.dart';
 import 'package:caremate_application/page/driver_pending_approval_page.dart';
 import 'package:caremate_application/page/login.dart';
 import 'package:caremate_application/page/profile_provider.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 
 class SettingAdmin extends StatefulWidget {
   final String uid;
@@ -167,7 +170,12 @@ class _SettingsPageState extends State<SettingAdmin> {
                   backgroundColor: Colors.red,
                   padding: const EdgeInsets.symmetric(vertical: 16),
                 ),
-                onPressed: () {
+                onPressed: () async {
+                  await GoogleSignIn().signOut();
+                  await FirebaseAuth.instance.signOut();
+                  await AppSession.clear();
+
+                  if (!context.mounted) return;
                   Navigator.pushAndRemoveUntil(
                     context,
                     MaterialPageRoute(builder: (context) => const LoginPage()),

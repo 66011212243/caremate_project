@@ -1,6 +1,7 @@
 import 'package:caremate_application/page/accountStatusPage.dart';
 import 'package:caremate_application/page/auth_navigation.dart';
 import 'package:caremate_application/page/document.dart';
+import 'package:caremate_application/page/homepage_admin.dart';
 import 'package:caremate_application/page/homepage_provider.dart';
 import 'package:caremate_application/page/homepage_service.dart';
 import 'package:flutter/material.dart';
@@ -9,6 +10,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'dart:developer';
+import 'package:caremate_application/page/app_session.dart';
 
 Future<void> signInWithGoogle(
   BuildContext context, {
@@ -70,6 +72,7 @@ Future<void> signInWithGoogle(
     log('User Role: $role');
 
     if (!context.mounted) return;
+    await AppSession.save(userId, role);
 
     // 7. แยก Role
     if (role == 0) {
@@ -86,8 +89,11 @@ Future<void> signInWithGoogle(
       await navigateAfterLogin(context: context, uid: userId, role: role);
     } else if (role == 2) {
       onLoadingEnd();
-
-      // TODO: นำทางไปหน้า Admin
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(builder: (_) => HomepageAdmin(uid: userId)),
+        (route) => false,
+      );
       log('เข้าสู่ระบบ Admin');
     } else {
       Fluttertoast.showToast(msg: 'ประเภทบัญชีไม่ถูกต้อง');

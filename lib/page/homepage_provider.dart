@@ -34,6 +34,8 @@ class _HomepageProviderState extends State<HomepageProvider> {
   int? statusDoc;
   String? rejectReason;
 
+  int? selectedVehicleType;
+
   @override
   void initState() {
     // TODO: implement initState
@@ -88,7 +90,7 @@ class _HomepageProviderState extends State<HomepageProvider> {
       appBar: AppBar(
         title: Text(
           _selectedIndex == 0
-              ? "ประกาศจ้าง"
+              ? "ประกาศงาน"
               : _selectedIndex == 1
               ? "งานของฉัน"
               : _selectedIndex == 2
@@ -97,7 +99,7 @@ class _HomepageProviderState extends State<HomepageProvider> {
           style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
         ),
         backgroundColor: Color.fromARGB(255, 255, 0, 0),
-        toolbarHeight: 90,
+        toolbarHeight: 70,
         automaticallyImplyLeading: false,
       ),
 
@@ -117,6 +119,26 @@ class _HomepageProviderState extends State<HomepageProvider> {
                       // ปุ่มกรองเวลา
                       // =========================
                       Padding(
+                        padding: const EdgeInsets.only(top: 10, left: 15),
+                        child: Row(
+                          children: [
+                            Icon(
+                              Icons.access_time,
+                              size: 20,
+                              color: Colors.grey[700],
+                            ),
+                            const SizedBox(width: 8),
+                            const Text(
+                              "เวลาเริ่มงาน",
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Padding(
                         padding: const EdgeInsets.only(top: 10),
                         child: Container(
                           height: 40,
@@ -133,7 +155,7 @@ class _HomepageProviderState extends State<HomepageProvider> {
                                   width: 100,
                                   height: 42,
                                   child: ElevatedButton(
-                                    onPressed: showAllJobs,
+                                    onPressed: showAllHours,
                                     style: ElevatedButton.styleFrom(
                                       backgroundColor: selectedHour == null
                                           ? Colors.red
@@ -215,6 +237,89 @@ class _HomepageProviderState extends State<HomepageProvider> {
 
                       // เส้นคั่นบาง ๆ
                       Container(height: 1, color: Colors.grey.shade200),
+
+                      Padding(
+                        padding: const EdgeInsets.only(top: 20, left: 15),
+                        child: Row(
+                          children: [
+                            Icon(
+                              Icons.directions_car,
+                              size: 20,
+                              color: Colors.grey[700],
+                            ),
+                            const SizedBox(width: 8),
+                            const Text(
+                              "ประเภทรถ",
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.only(top: 10),
+                        child: Container(
+                          height: 40,
+                          color: Colors.white,
+                          child: Row(
+                            children: [
+                              // ปุ่มทั้งหมด ล็อกอยู่ด้านซ้าย
+                              Padding(
+                                padding: const EdgeInsets.only(
+                                  left: 15,
+                                  right: 8,
+                                ),
+                                child: SizedBox(
+                                  width: 100,
+                                  height: 42,
+                                  child: ElevatedButton(
+                                    onPressed: showAllVehicles,
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor:
+                                          selectedVehicleType == null
+                                          ? Colors.red
+                                          : Colors.white,
+                                      foregroundColor:
+                                          selectedVehicleType == null
+                                          ? Colors.white
+                                          : Colors.red,
+                                      elevation: 0,
+                                      side: const BorderSide(color: Colors.red),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
+                                    ),
+                                    child: const Text(
+                                      'ทั้งหมด',
+                                      style: TextStyle(
+                                        fontSize: 15,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+
+                              _buildVehicleButton(
+                                label: 'รถยนต์',
+                                icon: Icons.directions_car,
+                                vehicleType: 1,
+                              ),
+
+                              const SizedBox(width: 8),
+
+                              // รถจักรยานยนต์
+                              _buildVehicleButton(
+                                label: 'รถจักรยานยนต์',
+                                icon: Icons.two_wheeler,
+                                vehicleType: 0,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
 
                       // =========================
                       // รายการงาน
@@ -478,7 +583,7 @@ class _HomepageProviderState extends State<HomepageProvider> {
 
       bottomNavigationBar: BottomNavigationBar(
         type: BottomNavigationBarType.fixed,
-        selectedItemColor: Color.fromARGB(255, 255, 0, 0),
+        selectedItemColor: const Color.fromARGB(255, 255, 0, 0),
         currentIndex: _selectedIndex,
 
         onTap: (index) {
@@ -492,13 +597,53 @@ class _HomepageProviderState extends State<HomepageProvider> {
         },
 
         items: [
-          BottomNavigationBarItem(icon: Icon(Icons.home), label: "หน้าหลัก"),
-          BottomNavigationBarItem(icon: Icon(Icons.work), label: "งาน"),
+          const BottomNavigationBarItem(
+            icon: Icon(Icons.home),
+            label: "หน้าหลัก",
+          ),
+          const BottomNavigationBarItem(icon: Icon(Icons.work), label: "งาน"),
+
+          // ไอคอนแจ้งเตือนพร้อมจุดสีแดง
           BottomNavigationBarItem(
-            icon: Icon(Icons.notifications),
+            icon: StreamBuilder(
+              stream: FirebaseFirestore.instance
+                  .collection('notifications')
+                  .where('uid', isEqualTo: widget.uid)
+                  .where('notification_status', isEqualTo: 0)
+                  .snapshots(),
+              builder: (context, snapshot) {
+                final hasUnread =
+                    snapshot.hasData && snapshot.data!.docs.isNotEmpty;
+
+                return Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    const Icon(Icons.notifications),
+
+                    if (hasUnread)
+                      Positioned(
+                        right: -3,
+                        top: -2,
+                        child: Container(
+                          width: 10,
+                          height: 10,
+                          decoration: const BoxDecoration(
+                            color: Colors.red,
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                      ),
+                  ],
+                );
+              },
+            ),
             label: "ข้อความ",
           ),
-          BottomNavigationBarItem(icon: Icon(Icons.settings), label: "ตั้งค่า"),
+
+          const BottomNavigationBarItem(
+            icon: Icon(Icons.settings),
+            label: "ตั้งค่า",
+          ),
         ],
       ),
     );
@@ -510,28 +655,90 @@ class _HomepageProviderState extends State<HomepageProvider> {
     });
 
     try {
-      var querySnapshot = await db
+      // 1. ดึงเฉพาะงานที่ยังเปิดรับ
+      final querySnapshot = await db
           .collection('jobs')
           .where('job_status', isEqualTo: 0)
           .get();
 
-      List<Map<String, dynamic>> tempList = [];
+      // 2. ดึงรายการงานที่ผู้ให้บริการคนนี้เคยสมัคร
+      final applicationSnapshot = await db
+          .collection('all_drivers')
+          .where('provider_id', isEqualTo: pid)
+          .get();
 
-      for (var doc in querySnapshot.docs) {
-        var data = doc.data();
+      final appliedJobIds = applicationSnapshot.docs
+          .map((doc) => doc.data()['job_id'].toString())
+          .toSet();
 
-        var fullData = {...data, 'job_id': doc.id};
+      final now = DateTime.now();
+      final tempList = <Map<String, dynamic>>[];
 
-        tempList.add(fullData);
+      for (final doc in querySnapshot.docs) {
+        final data = doc.data();
+        final jobId = doc.id;
+
+        // 3. ซ่อนงานที่เคยสมัครแล้ว
+        if (appliedJobIds.contains(jobId)) {
+          continue;
+        }
+
+        // 4. ตรวจสอบวันที่และเวลาเริ่มงาน
+        try {
+          final dateParts = (data['date'] as String).split('/');
+          final timeParts = (data['start_time'] as String).split(':');
+
+          final startDateTime = DateTime(
+            int.parse(dateParts[2]), // ปี
+            int.parse(dateParts[1]), // เดือน
+            int.parse(dateParts[0]), // วัน
+            int.parse(timeParts[0]), // ชั่วโมง
+            int.parse(timeParts[1]), // นาที
+          );
+
+          // ไม่แสดงงานที่ถึงเวลาเริ่มแล้ว
+          if (!startDateTime.isAfter(now)) {
+            continue;
+          }
+        } catch (e) {
+          // หากวันเวลาผิดรูปแบบ ไม่แสดงงานนั้นเพื่อป้องกันข้อมูลผิดพลาด
+          debugPrint('วันเวลาของงาน $jobId ไม่ถูกต้อง: $e');
+          continue;
+        }
+
+        // 5. เพิ่มงานที่ผ่านเงื่อนไข
+        tempList.add({...data, 'job_id': jobId});
       }
+
+      // เรียงงานตามวันและเวลาเริ่มงานจากใกล้ที่สุดก่อน
+      tempList.sort((a, b) {
+        DateTime getStartDateTime(Map<String, dynamic> job) {
+          final dateParts = (job['date'] as String).split('/');
+          final timeParts = (job['start_time'] as String).split(':');
+
+          return DateTime(
+            int.parse(dateParts[2]), // ปี
+            int.parse(dateParts[1]), // เดือน
+            int.parse(dateParts[0]), // วัน
+            int.parse(timeParts[0]), // ชั่วโมง
+            int.parse(timeParts[1]), // นาที
+          );
+        }
+
+        return getStartDateTime(a).compareTo(getStartDateTime(b));
+      });
+
+      if (!mounted) return;
 
       setState(() {
         allJobs = tempList;
-        filteredJobs = tempList;
+        filteredJobs = List.from(tempList);
         isLoading = false;
       });
     } catch (e) {
-      print("Error fetching jobs: $e");
+      debugPrint('Error fetching jobs: $e');
+
+      if (!mounted) return;
 
       setState(() {
         isLoading = false;
@@ -627,32 +834,98 @@ class _HomepageProviderState extends State<HomepageProvider> {
     }
   }
 
-  void showAllJobs() {
+  // ล้างเฉพาะตัวกรองเวลา
+  void showAllHours() {
     setState(() {
       selectedHour = null;
-      filteredJobs = allJobs;
+      _applyFilters();
     });
   }
 
-  void filterJobsByStartHour(int selectedHour) {
+  // ล้างเฉพาะตัวกรองประเภทรถ
+  void showAllVehicles() {
     setState(() {
-      filteredJobs = allJobs.where((job) {
-        final startTime = job['start_time'];
-
-        if (startTime == null) {
-          return false;
-        }
-
-        final timeParts = startTime.toString().split(':');
-
-        if (timeParts.isEmpty) {
-          return false;
-        }
-
-        final hour = int.tryParse(timeParts[0]);
-
-        return hour == selectedHour;
-      }).toList();
+      selectedVehicleType = null;
+      _applyFilters();
     });
+  }
+
+  // ล้างตัวกรองทุกอย่าง
+  void showAllJobs() {
+    setState(() {
+      selectedHour = null;
+      selectedVehicleType = null;
+      _applyFilters();
+    });
+  }
+
+  void _applyFilters() {
+    filteredJobs = allJobs.where((job) {
+      // กรองเวลา โดยรองรับทั้ง 8.00 และ 08.00
+      final startTime = job['start_time'].toString().trim();
+
+      final matchHour =
+          selectedHour == null || _getHour(startTime) == selectedHour;
+
+      // กรองประเภทรถ
+      final matchVehicle =
+          selectedVehicleType == null ||
+          job['vehicle_type'] == selectedVehicleType;
+
+      return matchHour && matchVehicle;
+    }).toList();
+  }
+
+  // แปลงเวลา เช่น 8.00, 08.00, 8:00 ให้เป็นชั่วโมง 8
+  int? _getHour(String time) {
+    final normalizedTime = time.replaceAll(':', '.');
+    final parts = normalizedTime.split('.');
+
+    if (parts.isEmpty) return null;
+
+    return int.tryParse(parts[0]);
+  }
+
+  void filterJobsByStartHour(int hour) {
+    setState(() {
+      selectedHour = hour;
+      _applyFilters();
+    });
+  }
+
+  void filterByVehicle(int? vehicleType) {
+    setState(() {
+      selectedVehicleType = vehicleType;
+      _applyFilters();
+    });
+  }
+
+  Widget _buildVehicleButton({
+    required String label,
+    required IconData icon,
+    required int vehicleType,
+  }) {
+    final isSelected = selectedVehicleType == vehicleType;
+
+    return SizedBox(
+      height: 42,
+      child: ElevatedButton.icon(
+        onPressed: () => filterByVehicle(vehicleType),
+        icon: Icon(icon, size: 18),
+        label: Text(
+          label,
+          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+        ),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: isSelected ? Colors.red : Colors.white,
+          foregroundColor: isSelected ? Colors.white : Colors.red,
+          elevation: 0,
+          side: const BorderSide(color: Colors.red),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+        ),
+      ),
+    );
   }
 }

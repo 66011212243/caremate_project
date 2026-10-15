@@ -2,11 +2,14 @@ import 'package:caremate_application/page/Changepassword.dart';
 import 'package:caremate_application/page/Review_history_provider.dart';
 import 'package:caremate_application/page/Review_history_service.dart';
 import 'package:caremate_application/page/address_service_page.dart';
+import 'package:caremate_application/page/app_session.dart';
 import 'package:caremate_application/page/history_job_service.dart';
 import 'package:caremate_application/page/login.dart';
 import 'package:caremate_application/page/profile_service.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 
 class SettingsService extends StatefulWidget {
   final String sid;
@@ -243,7 +246,12 @@ class _SettingsPageState extends State<SettingsService> {
                   backgroundColor: Colors.red,
                   padding: const EdgeInsets.symmetric(vertical: 16),
                 ),
-                onPressed: () {
+                onPressed: () async {
+                  await GoogleSignIn().signOut();
+                  await FirebaseAuth.instance.signOut();
+                  await AppSession.clear();
+
+                  if (!context.mounted) return;
                   Navigator.pushAndRemoveUntil(
                     context,
                     MaterialPageRoute(builder: (context) => const LoginPage()),

@@ -116,12 +116,6 @@ class _AdminAllReportState extends State<AdminAllReport> {
               fontSize: 20,
             ),
           ),
-          actions: [
-            IconButton(
-              icon: const Icon(Icons.filter_list, color: Colors.white),
-              onPressed: () {},
-            ),
-          ],
         ),
         body: Column(
           children: [
