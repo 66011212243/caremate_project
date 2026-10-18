@@ -32,13 +32,14 @@ class _ReviewPageState extends State<ReviewPage> {
   }
 
   //  3. ฟังก์ชันบันทึกลง Firebase
-  void _saveReview(BuildContext context) async {
+  Future<void> _saveReview(BuildContext context) async {
     if (commentController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('กรุณากรอกรายละเอียดเพิ่มเติม')),
       );
       return;
     }
+    startLoading();
 
     try {
       await FirebaseFirestore.instance.collection('review').add({
@@ -60,6 +61,8 @@ class _ReviewPageState extends State<ReviewPage> {
           context,
         ).showSnackBar(SnackBar(content: Text('เกิดข้อผิดพลาด: $e')));
       }
+    } finally {
+      stopLoading();
     }
   }
 
@@ -353,9 +356,9 @@ class _ReviewPageState extends State<ReviewPage> {
 
               /// ปุ่มรีวิว
               Center(
-                child: SizedBox(
-                  width: 120,
-
+                child:  AnimatedContainer(
+                  duration: const Duration(milliseconds: 200),
+                  width: isReviewLoading ? 160 : 120,
                   child: ElevatedButton(
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.red,
@@ -366,15 +369,47 @@ class _ReviewPageState extends State<ReviewPage> {
                       ),
 
                       padding: const EdgeInsets.symmetric(vertical: 14),
+                      disabledBackgroundColor: const Color(
+                        0xFFD32F2F,
+                      ).withOpacity(0.6),
+                      disabledForegroundColor: Colors.white,
                     ),
 
                     onPressed: isReviewLoading
                         ? null
                         : () async {
-                             _saveReview(context);
+                            await _saveReview(context);
                           },
 
-                    child: const Text("รีวิว"),
+                    child: isReviewLoading
+                        ? const Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              SizedBox(
+                                width: 18,
+                                height: 18,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: Colors.white,
+                                ),
+                              ),
+                              SizedBox(width: 8),
+                              Text(
+                                "กำลังบันทึก...",
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
+                          )
+                        : const Text(
+                            "รีวิว",
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
                   ),
                 ),
               ),
