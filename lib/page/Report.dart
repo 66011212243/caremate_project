@@ -19,6 +19,18 @@ class ReportPage extends StatefulWidget {
 }
 
 class _ReportPageState extends State<ReportPage> {
+  bool isReportLoading = false;
+
+  void startLoading() {
+    if (!mounted) return;
+    setState(() => isReportLoading = true);
+  }
+
+  void stopLoading() {
+    if (!mounted) return;
+    setState(() => isReportLoading = false);
+  }
+
   //  2. สร้างตัวแปรเก็บข้อความ และ คะแนนดาว (ใช้ ValueNotifier แบบง่าย ไม่ต้องแปลงเป็น StatefulWidget)
   final TextEditingController commentController = TextEditingController();
 
@@ -181,7 +193,13 @@ class _ReportPageState extends State<ReportPage> {
                     borderRadius: BorderRadius.circular(25),
                   ),
                 ),
-                onPressed: () => _saveReport(context),
+
+                onPressed: isReportLoading
+                    ? null
+                    : () async {
+                        _saveReport(context);
+                      },
+
                 child: const Text(
                   "รายงาน",
                   style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),

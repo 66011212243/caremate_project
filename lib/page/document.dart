@@ -91,30 +91,38 @@ class _DocumentPageState extends State<DocumentPage> {
         switch (type) {
           case 'idcard':
             bikeIdCardImage = photo;
+            bikeIdCardUrl = null;
             break;
           case 'license':
             bikeLicenseImage = photo;
+            bikeLicenseUrl = null;
             break;
           case 'vehicle':
             bikeVehicleBookImage = photo;
+            bikeVehicleBookUrl = null;
             break;
           case 'insurance':
             bikeInsuranceImage = photo;
+            bikeInsuranceUrl = null;
             break;
         }
       } else {
         switch (type) {
           case 'idcard':
             carIdCardImage = photo;
+            carIdCardUrl = null;
             break;
           case 'license':
             carLicenseImage = photo;
+            carLicenseUrl = null; 
             break;
           case 'vehicle':
             carVehicleBookImage = photo;
+            carVehicleBookUrl = null;
             break;
           case 'insurance':
             carInsuranceImage = photo;
+            carInsuranceUrl = null;
             break;
         }
       }

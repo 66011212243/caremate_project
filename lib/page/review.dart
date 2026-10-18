@@ -19,6 +19,17 @@ class _ReviewPageState extends State<ReviewPage> {
   final ValueNotifier<int> ratingNotifier = ValueNotifier<int>(5);
   bool hasReport = false;
   bool isCheckingReport = true;
+  bool isReviewLoading = false;
+
+  void startLoading() {
+    if (!mounted) return;
+    setState(() => isReviewLoading = true);
+  }
+
+  void stopLoading() {
+    if (!mounted) return;
+    setState(() => isReviewLoading = false);
+  }
 
   //  3. ฟังก์ชันบันทึกลง Firebase
   void _saveReview(BuildContext context) async {
@@ -357,7 +368,11 @@ class _ReviewPageState extends State<ReviewPage> {
                       padding: const EdgeInsets.symmetric(vertical: 14),
                     ),
 
-                    onPressed: () => _saveReview(context),
+                    onPressed: isReviewLoading
+                        ? null
+                        : () async {
+                             _saveReview(context);
+                          },
 
                     child: const Text("รีวิว"),
                   ),
