@@ -13,6 +13,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:bcrypt/bcrypt.dart';
 import 'dart:developer';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 
 class LoginPage extends StatelessWidget {
   const LoginPage({super.key});
@@ -37,6 +38,7 @@ class _WelcomePageState extends State<WelcomePage> {
 
   bool isLoading = false;
   bool isGoogleLoading = false;
+  bool hidePassword = true;
 
   void startLoading() {
     if (!mounted) return;
@@ -90,12 +92,22 @@ class _WelcomePageState extends State<WelcomePage> {
                 padding: EdgeInsets.symmetric(horizontal: 50, vertical: 16),
                 child: TextField(
                   controller: passwordController,
-                  obscureText: true,
+                  obscureText: hidePassword,
                   decoration: InputDecoration(
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.all(Radius.circular(25)),
                     ),
                     hintText: 'รหัสผ่าน',
+                    suffixIcon: IconButton(
+                      icon: Icon(
+                        hidePassword ? Icons.visibility_off : Icons.visibility,
+                      ),
+                      onPressed: () {
+                        setState(() {
+                          hidePassword = !hidePassword;
+                        });
+                      },
+                    ),
                   ),
                 ),
               ),
@@ -174,6 +186,11 @@ class _WelcomePageState extends State<WelcomePage> {
                       : const Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
+                            FaIcon(
+                              FontAwesomeIcons.google,
+                              color: Colors.red,
+                              size: 20,
+                            ),
                             SizedBox(width: 10),
                             Text("เข้าสู่ระบบด้วย Google"),
                           ],

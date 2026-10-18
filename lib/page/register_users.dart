@@ -9,6 +9,7 @@ import 'package:bcrypt/bcrypt.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:fluttertoast/fluttertoast.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 
 class RegisterUsers extends StatefulWidget {
   final int role;
@@ -29,6 +30,8 @@ class _RegisterUsersState extends State<RegisterUsers> {
   final db = FirebaseFirestore.instance;
 
   bool isLoading = false;
+  bool hidePassword = true;
+  bool hideConfirmPassword = true;
 
   @override
   Widget build(BuildContext context) {
@@ -120,12 +123,22 @@ class _RegisterUsersState extends State<RegisterUsers> {
                 ),
                 child: TextField(
                   controller: passwordCtl,
-                  obscureText: true,
-                  decoration: const InputDecoration(
+                  obscureText: hidePassword,
+                  decoration: InputDecoration(
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.all(Radius.circular(25)),
                     ),
                     hintText: 'รหัสผ่าน',
+                    suffixIcon: IconButton(
+                      icon: Icon(
+                        hidePassword ? Icons.visibility_off : Icons.visibility,
+                      ),
+                      onPressed: () {
+                        setState(() {
+                          hidePassword = !hidePassword;
+                        });
+                      },
+                    ),
                   ),
                 ),
               ),
@@ -137,12 +150,24 @@ class _RegisterUsersState extends State<RegisterUsers> {
                 ),
                 child: TextField(
                   controller: confirmCtl,
-                  obscureText: true,
-                  decoration: const InputDecoration(
+                  obscureText: hideConfirmPassword,
+                  decoration: InputDecoration(
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.all(Radius.circular(25)),
                     ),
                     hintText: 'ยืนยันรหัสผ่าน',
+                    suffixIcon: IconButton(
+                      icon: Icon(
+                        hideConfirmPassword
+                            ? Icons.visibility_off
+                            : Icons.visibility,
+                      ),
+                      onPressed: () {
+                        setState(() {
+                          hideConfirmPassword = !hideConfirmPassword;
+                        });
+                      },
+                    ),
                   ),
                 ),
               ),
@@ -194,7 +219,15 @@ class _RegisterUsersState extends State<RegisterUsers> {
                         },
                   child: const Row(
                     mainAxisAlignment: MainAxisAlignment.center,
-                    children: [SizedBox(width: 10), Text("สมัครด้วย Google")],
+                    children: [
+                      FaIcon(
+                        FontAwesomeIcons.google,
+                        color: Colors.red,
+                        size: 20,
+                      ),
+                      SizedBox(width: 10),
+                      Text("สมัครด้วย Google"),
+                    ],
                   ),
                 ),
               ),
