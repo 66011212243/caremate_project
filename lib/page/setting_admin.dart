@@ -7,6 +7,7 @@ import 'package:caremate_application/page/app_session.dart';
 import 'package:caremate_application/page/document.dart';
 import 'package:caremate_application/page/driver_pending_approval_page.dart';
 import 'package:caremate_application/page/login.dart';
+import 'package:caremate_application/page/notification_system.dart';
 import 'package:caremate_application/page/profile_provider.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
@@ -182,6 +183,7 @@ class _SettingsPageState extends State<SettingAdmin> {
                   padding: const EdgeInsets.symmetric(vertical: 16),
                 ),
                 onPressed: () async {
+                  await NotificationSystem().removeToken(widget.uid);
                   await GoogleSignIn().signOut();
                   await FirebaseAuth.instance.signOut();
                   await AppSession.clear();

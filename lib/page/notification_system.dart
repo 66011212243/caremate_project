@@ -16,6 +16,7 @@ class NotificationSystem {
   StreamSubscription<String>? _tokenSub;
   StreamSubscription<RemoteMessage>? _fgSub;
   StreamSubscription<RemoteMessage>? _openedSub;
+  StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? _notificationSub;
 
   Future<void> setupNotification(String userId) async {
     try {
@@ -98,7 +99,7 @@ class NotificationSystem {
     const ios = DarwinInitializationSettings();
 
     await _local.initialize(
-      settings: const InitializationSettings(android: android, iOS: ios),
+      const InitializationSettings(android: android, iOS: ios),
     );
 
     // สร้างช่องแจ้งเตือน Android
@@ -121,10 +122,10 @@ class NotificationSystem {
       if (n == null) return;
 
       _local.show(
-        id: n.hashCode,
-        title: n.title,
-        body: n.body,
-        notificationDetails: const NotificationDetails(
+        n.hashCode,
+        n.title,
+        n.body,
+        const NotificationDetails(
           android: AndroidNotificationDetails(
             'high_importance_channel',
             'การแจ้งเตือนสำคัญ',
@@ -135,5 +136,96 @@ class NotificationSystem {
         ),
       );
     });
+  }
+
+  Future<void> listenFirestoreNotifications(String uid) async {
+    await _notificationSub?.cancel();
+
+    bool isFirstSnapshot = true;
+
+    _notificationSub = _firestore
+        .collection('notifications')
+        .where('uid', isEqualTo: uid)
+        .snapshots()
+        .listen((snapshot) async {
+          print('กำลังฟังแจ้งเตือนของ uid: $uid');
+          print('จำนวนเอกสารที่พบ: ${snapshot.docs.length}');
+          print('จำนวนเอกสารที่เปลี่ยนแปลง: ${snapshot.docChanges.length}');
+          // ข้ามข้อมูลทั้งหมดที่มีอยู่แล้วตอนเริ่มฟัง
+          if (isFirstSnapshot) {
+            isFirstSnapshot = false;
+            return;
+          }
+
+          for (final change in snapshot.docChanges) {
+            if (change.type != DocumentChangeType.added) continue;
+
+            final data = change.doc.data();
+
+            final title = data?['title'] as String? ?? 'CareMate';
+            final type = data?['notification_type'];
+            final jobId = data?['job_id']?.toString() ?? '';
+
+            await _local.show(
+              change.doc.id.hashCode & 0x7fffffff, // id
+              title, // title
+              _notificationBody(type), // body
+              const NotificationDetails(
+                android: AndroidNotificationDetails(
+                  'high_importance_channel',
+                  'การแจ้งเตือนสำคัญ',
+                  channelDescription: 'การแจ้งเตือนจาก CareMate',
+                  importance: Importance.high,
+                  priority: Priority.high,
+                ),
+                iOS: DarwinNotificationDetails(),
+              ),
+              payload: jobId,
+            );
+          }
+        });
+  }
+
+  Future<void> testShow() async {
+  await _local.show(
+    1,
+    'ทดสอบ',
+    'ข้อความทดสอบ',
+    const NotificationDetails(
+      android: AndroidNotificationDetails(
+        'high_importance_channel',
+        'การแจ้งเตือนสำคัญ',
+        importance: Importance.high,
+        priority: Priority.high,
+      ),
+    ),
+  );
+}
+
+  String _notificationBody(dynamic type) {
+    switch (type) {
+      case 0:
+        return 'มีผู้สมัครงานใหม่';
+      case 1:
+        return 'ผู้ให้บริการเริ่มงานแล้ว';
+      case 2:
+        return 'มีประกาศงานใหม่';
+      case 3:
+        return 'ผู้ให้บริการได้งานแล้ว';
+      case 4:
+        return 'ผู้รับบริการยกเลิกงาน';
+      case 5:
+        return 'มีการรายงาน';
+      case 6:
+        return 'ผู้ให้บริการยกเลิกงาน';
+      case 7:
+        return 'ผู้ให้บริการถูกระงับ';
+      case 8:
+        return 'ได้รับคำเตือนจากแอดมิน';
+      case 9:
+        return 'บัญชีถูกระงับการใช้งาน';
+      default:
+        return 'คุณมีการแจ้งเตือนใหม่';
+    }
   }
 }
