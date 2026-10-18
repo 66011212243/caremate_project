@@ -44,6 +44,7 @@ class _ReportPageState extends State<ReportPage> {
       );
       return;
     }
+    startLoading();
 
     try {
       final db = FirebaseFirestore.instance;
@@ -95,6 +96,9 @@ class _ReportPageState extends State<ReportPage> {
         context,
       ).showSnackBar(SnackBar(content: Text('เกิดข้อผิดพลาด: $e')));
     }
+    finally {
+    stopLoading();
+  }
   }
 
   @override
@@ -189,6 +193,10 @@ class _ReportPageState extends State<ReportPage> {
                   foregroundColor: Colors.white,
                   elevation: 2,
                   shadowColor: Colors.red.withOpacity(0.4),
+                  disabledBackgroundColor: const Color(
+                    0xFFD32F2F,
+                  ).withOpacity(0.6),
+                  disabledForegroundColor: Colors.white,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(25),
                   ),
@@ -197,13 +205,38 @@ class _ReportPageState extends State<ReportPage> {
                 onPressed: isReportLoading
                     ? null
                     : () async {
-                        _saveReport(context);
+                        await _saveReport(context);
                       },
 
-                child: const Text(
-                  "รายงาน",
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                ),
+                child: isReportLoading
+                    ? const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2.5,
+                              color: Colors.white, // สีวงกลมรีโหลด
+                            ),
+                          ),
+                          SizedBox(width: 10),
+                          Text(
+                            "กำลังบันทึก...",
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      )
+                    : const Text(
+                        "รายงาน",
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
               ),
             ),
           ],
