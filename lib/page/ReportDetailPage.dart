@@ -391,10 +391,7 @@ class ReportDetailPage extends StatelessWidget {
       }
 
       // อัปเดตเฉพาะสถานะของรายงานนี้
-      await reportRef.update({
-        'status_re': 1,
-        'reviewed_at': FieldValue.serverTimestamp(),
-      });
+      await reportRef.update({'status_re': 1});
 
       if (!context.mounted) return;
 

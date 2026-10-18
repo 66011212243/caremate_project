@@ -38,6 +38,9 @@ class _DocumentPageState extends State<DocumentPage> {
 
   bool isLoading = false;
 
+  DateTime? expiryDateCar;
+  DateTime? expiryDateBike;
+
   // Car: vehicle_type = 1
   String? carIdCardUrl;
   String? carLicenseUrl;
@@ -216,46 +219,65 @@ class _DocumentPageState extends State<DocumentPage> {
                           // ทะเบียนรถ
                           _buildRejectBanner(carDocument),
                           if (carStatus == 0 || carStatus == 1)
-                            Row(
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
                               children: [
-                                const Spacer(),
-                                Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 12,
-                                    vertical: 6,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: carStatus == 1
-                                        ? Colors.green.withOpacity(0.1)
-                                        : Colors.orange.withOpacity(0.1),
-                                    borderRadius: BorderRadius.circular(20),
-                                  ),
-                                  child: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Icon(
-                                        carStatus == 1
-                                            ? Icons.check_circle
-                                            : Icons.access_time_filled,
-                                        size: 16,
+                                Row(
+                                  children: [
+                                    const Spacer(),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 12,
+                                        vertical: 6,
+                                      ),
+                                      decoration: BoxDecoration(
                                         color: carStatus == 1
-                                            ? Colors.green
-                                            : Colors.orange.shade700,
+                                            ? Colors.green.withOpacity(0.1)
+                                            : Colors.orange.withOpacity(0.1),
+                                        borderRadius: BorderRadius.circular(20),
                                       ),
-                                      const SizedBox(width: 6),
-                                      Text(
-                                        carStatus == 1
-                                            ? "อนุมัติแล้ว"
-                                            : "รออนุมัติ",
-                                        style: TextStyle(
-                                          fontSize: 13,
-                                          fontWeight: FontWeight.w600,
-                                          color: carStatus == 1
-                                              ? Colors.green
-                                              : Colors.orange.shade700,
-                                        ),
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Icon(
+                                            carStatus == 1
+                                                ? Icons.check_circle
+                                                : Icons.access_time_filled,
+                                            size: 16,
+                                            color: carStatus == 1
+                                                ? Colors.green
+                                                : Colors.orange.shade700,
+                                          ),
+                                          const SizedBox(width: 6),
+                                          Text(
+                                            carStatus == 1
+                                                ? 'อนุมัติแล้ว'
+                                                : 'รออนุมัติ',
+                                            style: TextStyle(
+                                              fontSize: 13,
+                                              fontWeight: FontWeight.w600,
+                                              color: carStatus == 1
+                                                  ? Colors.green
+                                                  : Colors.orange.shade700,
+                                            ),
+                                          ),
+                                        ],
                                       ),
-                                    ],
+                                    ),
+                                  ],
+                                ),
+
+                                const SizedBox(height: 6),
+
+                                // วันหมดอายุชิดขวา ใต้สถานะ
+                                Align(
+                                  alignment: Alignment.centerRight,
+                                  child: Text(
+                                    'วันหมดอายุ: ${formatThaiDate(expiryDateCar)}',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: Colors.grey.shade600,
+                                    ),
                                   ),
                                 ),
                               ],
@@ -376,46 +398,62 @@ class _DocumentPageState extends State<DocumentPage> {
                           // ทะเบียนมอเตอร์ไซค์
                           _buildRejectBanner(bikeDocument),
                           if (bikeStatus == 0 || bikeStatus == 1)
-                            Row(
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
                               children: [
-                                const Spacer(),
-                                Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 12,
-                                    vertical: 6,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: bikeStatus == 1
-                                        ? Colors.green.withOpacity(0.1)
-                                        : Colors.orange.withOpacity(0.1),
-                                    borderRadius: BorderRadius.circular(20),
-                                  ),
-                                  child: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Icon(
-                                        bikeStatus == 1
-                                            ? Icons.check_circle
-                                            : Icons.access_time_filled,
-                                        size: 16,
+                                Row(
+                                  children: [
+                                    const Spacer(),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 12,
+                                        vertical: 6,
+                                      ),
+                                      decoration: BoxDecoration(
                                         color: bikeStatus == 1
-                                            ? Colors.green
-                                            : Colors.orange.shade700,
+                                            ? Colors.green.withOpacity(0.1)
+                                            : Colors.orange.withOpacity(0.1),
+                                        borderRadius: BorderRadius.circular(20),
                                       ),
-                                      const SizedBox(width: 6),
-                                      Text(
-                                        bikeStatus == 1
-                                            ? "อนุมัติแล้ว"
-                                            : "รออนุมัติ",
-                                        style: TextStyle(
-                                          fontSize: 13,
-                                          fontWeight: FontWeight.w600,
-                                          color: bikeStatus == 1
-                                              ? Colors.green
-                                              : Colors.orange.shade700,
-                                        ),
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Icon(
+                                            bikeStatus == 1
+                                                ? Icons.check_circle
+                                                : Icons.access_time_filled,
+                                            size: 16,
+                                            color: bikeStatus == 1
+                                                ? Colors.green
+                                                : Colors.orange.shade700,
+                                          ),
+                                          const SizedBox(width: 6),
+                                          Text(
+                                            bikeStatus == 1
+                                                ? 'อนุมัติแล้ว'
+                                                : 'รออนุมัติ',
+                                            style: TextStyle(
+                                              fontSize: 13,
+                                              fontWeight: FontWeight.w600,
+                                              color: bikeStatus == 1
+                                                  ? Colors.green
+                                                  : Colors.orange.shade700,
+                                            ),
+                                          ),
+                                        ],
                                       ),
-                                    ],
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 6),
+                                Align(
+                                  alignment: Alignment.centerRight,
+                                  child: Text(
+                                    'วันหมดอายุ: ${formatThaiDate(expiryDateBike)}',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: Colors.grey.shade600,
+                                    ),
                                   ),
                                 ),
                               ],
@@ -699,6 +737,8 @@ class _DocumentPageState extends State<DocumentPage> {
           carVehicleBookUrl = carDocument?['vehicle_reg_book'];
           carInsuranceUrl = carDocument?['vehicle_insurance_file'];
           carStatus = carDocument?['status_doc'];
+
+          expiryDateCar = _getExpiryDate(carDocument?['approve_at']);
           print(carStatus);
         }
 
@@ -712,6 +752,7 @@ class _DocumentPageState extends State<DocumentPage> {
           bikeVehicleBookUrl = bikeDocument?['vehicle_reg_book'];
           bikeInsuranceUrl = bikeDocument?['vehicle_insurance_file'];
           bikeStatus = bikeDocument?['status_doc'];
+          expiryDateBike = _getExpiryDate(bikeDocument?['approve_at']);
           print(bikeStatus);
         }
 
@@ -728,6 +769,37 @@ class _DocumentPageState extends State<DocumentPage> {
     }
   }
 
+  DateTime? _getExpiryDate(dynamic approvedAt) {
+    if (approvedAt is! Timestamp) return null;
+
+    final approved = approvedAt.toDate();
+    final targetMonth = approved.month + 6;
+    final year = approved.year + (targetMonth - 1) ~/ 12;
+    final month = (targetMonth - 1) % 12 + 1;
+
+    final lastDay = DateTime(year, month + 1, 0).day;
+    final day = approved.day > lastDay ? lastDay : approved.day;
+
+    return DateTime(
+      year,
+      month,
+      day,
+      approved.hour,
+      approved.minute,
+      approved.second,
+    );
+  }
+
+  String formatThaiDate(DateTime? date) {
+    if (date == null) return 'ไม่พบข้อมูลวันหมดอายุ';
+
+    final day = date.day.toString().padLeft(2, '0');
+    final month = date.month.toString().padLeft(2, '0');
+    final year = date.year.toString();
+
+    return '$day/$month/$year';
+  }
+
   Future<void> saveProvider(int type) async {
     // type = 1 คือรถยนต์
     // type = 0 คือมอเตอร์ไซค์
@@ -740,14 +812,14 @@ class _DocumentPageState extends State<DocumentPage> {
     final vehicleFile = type == 1 ? carVehicleBookImage : bikeVehicleBookImage;
     final insuranceFile = type == 1 ? carInsuranceImage : bikeInsuranceImage;
 
-    // ★ เอกสารเดิมของประเภทนี้ (ถ้ามี) และเช็กว่าเป็นการส่งใหม่หลังถูกปฏิเสธหรือไม่
+    //  เอกสารเดิมของประเภทนี้ (ถ้ามี) และเช็กว่าเป็นการส่งใหม่หลังถูกปฏิเสธหรือไม่
     final existingDoc = isBike ? bikeDocument : carDocument;
     final existingId = isBike ? bikeDocId : carDocId;
     final isResubmit = _isRejected(existingDoc) && existingId != null;
 
     if (isLoading) return;
 
-    // ★ ตอนส่งใหม่ รูปที่ไม่ได้ถ่ายใหม่ใช้ URL เดิมได้
+    //  ตอนส่งใหม่ รูปที่ไม่ได้ถ่ายใหม่ใช้ URL เดิมได้
     bool missing(XFile? file, String key) =>
         file == null &&
         !(isResubmit && (existingDoc?[key] ?? '').toString().isNotEmpty);

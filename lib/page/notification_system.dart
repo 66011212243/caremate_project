@@ -186,22 +186,6 @@ class NotificationSystem {
         });
   }
 
-  Future<void> testShow() async {
-  await _local.show(
-    1,
-    'ทดสอบ',
-    'ข้อความทดสอบ',
-    const NotificationDetails(
-      android: AndroidNotificationDetails(
-        'high_importance_channel',
-        'การแจ้งเตือนสำคัญ',
-        importance: Importance.high,
-        priority: Priority.high,
-      ),
-    ),
-  );
-}
-
   String _notificationBody(dynamic type) {
     switch (type) {
       case 0:

@@ -53,7 +53,6 @@ class _PositionProviderState extends State<PositionProvider> {
 
   bool _mapReady = false;
 
-  dynamic _bikeMarker;
   String? _bikeUri;
   String? _carUri;
 
@@ -628,194 +627,6 @@ class _PositionProviderState extends State<PositionProvider> {
     );
   }
 
-  void _showPaymentDialog() {
-    showDialog(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: const Text(
-            "เลือกวิธีชำระเงิน",
-            style: TextStyle(fontWeight: FontWeight.bold),
-          ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              ListTile(
-                leading: const Icon(Icons.account_balance, color: Colors.blue),
-                title: const Text("เลขบัญชี"),
-                subtitle: const Text("ชำระเงินผ่านบัญชีธนาคาร"),
-                onTap: () {
-                  Navigator.pop(context);
-                  _showBankAccountDialog();
-                },
-              ),
-
-              const Divider(),
-
-              ListTile(
-                leading: const Icon(Icons.qr_code_2, color: Colors.green),
-                title: const Text("QR Code"),
-                subtitle: const Text("สแกน QR Code เพื่อชำระเงิน"),
-                onTap: () {
-                  Navigator.pop(context);
-                  _showQrCodeDialog();
-                },
-              ),
-
-              const Divider(),
-
-              ListTile(
-                leading: const Icon(Icons.phone_android, color: Colors.orange),
-                title: const Text("เลขพร้อมเพย์"),
-                subtitle: const Text("ชำระเงินผ่านพร้อมเพย์"),
-                onTap: () {
-                  Navigator.pop(context);
-                  _showPromptPayDialog();
-                },
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
-  void _showBankAccountDialog() {
-    const accountNumber = "123-4-56789-0";
-
-    showDialog(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: const Text("ข้อมูลบัญชีธนาคาร"),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text("ธนาคาร: กสิกรไทย", style: TextStyle(fontSize: 16)),
-              const SizedBox(height: 12),
-
-              Row(
-                children: [
-                  const Expanded(
-                    child: Text(
-                      accountNumber,
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-
-                  IconButton(
-                    icon: const Icon(Icons.copy),
-                    tooltip: "คัดลอกเลขบัญชี",
-                    onPressed: () async {
-                      await Clipboard.setData(
-                        const ClipboardData(text: accountNumber),
-                      );
-
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text("คัดลอกเลขบัญชีแล้ว"),
-                          duration: Duration(seconds: 1),
-                        ),
-                      );
-                    },
-                  ),
-                ],
-              ),
-
-              const SizedBox(height: 8),
-
-              const Text("ชื่อบัญชี: CareMate", style: TextStyle(fontSize: 16)),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.pop(context);
-              },
-              child: const Text("ปิด"),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-  void _showQrCodeDialog() {
-    showDialog(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: const Text("QR Code สำหรับชำระเงิน"),
-          content: Image.asset(
-            'assets/images/qr_code.png',
-            width: 250,
-            height: 250,
-          ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.pop(context);
-              },
-              child: const Text("ปิด"),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-  void _showPromptPayDialog() {
-    const promptPayNumber = "081-234-5678";
-
-    showDialog(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: const Text("ข้อมูลพร้อมเพย์"),
-          content: Row(
-            children: [
-              const Expanded(
-                child: Text(
-                  promptPayNumber,
-                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-                ),
-              ),
-
-              IconButton(
-                icon: const Icon(Icons.copy),
-                tooltip: "คัดลอกเลขพร้อมเพย์",
-                onPressed: () async {
-                  await Clipboard.setData(
-                    const ClipboardData(text: promptPayNumber),
-                  );
-
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text("คัดลอกเลขพร้อมเพย์แล้ว"),
-                      duration: Duration(seconds: 1),
-                    ),
-                  );
-                },
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.pop(context);
-              },
-              child: const Text("ปิด"),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
   Future<void> checkPayment() async {
     try {
       final snapshot = await db
@@ -1088,14 +899,35 @@ class _PositionProviderState extends State<PositionProvider> {
     return "data:image/png;base64,$base64Str";
   }
 
-  Future<void> updateMarkers({int? status}) async {
+  final List<dynamic> _bikeMarkers = [];
+  Future<void> _queue = Future.value();
+
+  // รันงานวาดหมุดทีละงาน ไม่ให้ซ้อนกัน
+  Future<void> _enqueue(Future<void> Function() task) {
+    final next = _queue.then((_) async {
+      try {
+        await task();
+      } catch (e) {
+        log('marker task error: $e');
+      }
+    });
+    _queue = next;
+    return next;
+  }
+
+  Future<void> updateMarkers({int? status}) =>
+      _enqueue(() => _updateMarkersImpl(status: status));
+
+  Future<void> updateBikeMarker() => _enqueue(_updateBikeMarkerImpl);
+
+  Future<void> _updateMarkersImpl({int? status}) async {
     if (!_mapReady) return;
     final mapState = map.currentState;
     if (mapState == null) return;
 
     mapState.call("Overlays.clear");
     mapState.call("Route.clear");
-    _bikeMarker = null;
+    _bikeMarkers.clear();
 
     // ใช้สถานะที่ส่งมาก่อน ถ้าไม่ส่งมาก็ใช้ค่าใน detailsJob
     final currentStatus = status ?? detailsJob['job_status'];
@@ -1146,39 +978,75 @@ class _PositionProviderState extends State<PositionProvider> {
       mapState.call("Route.search");
     }
     if (_providerLat != null) {
-      await updateBikeMarker();
+      await _updateBikeMarkerImpl(); // เดิมคือ updateBikeMarker() ห้ามเรียกตัวที่เข้าคิว ไม่งั้นค้าง
     }
   }
 
-  Future<void> updateBikeMarker() async {
+  // Future<void> updateBikeMarker() async {
+  //   if (!_mapReady) return;
+
+  //   // ถ้ารูปยังไม่พร้อม ให้รอตรงนี้เท่านั้น (ก่อนแตะ _bikeMarker)
+  //   if (_bikeUri == null || _carUri == null) {
+  //     await _loadIcons();
+  //   }
+
+  //   // ===== จากนี้ไปห้ามมี await =====
+  //   final mapState = map.currentState;
+  //   final lat = _providerLat;
+  //   final lon = _providerLon;
+  //   if (mapState == null || lat == null || lon == null) return;
+
+  //   final rawType = detailsJob['vehicle_type'];
+  //   final vehicleType = int.tryParse('$rawType') ?? 0;
+  //   final iconUri = vehicleType == 1 ? _carUri : _bikeUri;
+
+  //   // ในฟังก์ชัน ก่อนเช็ค _bikeMarker
+  //   log(
+  //     "updateBikeMarker #${++_bikeCalls}, มีหมุดเก่า = ${_bikeMarker != null}",
+  //   );
+
+  //   if (_bikeMarker != null) {
+  //     mapState.call("Overlays.remove", args: [_bikeMarker]);
+  //   }
+
+  //   _bikeMarker = Longdo.LongdoObject(
+  //     "Marker",
+  //     args: [
+  //       {"lon": lon, "lat": lat},
+  //       {
+  //         "icon": {
+  //           "url": iconUri,
+  //           "offset": {"x": 0, "y": 0},
+  //         },
+  //         "size": {"x": 40, "y": 40},
+  //       },
+  //     ],
+  //   );
+
+  //   mapState.call("Overlays.add", args: [_bikeMarker]);
+  // }
+  Future<void> _updateBikeMarkerImpl() async {
     if (!_mapReady) return;
 
-    // ถ้ารูปยังไม่พร้อม ให้รอตรงนี้เท่านั้น (ก่อนแตะ _bikeMarker)
     if (_bikeUri == null || _carUri == null) {
       await _loadIcons();
     }
 
-    // ===== จากนี้ไปห้ามมี await =====
     final mapState = map.currentState;
     final lat = _providerLat;
     final lon = _providerLon;
     if (mapState == null || lat == null || lon == null) return;
 
-    final rawType = detailsJob['vehicle_type'];
-    final vehicleType = int.tryParse('$rawType') ?? 0;
+    final vehicleType = int.tryParse('${detailsJob['vehicle_type']}') ?? 0;
     final iconUri = vehicleType == 1 ? _carUri : _bikeUri;
-    int _bikeCalls = 0; // ประกาศไว้ในคลาส
 
-    // ในฟังก์ชัน ก่อนเช็ค _bikeMarker
-    log(
-      "updateBikeMarker #${++_bikeCalls}, มีหมุดเก่า = ${_bikeMarker != null}",
-    );
-
-    if (_bikeMarker != null) {
-      mapState.call("Overlays.remove", args: [_bikeMarker]);
+    // ลบหมุดรถทุกตัวที่เคยวาด ไม่ใช่แค่ตัวล่าสุด
+    for (final old in _bikeMarkers) {
+      mapState.call("Overlays.remove", args: [old]);
     }
+    _bikeMarkers.clear();
 
-    _bikeMarker = Longdo.LongdoObject(
+    final marker = Longdo.LongdoObject(
       "Marker",
       args: [
         {"lon": lon, "lat": lat},
@@ -1192,7 +1060,9 @@ class _PositionProviderState extends State<PositionProvider> {
       ],
     );
 
-    mapState.call("Overlays.add", args: [_bikeMarker]);
+    mapState.call("Overlays.add", args: [marker]);
+    _bikeMarkers.add(marker);
+    log("วาดหมุดรถแล้ว: $lat, $lon");
   }
 
   void listenJobStatus() {
@@ -1233,7 +1103,7 @@ class _PositionProviderState extends State<PositionProvider> {
       activeStep = 0;
     } else if (status == 4) {
       activeStep = 1;
-    } else if (status == 5) {
+    } else if (status == 5 || status == 6) {
       activeStep = 2;
     } else if (status == 7) {
       activeStep = 0;

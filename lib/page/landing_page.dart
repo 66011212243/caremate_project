@@ -1,8 +1,7 @@
-
 import 'package:caremate_application/page/login.dart';
 import 'package:flutter/material.dart';
 import 'package:caremate_application/page/register_users.dart';
-
+import 'package:caremate_application/services/onboarding_service.dart';
 
 class LandingPage extends StatelessWidget {
   const LandingPage({super.key});
@@ -15,75 +14,85 @@ class LandingPage extends StatelessWidget {
         child: Column(
           children: [
             // ส่วน Header สีแดงพร้อมความเว้าล่าง
-            Stack(
-              clipBehavior: Clip.none,
-              alignment: Alignment.center,
-              children: [
-                // ตัดขอบสีแดงให้โค้งเว้าเข้าด้านล่าง
-                ClipPath(
-                  clipper: CurvedHeaderClipper(
-                    curveHeight: 55,
-                  ),
-                  child: Container(
-                    width: double.infinity,
-                    height: 230,
-                    color: Colors.red,
-                    child: Center(
-                      child: Padding(
-                        padding: const EdgeInsets.only(bottom: 20),
-                        child: Image.asset(
-                          'assets/images/caremateV2.png',
-                          width: 250,
-                          fit: BoxFit.contain,
-                          errorBuilder: (context, error, stackTrace) =>
-                              const Text(
-                            'Caremate',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 36,
-                              fontWeight: FontWeight.bold,
-                            ),
+            SizedBox(
+              height: 280,
+              child: Stack(
+                clipBehavior: Clip.none,
+                alignment: Alignment.center,
+                children: [
+                  // ตัดขอบสีแดงให้โค้งเว้าเข้าด้านล่าง
+                  ClipPath(
+                    clipper: CurvedHeaderClipper(curveHeight: 55),
+                    child: Container(
+                      width: double.infinity,
+                      height: 230,
+                      color: Colors.red,
+                      child: Center(
+                        child: Padding(
+                          padding: const EdgeInsets.only(bottom: 20),
+                          child: Image.asset(
+                            'assets/images/caremateLanding.png',
+                            width: 250,
+                            fit: BoxFit.contain,
+                            errorBuilder: (context, error, stackTrace) =>
+                                const Text(
+                                  'Caremate',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 36,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
                           ),
                         ),
                       ),
                     ),
                   ),
-                ),
 
-                // ปุ่มเข้าสู่ระบบแบบลอย
-                Positioned(
-                  bottom: -25,
-                  child: SizedBox(
-                    width: 280,
-                    height: 50,
-                    child: ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.red,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(25),
-                        ),
-                        elevation: 4,
-                      ),
-                      onPressed: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => const LoginPage(),
+                  //const SizedBox(height: 50),
+
+                  // ปุ่มเข้าสู่ระบบแบบลอย
+                  Positioned(
+                    bottom: 0,
+                    child: SizedBox(
+                      width: 280,
+                      height: 50,
+                      child: ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.red,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(25),
                           ),
-                        );
-                      },
-                      child: const Text(
-                        'เข้าสู่ระบบ',
-                        style: TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
+                          elevation: 4,
+                        ),
+                        onPressed: () async {
+                          // บันทึกว่าเคยดูหน้าแนะนำแล้ว
+                          print("ทำงาน");
+                          await OnboardingService.completeOnboarding();
+
+                          if (!context.mounted) return;
+
+                          // ไปหน้า Login
+                          Navigator.pushReplacement(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => const LoginPage(),
+                            ),
+                          );
+                        },
+                        child: const Text(
+                          'เริ่มต้นใช้งาน',
+                          style: TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
                         ),
                       ),
                     ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
 
             const SizedBox(height: 50),
@@ -105,14 +114,6 @@ class LandingPage extends StatelessWidget {
                   label: 'ติดตามการเดินทางแบบเรียลไทม์',
                 ),
               ],
-              onStartTap: () {
-                 Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) =>  RegisterUsers(role: 0),
-                          ),
-                        );
-              },
             ),
 
             const SizedBox(height: 30),
@@ -134,14 +135,6 @@ class LandingPage extends StatelessWidget {
                   label: 'ไม่จำเป็นต้องมีตารางประจำเหมาะกับอาชีพอิสระ',
                 ),
               ],
-              onStartTap: () {
-                 Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) =>  RegisterUsers(role: 0),
-                          ),
-                        );
-              },
             ),
 
             const SizedBox(height: 40),
@@ -155,7 +148,6 @@ class LandingPage extends StatelessWidget {
   Widget _buildBenefitSection({
     required String title,
     required List<_BenefitItem> items,
-    required VoidCallback onStartTap,
   }) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -186,22 +178,21 @@ class LandingPage extends StatelessWidget {
                       height: 70,
                       fit: BoxFit.contain,
                       errorBuilder: (context, error, stackTrace) =>
-                          const Icon(
-                        Icons.image,
-                        size: 50,
-                        color: Colors.red,
-                      ),
+                          const Icon(Icons.image, size: 50, color: Colors.red),
                     ),
 
                     const SizedBox(height: 8),
 
-                    Text(
-                      item.label,
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(
-                        fontSize: 12,
-                        color: Colors.black87,
-                        height: 1.2,
+                    SizedBox(
+                      width: 100,
+                      child: Text(
+                        item.label,
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: Colors.black87,
+                          height: 1.5,
+                        ),
                       ),
                     ),
                   ],
@@ -211,20 +202,6 @@ class LandingPage extends StatelessWidget {
           ),
 
           const SizedBox(height: 15),
-
-          GestureDetector(
-            onTap: onStartTap,
-            child: const Text(
-              'เริ่มต้นใช้งาน',
-              style: TextStyle(
-                fontSize: 14,
-                color: Colors.red,
-                decoration: TextDecoration.underline,
-                decorationColor: Colors.red,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ),
         ],
       ),
     );
@@ -243,15 +220,9 @@ class CurvedHeaderClipper extends CustomClipper<Path> {
 
     path.lineTo(0, size.height);
 
-    var controlPoint = Offset(
-      size.width / 2,
-      size.height - (curveHeight * 2),
-    );
+    var controlPoint = Offset(size.width / 2, size.height - (curveHeight * 2));
 
-    var endPoint = Offset(
-      size.width,
-      size.height,
-    );
+    var endPoint = Offset(size.width, size.height);
 
     path.quadraticBezierTo(
       controlPoint.dx,
@@ -276,8 +247,5 @@ class _BenefitItem {
   final String iconPath;
   final String label;
 
-  _BenefitItem({
-    required this.iconPath,
-    required this.label,
-  });
+  _BenefitItem({required this.iconPath, required this.label});
 }

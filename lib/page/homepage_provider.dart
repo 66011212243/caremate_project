@@ -588,12 +588,6 @@ class _HomepageProviderState extends State<HomepageProvider> {
                     ],
                   )
           : pages[_selectedIndex],
-      floatingActionButton: FloatingActionButton(
-        onPressed: () async {
-          await NotificationSystem().testShow();
-        },
-        child: const Icon(Icons.notifications),
-      ),
 
       bottomNavigationBar: BottomNavigationBar(
         type: BottomNavigationBarType.fixed,
