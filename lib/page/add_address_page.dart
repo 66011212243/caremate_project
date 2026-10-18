@@ -22,6 +22,7 @@ class _AddAddressPageState extends State<AddAddressPage> {
   int addressBegin = 0;
   double? latitude;
   double? longitude;
+  bool isSaving = false;
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -247,10 +248,7 @@ class _AddAddressPageState extends State<AddAddressPage> {
             height: 50,
             width: double.infinity,
             child: ElevatedButton(
-              onPressed: () {
-                // คำสั่งสร้างที่อยู่
-                addAddress();
-              },
+              onPressed: isSaving ? null : addAddress,
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.red,
                 foregroundColor: Colors.white,
@@ -258,10 +256,22 @@ class _AddAddressPageState extends State<AddAddressPage> {
                   borderRadius: BorderRadius.circular(12),
                 ),
               ),
-              child: const Text(
-                "ยืนยันการสร้างที่อยู่",
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-              ),
+              child: isSaving
+                  ? const SizedBox(
+                      width: 24,
+                      height: 24,
+                      child: CircularProgressIndicator(
+                        color: Colors.white,
+                        strokeWidth: 2,
+                      ),
+                    )
+                  : const Text(
+                      "ยืนยันการสร้างที่อยู่",
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
             ),
           ),
         ),
@@ -281,6 +291,9 @@ class _AddAddressPageState extends State<AddAddressPage> {
       );
       return;
     }
+    setState(() {
+      isSaving = true;
+    });
 
     String address =
         "${houseNumberController.text}, ${addressDetailController.text}";
@@ -326,11 +339,15 @@ class _AddAddressPageState extends State<AddAddressPage> {
         context,
       ).showSnackBar(const SnackBar(content: Text("เพิ่มที่อยู่สำเร็จ")));
 
-      Navigator.pop(context);
+      // ใน addAddress ตอนสำเร็จ
+      Navigator.pop(context, true);
     } catch (e) {
       log("Error adding address: $e");
 
       if (!mounted) return;
+      setState(() {
+        isSaving = false;
+      });
 
       ScaffoldMessenger.of(
         context,

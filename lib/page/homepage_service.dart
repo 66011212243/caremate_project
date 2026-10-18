@@ -116,27 +116,9 @@ class _HomepageServiceState extends State<HomepageService> {
                 : RefreshIndicator(
                     onRefresh: queryJobData,
                     child: ListView.builder(
-                      physics: const AlwaysScrollableScrollPhysics(),
                       padding: const EdgeInsets.only(bottom: 30),
-                      itemCount: filteredJobs.isEmpty
-                          ? 1
-                          : filteredJobs.length + 1,
+                      itemCount: filteredJobs.length + 1,
                       itemBuilder: (context, index) {
-                        // กรณีไม่มีรายการ
-                        if (filteredJobs.isEmpty) {
-                          return const SizedBox(
-                            height: 400,
-                            child: Center(
-                              child: Text(
-                                'ไม่มีรายการ',
-                                style: TextStyle(
-                                  color: Color.fromARGB(255, 81, 81, 81),
-                                  fontSize: 16,
-                                ),
-                              ),
-                            ),
-                          );
-                        }
                         if (index == 0) {
                           return Padding(
                             padding: const EdgeInsets.only(
@@ -497,9 +479,9 @@ class _HomepageServiceState extends State<HomepageService> {
           setState(() {
             _selectedIndex = index;
           });
-
           if (index == 0) {
             loadServiceData();
+            print('lode data');
           }
         },
         items: [
