@@ -1,4 +1,5 @@
 import 'dart:developer';
+import 'package:caremate_application/functions/job_time.dart';
 import 'package:caremate_application/page/homepage_service.dart';
 import 'package:caremate_application/page/map_page.dart';
 import 'package:caremate_application/page/notification_service.dart';
@@ -106,7 +107,7 @@ class _CreateJobState extends State<CreateJob> {
       body: SingleChildScrollView(
         child: Container(
           child: Padding(
-            padding: const EdgeInsets.only(top: 20, left: 30),
+            padding: EdgeInsets.symmetric(horizontal: 30),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -163,12 +164,68 @@ class _CreateJobState extends State<CreateJob> {
                           return place.name;
                         },
 
-                        onSelected: (PreviousPlace place) {
+                        onSelected: (PreviousPlace place) async {
+                          // เลือกชื่อสถานที่และกำหนดพิกัดปลายทาง
                           setState(() {
                             placeNameController.text = place.name;
                             latitudeLocation = place.latitude;
                             longitudeLocation = place.longitude;
+                            distanceKm = null; // ล้างระยะทางเดิมก่อนคำนวณใหม่
                           });
+
+                          // ตรวจสอบว่ามีพิกัดจุดรับหรือไม่
+                          if (pickupLatitude == null ||
+                              pickupLongitude == null) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('ไม่พบพิกัดที่อยู่หลัก'),
+                              ),
+                            );
+                            return;
+                          }
+
+                          try {
+                            // คำนวณระยะทางตามถนนจากจุดรับไปยังสถานที่ที่เลือก
+                            final distance = await getRouteDistance(
+                              startLat: pickupLatitude!,
+                              startLon: pickupLongitude!,
+                              endLat: place.latitude,
+                              endLon: place.longitude,
+                            );
+
+                            if (!mounted) return;
+
+                            if (distance != null) {
+                              setState(() {
+                                distanceKm = distance;
+                              });
+
+                              updateTotalPrice();
+
+                              print(
+                                'ระยะทางจากจุดรับถึงปลายทาง: '
+                                '${distance.toStringAsFixed(2)} กม.',
+                              );
+                            } else {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('ไม่สามารถคำนวณระยะทางได้'),
+                                ),
+                              );
+                            }
+                          } catch (e) {
+                            debugPrint('คำนวณระยะทางไม่สำเร็จ: $e');
+
+                            if (!mounted) return;
+
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text(
+                                  'เกิดข้อผิดพลาดในการคำนวณระยะทาง',
+                                ),
+                              ),
+                            );
+                          }
                         },
 
                         fieldViewBuilder:
@@ -358,7 +415,7 @@ class _CreateJobState extends State<CreateJob> {
                           },
                           icon: const Icon(Icons.map, color: Colors.red),
                           label: const Text(
-                            "เพิ่มพิกัดที่อยู่",
+                            "เพิ่มพิกัดปลายทาง",
                             style: TextStyle(
                               color: Colors.red,
                               fontSize: 16,
@@ -524,59 +581,78 @@ class _CreateJobState extends State<CreateJob> {
 
                 SizedBox(height: 15),
                 Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      "ประเภทรถ:",
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
+                    Padding(
+                      padding: const EdgeInsets.only(top: 9),
+                      child: Text(
+                        "ประเภทรถ:",
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                     ),
                     SizedBox(width: 10),
-                    Radio(
-                      value: 1,
-                      groupValue: vehicle,
-                      onChanged: (value) {
-                        setState(() {
-                          vehicle = value;
+                    Column(
+                      children: [
+                        Row(
+                          children: [
+                            Radio(
+                              value: 1,
+                              groupValue: vehicle,
+                              onChanged: (value) {
+                                setState(() {
+                                  vehicle = value;
 
-                          // รถยนต์ = 20 บาท/กม.
-                          ratePerKm = 20;
+                                  // รถยนต์ = 20 บาท/กม.
+                                  ratePerKm = 20;
 
-                          // คำนวณราคารวมใหม่
-                          updateTotalPrice();
+                                  // คำนวณราคารวมใหม่
+                                  updateTotalPrice();
 
-                          log("Vehicle: $vehicle");
-                          log("Rate per km: $ratePerKm");
-                        });
-                      },
+                                  log("Vehicle: $vehicle");
+                                  log("Rate per km: $ratePerKm");
+                                });
+                              },
+                            ),
+                            const Text(
+                              "Car (20บาท /กม.)",
+                              style: TextStyle(fontSize: 16),
+                            ),
+                          ],
+                        ),
+                        Row(
+                          children: [
+                            Radio(
+                              value: 0,
+                              groupValue: vehicle,
+                              onChanged: (value) {
+                                setState(() {
+                                  vehicle = value;
+
+                                  // มอเตอร์ไซค์ = 10 บาท/กม.
+                                  ratePerKm = 10;
+
+                                  // คำนวณราคารวมใหม่
+                                  updateTotalPrice();
+
+                                  log("Vehicle: $vehicle");
+                                  log("Rate per km: $ratePerKm");
+                                });
+                              },
+                            ),
+                            const Text(
+                              "Bike (10บาท /กม.)",
+                              style: TextStyle(fontSize: 16),
+                            ),
+                          ],
+                        ),
+                      ],
                     ),
-                    const Text("Car", style: TextStyle(fontSize: 16)),
-
-                    const SizedBox(width: 10),
-
-                    Radio(
-                      value: 0,
-                      groupValue: vehicle,
-                      onChanged: (value) {
-                        setState(() {
-                          vehicle = value;
-
-                          // มอเตอร์ไซค์ = 10 บาท/กม.
-                          ratePerKm = 10;
-
-                          // คำนวณราคารวมใหม่
-                          updateTotalPrice();
-
-                          log("Vehicle: $vehicle");
-                          log("Rate per km: $ratePerKm");
-                        });
-                      },
-                    ),
-                    const Text("Bike", style: TextStyle(fontSize: 16)),
                   ],
                 ),
-                SizedBox(height: 10),
+
                 Row(
                   children: [
                     Text(
@@ -605,11 +681,14 @@ class _CreateJobState extends State<CreateJob> {
                   children: [
                     Column(
                       children: [
-                        Text(
-                          "ข้อมูลพิเศษ:",
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
+                        Padding(
+                          padding: const EdgeInsets.only(top: 9),
+                          child: Text(
+                            "ข้อมูลพิเศษ:",
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
                         ),
                         Text(
@@ -690,46 +769,48 @@ class _CreateJobState extends State<CreateJob> {
                 ),
                 SizedBox(height: 30),
                 Center(
-                  child: TextButton(
-                    style: TextButton.styleFrom(
-                      backgroundColor: Color.fromARGB(
-                        255,
-                        255,
-                        0,
-                        0,
-                      ), // สีพื้นหลังปุ่ม
-                      foregroundColor: Colors.white, // สีตัวอักษร
-                      padding: EdgeInsets.symmetric(
-                        horizontal: 30,
-                        vertical: 10,
+                  child: SizedBox(
+                    width: 220,
+                    height: 48,
+                    child: TextButton(
+                      style: TextButton.styleFrom(
+                        backgroundColor: const Color.fromARGB(255, 255, 0, 0),
+                        foregroundColor: Colors.white,
+                        disabledBackgroundColor: Colors.grey,
+                        padding: const EdgeInsets.symmetric(horizontal: 12),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
                       ),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12), // มุมมน
-                      ),
-                    ),
-                    onPressed: isCreatingJob ? null : addJobData,
-                    child: isCreatingJob
-                        ? const Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              SizedBox(
-                                height: 20,
-                                width: 20,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
+                      onPressed: isCreatingJob ? null : addJobData,
+                      child: isCreatingJob
+                          ? const Row(
+                              mainAxisSize: MainAxisSize.min,
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                SizedBox(
+                                  width: 18,
+                                  height: 18,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: Colors.white,
+                                  ),
                                 ),
-                              ),
-                              SizedBox(width: 10),
-                              Text(
-                                "กำลังสร้างงาน...",
-                                style: TextStyle(fontSize: 18),
-                              ),
-                            ],
-                          )
-                        : const Text(
-                            "สร้างงาน",
-                            style: TextStyle(fontSize: 18),
-                          ),
+                                SizedBox(width: 8),
+                                Flexible(
+                                  child: Text(
+                                    'กำลังสร้างงาน...',
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(fontSize: 16),
+                                  ),
+                                ),
+                              ],
+                            )
+                          : const Text(
+                              'สร้างงาน',
+                              style: TextStyle(fontSize: 18),
+                            ),
+                    ),
                   ),
                 ),
                 SizedBox(height: 50),
@@ -814,6 +895,19 @@ class _CreateJobState extends State<CreateJob> {
 
     try {
       final docRef = db.collection('jobs').doc();
+      final startAt = parseJobStart({
+        'date': dateController.text,
+        'start_time': timeStartController.text,
+      });
+
+      if (startAt == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('กรุณาเลือกวันที่และเวลาเริ่มงานให้ถูกต้อง'),
+          ),
+        );
+        return;
+      }
 
       final data = {
         'service_id': widget.sid,
@@ -830,6 +924,7 @@ class _CreateJobState extends State<CreateJob> {
         'additional_info': additionalInfo,
         'job_status': 0,
         'address_id': address_id,
+        'start_at': Timestamp.fromDate(startAt),
       };
 
       await docRef.set(data);

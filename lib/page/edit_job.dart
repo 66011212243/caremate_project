@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:developer';
 
+import 'package:caremate_application/functions/job_time.dart';
 import 'package:caremate_application/page/map_page.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
@@ -563,44 +564,64 @@ class _EditJobState extends State<EditJob> {
                       // ประเภทรถ
                       // =========================
                       Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text(
-                            "ประเภทรถ:",
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
+                          Padding(
+                            padding: const EdgeInsets.only(top: 10),
+                            child: const Text(
+                              "ประเภทรถ:",
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
                           ),
                           const SizedBox(width: 10),
-                          Radio<int>(
-                            value: 1,
-                            groupValue: vehicle,
-                            onChanged: (value) {
-                              setState(() {
-                                vehicle = value;
-                                ratePerKm = 20; // รถยนต์ = 20 บาท/กม.
-                                updateTotalPrice();
-                              });
-                            },
+                          Column(
+                            children: [
+                              Row(
+                                children: [
+                                  Radio<int>(
+                                    value: 1,
+                                    groupValue: vehicle,
+                                    onChanged: (value) {
+                                      setState(() {
+                                        vehicle = value;
+                                        ratePerKm = 20; // รถยนต์ = 20 บาท/กม.
+                                        updateTotalPrice();
+                                      });
+                                    },
+                                  ),
+                                  const Text(
+                                    "Car (20 บาท/กม.)",
+                                    style: TextStyle(fontSize: 16),
+                                  ),
+                                ],
+                              ),
+                              Row(
+                                children: [
+                                  Radio<int>(
+                                    value: 0,
+                                    groupValue: vehicle,
+                                    onChanged: (value) {
+                                      setState(() {
+                                        vehicle = value;
+                                        ratePerKm =
+                                            10; // มอเตอร์ไซค์ = 10 บาท/กม.
+                                        updateTotalPrice();
+                                      });
+                                    },
+                                  ),
+                                  const Text(
+                                    "Bike (10 บาท/กม.)",
+                                    style: TextStyle(fontSize: 16),
+                                  ),
+                                ],
+                              ),
+                            ],
                           ),
-                          const Text("Car", style: TextStyle(fontSize: 16)),
-                          const SizedBox(width: 10),
-                          Radio<int>(
-                            value: 0,
-                            groupValue: vehicle,
-                            onChanged: (value) {
-                              setState(() {
-                                vehicle = value;
-                                ratePerKm = 10; // มอเตอร์ไซค์ = 10 บาท/กม.
-                                updateTotalPrice();
-                              });
-                            },
-                          ),
-                          const Text("Bike", style: TextStyle(fontSize: 16)),
                         ],
                       ),
-
-                      const SizedBox(height: 10),
 
                       // =========================
                       // ลักษณะงาน
@@ -638,11 +659,14 @@ class _EditJobState extends State<EditJob> {
                         children: [
                           Column(
                             children: [
-                              const Text(
-                                "ข้อมูลพิเศษ:",
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
+                              Padding(
+                                padding: const EdgeInsets.only(top: 9),
+                                child: const Text(
+                                  "ข้อมูลพิเศษ:",
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                  ),
                                 ),
                               ),
                               const Text(
@@ -715,44 +739,51 @@ class _EditJobState extends State<EditJob> {
                       // ปุ่มบันทึก
                       // =========================
                       Center(
-                        child: TextButton(
-                          style: TextButton.styleFrom(
-                            backgroundColor: isUpdatingJob
-                                ? Colors.grey
-                                : const Color.fromARGB(255, 255, 0, 0),
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 30,
-                              vertical: 10,
+                        child: SizedBox(
+                          width: 220,
+                          height: 48,
+                          child: TextButton(
+                            style: TextButton.styleFrom(
+                              backgroundColor: isUpdatingJob
+                                  ? Colors.grey
+                                  : const Color.fromARGB(255, 255, 0, 0),
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                              ),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
                             ),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                          ),
-                          onPressed: isUpdatingJob ? null : updateJobData,
-                          child: isUpdatingJob
-                              ? const Row(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    SizedBox(
-                                      height: 20,
-                                      width: 20,
-                                      child: CircularProgressIndicator(
-                                        strokeWidth: 2,
-                                        color: Colors.white,
+                            onPressed: isUpdatingJob ? null : updateJobData,
+                            child: isUpdatingJob
+                                ? const Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      SizedBox(
+                                        width: 18,
+                                        height: 18,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                          color: Colors.white,
+                                        ),
                                       ),
-                                    ),
-                                    SizedBox(width: 10),
-                                    Text(
-                                      "กำลังบันทึก...",
-                                      style: TextStyle(fontSize: 18),
-                                    ),
-                                  ],
-                                )
-                              : const Text(
-                                  "บันทึกการแก้ไข",
-                                  style: TextStyle(fontSize: 18),
-                                ),
+                                      SizedBox(width: 8),
+                                      Flexible(
+                                        child: Text(
+                                          'กำลังบันทึก...',
+                                          overflow: TextOverflow.ellipsis,
+                                          style: TextStyle(fontSize: 16),
+                                        ),
+                                      ),
+                                    ],
+                                  )
+                                : const Text(
+                                    'บันทึกการแก้ไข',
+                                    style: TextStyle(fontSize: 18),
+                                  ),
+                          ),
                         ),
                       ),
 
@@ -975,6 +1006,7 @@ class _EditJobState extends State<EditJob> {
       date: dateController.text,
       startTime: timeStartController.text,
       endTime: timeEndController.text,
+      excludeJobId: widget.jobId,
     );
 
     if (!canCreate) {
@@ -994,6 +1026,19 @@ class _EditJobState extends State<EditJob> {
     });
 
     try {
+      final startAt = parseJobStart({
+        'date': dateController.text,
+        'start_time': timeStartController.text,
+      });
+
+      if (startAt == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('กรุณาเลือกวันที่และเวลาเริ่มงานให้ถูกต้อง'),
+          ),
+        );
+        return;
+      }
       final data = {
         'place_name': placeNameController.text,
         'latitude': latitudeLocation,
@@ -1007,6 +1052,7 @@ class _EditJobState extends State<EditJob> {
         'job_type': jobTypeController.text,
         'additional_info': additionalInfo,
         'address_id': address_id,
+        'start_at': Timestamp.fromDate(startAt),
       };
 
       await db.collection('jobs').doc(widget.jobId).update(data);

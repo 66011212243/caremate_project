@@ -5,7 +5,10 @@ import 'package:flutter/material.dart';
 class ReportDetailPage extends StatelessWidget {
   final String reportsId; // ส่ง reportId มาจากหน้าก่อนหน้า
 
-  const ReportDetailPage({super.key, required this.reportsId});
+  ReportDetailPage({super.key, required this.reportsId});
+
+  bool isBanAccount = false;
+  bool isWarning = false;
 
   // ฟังก์ชันดึงข้อมูลรายละเอียดรายงาน และข้อมูล Provider / User ที่ถูกรายงาน
   Future<Map<String, dynamic>> fetchReportDetails() async {
@@ -33,6 +36,7 @@ class ReportDetailPage extends StatelessWidget {
     String profileUrl = '';
     int? reportsNum;
     String userId = '';
+    int? status_acc;
 
     // 2. ดึงข้อมูล provider
     if (reportedProviderId.isNotEmpty) {
@@ -83,6 +87,7 @@ class ReportDetailPage extends StatelessWidget {
 
             // --- ดึงชื่อจาก users ---
             driverName = userData['realname']?.toString() ?? 'ไม่ระบุชื่อ';
+            status_acc = userData['status_account'];
           }
         }
       }
@@ -91,6 +96,7 @@ class ReportDetailPage extends StatelessWidget {
     return {
       'description': description,
       'driverName': driverName,
+      'statusAccount': status_acc,
       'phoneNo': phoneNo,
       'profile': profileUrl,
       'vehicle_Registration': vehicleRegistration,
@@ -108,7 +114,7 @@ class ReportDetailPage extends StatelessWidget {
     try {
       final db = FirebaseFirestore.instance;
 
-      // 1. ดึง provider_uid เพื่อไประงับบัญชีใน collection users
+      // 1. ตรวจสอบข้อมูลผู้ให้บริการ
       final providerDoc = await db.collection('provider').doc(providerId).get();
 
       if (!providerDoc.exists) {
@@ -121,23 +127,174 @@ class ReportDetailPage extends StatelessWidget {
         throw Exception('ไม่พบ provider_uid ของผู้ให้บริการ');
       }
 
-      // 2. อัปเดตสถานะบัญชีเป็น 4 (ถูกระงับ)
+      // 2. ดึงใบสมัครที่มีสถานะ 0 และ 1
+      final applications = await db
+          .collection('all_drivers')
+          .where('provider_id', isEqualTo: providerId)
+          .where('status_drivers', whereIn: [0, 1])
+          .get();
+
+      int deletedApplications = 0;
+      int cancelledJobs = 0;
+      int protectedJobs = 0;
+
+      // 3. จัดการใบสมัครและงานก่อนระงับบัญชี
+      for (final application in applications.docs) {
+        final data = application.data();
+        final status = data['status_drivers'];
+        final jobId = data['job_id']?.toString();
+
+        // สถานะ 0: ลบใบสมัครที่รอพิจารณา
+        if (status == 0) {
+          await application.reference.delete();
+          deletedApplications++;
+          continue;
+        }
+
+        // จัดการเฉพาะสถานะ 1
+        if (status != 1) continue;
+
+        if (jobId == null || jobId.isEmpty) {
+          // ไม่มี job_id จึงไม่เปลี่ยนสถานะใบสมัคร
+          protectedJobs++;
+          continue;
+        }
+
+        final jobRef = db.collection('jobs').doc(jobId);
+        final jobDoc = await jobRef.get();
+
+        if (!jobDoc.exists) {
+          // ไม่พบงาน เก็บใบสมัครไว้เพื่อตรวจสอบภายหลัง
+          protectedJobs++;
+          continue;
+        }
+
+        final jobData = jobDoc.data()!;
+
+        // 4. งานที่เหลือเวลาไม่เกิน 2 ชั่วโมง
+        // หรือเริ่มงานแล้ว จะไม่ยกเลิก
+        if (isWithinTwoHours(jobData)) {
+          protectedJobs++;
+          continue;
+        }
+
+        // 5. คืนงานเฉพาะงานที่ยังมีสถานะ 1
+        if (jobData['job_status'] == 1) {
+          await jobRef.update({'job_status': 0});
+
+          await application.reference.update({'status_drivers': 6});
+          // 3. ส่งแจ้งเตือนไปยังผู้รับบริการ ตรงนี้
+          final serviceId = jobData['service_id']?.toString();
+
+          if (serviceId != null && serviceId.isNotEmpty) {
+            final serviceDoc = await db
+                .collection('service')
+                .doc(serviceId)
+                .get();
+
+            final receiverUid = serviceDoc.data()?['service_uid']?.toString();
+
+            if (receiverUid != null && receiverUid.isNotEmpty) {
+              await NotificationService().notifyReceiverProviderSuspended(
+                jobId: jobId,
+                userId: receiverUid,
+              );
+            }
+          }
+
+          cancelledJobs++;
+        } else {
+          // สถานะงานไม่ตรงตามที่คาดไว้ จึงไม่เปลี่ยนข้อมูล
+          protectedJobs++;
+        }
+      }
+
+      // 6. ระงับบัญชีหลังจัดการรายการเสร็จ
       await db.collection('users').doc(providerUid).update({
         'status_account': 4,
+        'suspended_at': FieldValue.serverTimestamp(),
       });
+      await NotificationService().notifyProviderAccountSuspended(
+        userId: providerUid,
+      );
 
-      // 3. อัปเดตสถานะรายงานเป็น 1 (ดำเนินการแล้ว)
-      await db.collection('reports').doc(reportsId).update({'status_re': 1});
+      // 7. แจ้งผลลัพธ์
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'ระงับบัญชีเรียบร้อยแล้ว\n'
+              'ลบใบสมัครที่รอพิจารณา $deletedApplications รายการ\n'
+              'คืนงาน $cancelledJobs รายการ\n'
+              'เก็บงานไว้ตรวจสอบ $protectedJobs รายการ',
+            ),
+            duration: const Duration(seconds: 5),
+          ),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('เกิดข้อผิดพลาดในการระงับบัญชี: $e')),
+        );
+      }
+    }
+  }
+
+  bool isWithinTwoHours(Map<String, dynamic> jobData) {
+    final dateValue = jobData['date']?.toString();
+    final timeValue = jobData['start_time']?.toString();
+
+    if (dateValue == null || timeValue == null) {
+      return true; // ข้อมูลไม่ครบ ให้ป้องกันการคืนงานไว้ก่อน
+    }
+
+    try {
+      // วันที่รูปแบบ dd/MM/yyyy เช่น 18/10/2026
+      final dateParts = dateValue.split('/');
+      final timeParts = timeValue.split(':');
+
+      if (dateParts.length != 3 || timeParts.length < 2) {
+        return true;
+      }
+
+      final day = int.parse(dateParts[0]);
+      final month = int.parse(dateParts[1]);
+      final year = int.parse(dateParts[2]);
+
+      final hour = int.parse(timeParts[0]);
+      final minute = int.parse(timeParts[1]);
+
+      final startDateTime = DateTime(year, month, day, hour, minute);
+
+      final remaining = startDateTime.difference(DateTime.now());
+
+      // เหลือเวลา 0-120 นาที หรือเริ่มงานไปแล้ว
+      return remaining <= const Duration(hours: 2);
+    } catch (e) {
+      print('แปลงวันเวลาไม่สำเร็จ: $e');
+      return true;
+    }
+  }
+
+  Future<void> providerWarning(
+    BuildContext context,
+    String jobId,
+    String userId,
+  ) async {
+    try {
+      await NotificationService().notifyProviderWarning(
+        jobId: jobId,
+        userId: userId,
+      );
 
       // 4. แจ้งผลลัพธ์
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('ระงับบัญชีและอัปเดตสถานะรายงานเรียบร้อยแล้ว'),
+            content: Text('ตักเตือนและอัปเดตสถานะรายงานเรียบร้อยแล้ว'),
           ),
         );
-
-        Navigator.pop(context);
       }
     } catch (e) {
       if (context.mounted) {
@@ -148,37 +305,115 @@ class ReportDetailPage extends StatelessWidget {
     }
   }
 
-  Future<void> providerWarning(
+  Future<void> confirmReportReviewed(
     BuildContext context,
-    String jobId,
-    String userId,
+    String reportId,
   ) async {
-    try {
-      final db = FirebaseFirestore.instance;
-      await NotificationService().notifyProviderWarning(
-        jobId: jobId,
-        userId: userId,
-      );
+    // ป้องกันกรณีไม่มี ID รายงาน
+    if (reportId.isEmpty) return;
 
-      // 3. อัปเดตสถานะรายงานเป็น 1 (ดำเนินการแล้ว)
-      await db.collection('reports').doc(reportsId).update({'status_re': 1});
-
-      // 4. แจ้งผลลัพธ์
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('ตักเตือนและอัปเดตสถานะรายงานเรียบร้อยแล้ว'),
+    // แสดงหน้าต่างยืนยัน
+    final confirm = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
           ),
+          title: const Row(
+            children: [
+              Icon(
+                Icons.fact_check_outlined,
+                color: Color(0xFF1976D2),
+                size: 28,
+              ),
+              SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'ยืนยันผลการตรวจสอบ',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                ),
+              ),
+            ],
+          ),
+          content: const Text(
+            'คุณตรวจสอบรายงานนี้เรียบร้อยแล้วใช่หรือไม่?\n\n'
+            'เมื่อยืนยัน รายงานจะเปลี่ยนสถานะเป็น "ตรวจสอบแล้ว"',
+            style: TextStyle(fontSize: 14),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(dialogContext).pop(false);
+              },
+              child: const Text('ยกเลิก', style: TextStyle(color: Colors.grey)),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.of(dialogContext).pop(true);
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF1976D2),
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+              child: const Text('ยืนยัน'),
+            ),
+          ],
         );
+      },
+    );
 
-        Navigator.pop(context);
+    if (confirm != true || !context.mounted) return;
+
+    try {
+      final reportRef = FirebaseFirestore.instance
+          .collection('reports')
+          .doc(reportId);
+
+      // ตรวจสอบว่ารายงานมีอยู่จริงและยังรอตรวจสอบ
+      final reportSnap = await reportRef.get();
+
+      if (!reportSnap.exists) {
+        throw Exception('ไม่พบข้อมูลรายงาน');
       }
-    } catch (e) {
-      if (context.mounted) {
+
+      final reportData = reportSnap.data()!;
+
+      if (reportData['status_re'] != 0) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('เกิดข้อผิดพลาดในการแบนบัญชี: $e')),
+          const SnackBar(content: Text('รายงานนี้ได้รับการตรวจสอบแล้ว')),
         );
+        return;
       }
+
+      // อัปเดตเฉพาะสถานะของรายงานนี้
+      await reportRef.update({
+        'status_re': 1,
+        'reviewed_at': FieldValue.serverTimestamp(),
+      });
+
+      if (!context.mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('บันทึกผลการตรวจสอบเรียบร้อยแล้ว'),
+          backgroundColor: Colors.green,
+        ),
+      );
+      Navigator.pop(context);
+    } catch (e) {
+      if (!context.mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('บันทึกผลการตรวจสอบไม่สำเร็จ: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
     }
   }
 
@@ -292,6 +527,60 @@ class ReportDetailPage extends StatelessWidget {
                                 color: Color.fromARGB(255, 92, 89, 89),
                               ),
                             ),
+                            const SizedBox(height: 4),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 6,
+                              ),
+                              decoration: BoxDecoration(
+                                color: data['statusAccount'] == 1
+                                    ? Colors.green.withOpacity(0.1)
+                                    : data['statusAccount'] == 4
+                                    ? Colors.red.withOpacity(0.1)
+                                    : Colors.grey.withOpacity(
+                                        0.1,
+                                      ), // สีสำรองกรณีเป็นสถานะอื่น
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    data['statusAccount'] == 1
+                                        ? Icons.check_circle
+                                        : data['statusAccount'] == 4
+                                        ? Icons.block
+                                        : Icons.help_outline, // ไอคอนสำรอง
+                                    size: 16,
+                                    color: data['statusAccount'] == 1
+                                        ? Colors.green
+                                        : data['statusAccount'] == 4
+                                        ? Colors.red.shade700
+                                        : Colors.grey.shade700, // สีไอคอนสำรอง
+                                  ),
+                                  const SizedBox(width: 6),
+                                  Text(
+                                    data['statusAccount'] == 1
+                                        ? "บัญชีใช้งานได้"
+                                        : data['statusAccount'] == 4
+                                        ? "บัญชีถูกระงับ"
+                                        : "ไม่ทราบสถานะ", // ข้อความสำรอง
+                                    style: TextStyle(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w600,
+                                      color: data['statusAccount'] == 1
+                                          ? Colors.green
+                                          : data['statusAccount'] == 4
+                                          ? Colors.red.shade700
+                                          : Colors
+                                                .grey
+                                                .shade700, // สีข้อความสำรอง
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
                           ],
                         ),
                       ),
@@ -339,242 +628,289 @@ class ReportDetailPage extends StatelessWidget {
 
                   const SizedBox(height: 42),
 
-                  if (data['statusReport'] == 0)
-                    // ปุ่มแบนบัญชี
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 60),
-                      child: Row(
-                        children: [
-                          SizedBox(
-                            width: 100,
-                            height: 38,
-                            child: ElevatedButton(
-                              onPressed: () async {
-                                final providerId = data['reportedProviderId'];
+                  if (data['statusReport'] == 0) ...[
+                    // 1. ปุ่มบันทึกผลการตรวจสอบ (Full Width)
 
-                                if (providerId == null ||
-                                    providerId.toString().isEmpty) {
-                                  return;
-                                }
+                    // 2. แถวปุ่มตักเตือน และ ระงับบัญชี (แบ่งฝั่งละเท่าๆ กัน)
+                    Row(
+                      children: [
+                        // --- ปุ่มตักเตือน ---
+                        StatefulBuilder(
+                          builder: (context, setButtonState) {
+                            return Expanded(
+                              child: SizedBox(
+                                height: 44,
+                                child: ElevatedButton.icon(
+                                  onPressed: isWarning
+                                      ? null
+                                      : () async {
+                                          final providerId =
+                                              data['reportedProviderId'];
 
-                                final confirm = await showDialog<bool>(
-                                  context: context,
-                                  barrierDismissible: false,
-                                  builder: (dialogContext) {
-                                    return AlertDialog(
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(16),
-                                      ),
-                                      title: const Row(
-                                        children: [
-                                          Icon(
-                                            Icons.notifications_active_outlined,
-                                            color: Color.fromARGB(
-                                              255,
-                                              3,
-                                              164,
-                                              22,
-                                            ),
-                                            size: 28,
-                                          ),
-                                          SizedBox(width: 8),
-                                          Expanded(
-                                            child: Text(
-                                              'ยืนยันการตักเตือน',
-                                              style: TextStyle(
-                                                fontSize: 18,
-                                                fontWeight: FontWeight.bold,
-                                              ),
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                      content: const Text(
-                                        'คุณต้องการส่งคำเตือนไปยังผู้ให้บริการรายนี้ใช่หรือไม่?\n\n'
-                                        'โปรดตรวจสอบข้อมูลรายงานก่อนยืนยันการตักเตือน',
-                                        style: TextStyle(fontSize: 14),
-                                      ),
-                                      actions: [
-                                        TextButton(
-                                          onPressed: () {
-                                            Navigator.of(
-                                              dialogContext,
-                                            ).pop(false);
-                                          },
-                                          child: const Text(
-                                            'ยกเลิก',
-                                            style: TextStyle(
-                                              color: Colors.grey,
-                                            ),
-                                          ),
-                                        ),
-                                        ElevatedButton(
-                                          onPressed: () {
-                                            Navigator.of(
-                                              dialogContext,
-                                            ).pop(true);
-                                          },
-                                          style: ElevatedButton.styleFrom(
-                                            backgroundColor:
-                                                const Color.fromARGB(
-                                                  255,
-                                                  3,
-                                                  164,
-                                                  22,
+                                          if (providerId == null ||
+                                              providerId.toString().isEmpty) {
+                                            return;
+                                          }
+
+                                          final confirm = await showDialog<bool>(
+                                            context: context,
+                                            barrierDismissible: false,
+                                            builder: (dialogContext) {
+                                              return AlertDialog(
+                                                shape: RoundedRectangleBorder(
+                                                  borderRadius:
+                                                      BorderRadius.circular(16),
                                                 ),
-                                            foregroundColor: Colors.white,
-                                            shape: RoundedRectangleBorder(
-                                              borderRadius:
-                                                  BorderRadius.circular(8),
-                                            ),
-                                          ),
-                                          child: const Text(
-                                            'ยืนยันการตักเตือน',
-                                          ),
-                                        ),
-                                      ],
-                                    );
-                                  },
-                                );
+                                                title: const Row(
+                                                  children: [
+                                                    Icon(
+                                                      Icons
+                                                          .notifications_active_outlined,
+                                                      color: Color.fromARGB(
+                                                        255,
+                                                        3,
+                                                        164,
+                                                        22,
+                                                      ),
+                                                      size: 26,
+                                                    ),
+                                                    SizedBox(width: 8),
+                                                    Expanded(
+                                                      child: Text(
+                                                        'ยืนยันการตักเตือน',
+                                                        style: TextStyle(
+                                                          fontSize: 18,
+                                                          fontWeight:
+                                                              FontWeight.bold,
+                                                        ),
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                                content: const Text(
+                                                  'คุณต้องการส่งคำเตือนไปยังผู้ให้บริการรายนี้ใช่หรือไม่?\n\n'
+                                                  'โปรดตรวจสอบข้อมูลรายงานก่อนยืนยันการตักเตือน',
+                                                  style: TextStyle(
+                                                    fontSize: 14,
+                                                  ),
+                                                ),
+                                                actions: [
+                                                  TextButton(
+                                                    onPressed: () =>
+                                                        Navigator.of(
+                                                          dialogContext,
+                                                        ).pop(false),
+                                                    child: const Text(
+                                                      'ยกเลิก',
+                                                      style: TextStyle(
+                                                        color: Colors.grey,
+                                                      ),
+                                                    ),
+                                                  ),
+                                                  ElevatedButton(
+                                                    onPressed: () =>
+                                                        Navigator.of(
+                                                          dialogContext,
+                                                        ).pop(true),
+                                                    style: ElevatedButton.styleFrom(
+                                                      backgroundColor:
+                                                          const Color.fromARGB(
+                                                            255,
+                                                            3,
+                                                            164,
+                                                            22,
+                                                          ),
+                                                      foregroundColor:
+                                                          Colors.white,
+                                                    ),
+                                                    child: const Text(
+                                                      'ยืนยันการตักเตือน',
+                                                    ),
+                                                  ),
+                                                ],
+                                              );
+                                            },
+                                          );
 
-                                if (confirm == true && context.mounted) {
-                                  await providerWarning(
-                                    context,
-                                    data['job_id'],
-                                    data['userId'],
-                                  );
-                                }
-                              },
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: const Color.fromARGB(
-                                  255,
-                                  3,
-                                  164,
-                                  22,
-                                ),
-                                foregroundColor: Colors.white,
-                                elevation: 0,
-                                padding: EdgeInsets.zero,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(8),
+                                          if (confirm == true &&
+                                              context.mounted) {
+                                            await providerWarning(
+                                              context,
+                                              data['job_id'],
+                                              data['userId'],
+                                            );
+
+                                            if (context.mounted) {
+                                              setButtonState(() {
+                                                isWarning = true;
+                                              });
+                                            }
+                                          }
+                                        },
+                                  icon: Icon(
+                                    isWarning
+                                        ? Icons.check_circle
+                                        : Icons.warning_amber_rounded,
+                                    size: 18,
+                                  ),
+                                  label: Text(
+                                    isWarning ? 'ตักเตือนแล้ว' : 'ตักเตือน',
+                                    style: const TextStyle(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: isWarning
+                                        ? Colors.grey
+                                        : const Color.fromARGB(255, 3, 164, 22),
+                                    foregroundColor: Colors.white,
+                                    disabledBackgroundColor: Colors.grey,
+                                    disabledForegroundColor: Colors.white,
+                                    elevation: 0,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
+                                  ),
                                 ),
                               ),
-                              child: const Text(
-                                'ตักเตือน',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.bold,
+                            );
+                          },
+                        ),
+
+                        const SizedBox(width: 12),
+
+                        // --- ปุ่มระงับบัญชี ---
+                        StatefulBuilder(
+                          builder: (context, setButtonState) {
+                            return Expanded(
+                              child: SizedBox(
+                                height: 44,
+                                child: ElevatedButton.icon(
+                                  onPressed: isBanAccount
+                                      ? null
+                                      : () async {
+                                          final providerId =
+                                              data['reportedProviderId'];
+
+                                          if (providerId == null ||
+                                              providerId.toString().isEmpty) {
+                                            return;
+                                          }
+
+                                          final confirm = await showDialog<bool>(
+                                            context: context,
+                                            barrierDismissible: false,
+                                            builder: (dialogContext) {
+                                              return AlertDialog(
+                                                title: const Text(
+                                                  'ยืนยันการระงับบัญชี',
+                                                ),
+                                                content: const Text(
+                                                  'คุณต้องการระงับบัญชีผู้ให้บริการรายนี้ใช่หรือไม่?',
+                                                ),
+                                                actions: [
+                                                  TextButton(
+                                                    onPressed: () =>
+                                                        Navigator.pop(
+                                                          dialogContext,
+                                                          false,
+                                                        ),
+                                                    child: const Text('ยกเลิก'),
+                                                  ),
+                                                  ElevatedButton(
+                                                    onPressed: () =>
+                                                        Navigator.pop(
+                                                          dialogContext,
+                                                          true,
+                                                        ),
+                                                    child: const Text(
+                                                      'ยืนยันการระงับ',
+                                                    ),
+                                                  ),
+                                                ],
+                                              );
+                                            },
+                                          );
+
+                                          if (confirm == true &&
+                                              context.mounted) {
+                                            await _banAccount(
+                                              context,
+                                              providerId,
+                                            );
+
+                                            // เปลี่ยนสถานะเฉพาะปุ่ม
+                                            setButtonState(() {
+                                              isBanAccount = true;
+                                            });
+                                          }
+                                        },
+                                  icon: Icon(
+                                    isBanAccount
+                                        ? Icons.check_circle
+                                        : Icons.block,
+                                    size: 18,
+                                  ),
+                                  label: Text(
+                                    isBanAccount
+                                        ? 'ระงับบัญชีแล้ว'
+                                        : 'ระงับบัญชี',
+                                    style: const TextStyle(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: isBanAccount
+                                        ? Colors.grey
+                                        : const Color(0xFFD32F2F),
+                                    foregroundColor: Colors.white,
+                                    disabledBackgroundColor: Colors.grey,
+                                    disabledForegroundColor: Colors.white,
+                                    elevation: 0,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
+                                  ),
                                 ),
                               ),
-                            ),
+                            );
+                          },
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+
+                    SizedBox(
+                      width: double.infinity,
+                      height: 46,
+                      child: ElevatedButton.icon(
+                        onPressed: () {
+                          confirmReportReviewed(
+                            context,
+                            reportsId, // ID เอกสารใน Collection reports
+                          );
+                        },
+                        icon: const Icon(Icons.fact_check_outlined, size: 20),
+                        label: const Text(
+                          'บันทึกผลการตรวจสอบ',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
                           ),
-                          SizedBox(width: 20),
-
-                          SizedBox(
-                            width: 100,
-                            height: 38,
-                            child: ElevatedButton(
-                              onPressed: () async {
-                                final providerId = data['reportedProviderId'];
-
-                                if (providerId == null ||
-                                    providerId.toString().isEmpty) {
-                                  return;
-                                }
-
-                                // แสดงไดอาลอคยืนยัน
-                                final confirm = await showDialog<bool>(
-                                  context: context,
-                                  barrierDismissible: false,
-                                  builder: (dialogContext) {
-                                    return AlertDialog(
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(16),
-                                      ),
-                                      title: const Row(
-                                        children: [
-                                          Icon(
-                                            Icons.warning_amber_rounded,
-                                            color: Colors.red,
-                                            size: 28,
-                                          ),
-                                          SizedBox(width: 8),
-                                          Text(
-                                            'ยืนยันการระงับบัญชี',
-                                            style: TextStyle(
-                                              fontSize: 18,
-                                              fontWeight: FontWeight.bold,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                      content: const Text(
-                                        'คุณต้องการแบนบัญชีผู้ให้บริการรายนี้ใช่หรือไม่?\n\n'
-                                        'เมื่อยืนยันแล้ว บัญชีอาจไม่สามารถใช้บริการได้ '
-                                        'โปรดตรวจสอบข้อมูลก่อนดำเนินการ',
-                                        style: TextStyle(fontSize: 14),
-                                      ),
-                                      actions: [
-                                        TextButton(
-                                          onPressed: () {
-                                            Navigator.of(
-                                              dialogContext,
-                                            ).pop(false);
-                                          },
-                                          child: const Text(
-                                            'ยกเลิก',
-                                            style: TextStyle(
-                                              color: Colors.grey,
-                                            ),
-                                          ),
-                                        ),
-                                        ElevatedButton(
-                                          onPressed: () {
-                                            Navigator.of(
-                                              dialogContext,
-                                            ).pop(true);
-                                          },
-                                          style: ElevatedButton.styleFrom(
-                                            backgroundColor: Colors.red,
-                                            foregroundColor: Colors.white,
-                                            shape: RoundedRectangleBorder(
-                                              borderRadius:
-                                                  BorderRadius.circular(8),
-                                            ),
-                                          ),
-                                          child: const Text('ยืนยันการแบน'),
-                                        ),
-                                      ],
-                                    );
-                                  },
-                                );
-
-                                // เรียกฟังก์ชันแบนเมื่อกดยืนยันเท่านั้น
-                                if (confirm == true && context.mounted) {
-                                  await _banAccount(context, providerId);
-                                }
-                              },
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.red,
-                                foregroundColor: Colors.white,
-                                elevation: 0,
-                                padding: EdgeInsets.zero,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                              ),
-                              child: const Text(
-                                'ระงับบัญชี',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ),
+                        ),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF1976D2),
+                          foregroundColor: Colors.white,
+                          elevation: 0,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
                           ),
-                        ],
+                        ),
                       ),
                     ),
+                  ],
 
                   if (data['statusReport'] == 1)
                     // ปุ่มแบนบัญชี

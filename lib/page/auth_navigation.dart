@@ -68,8 +68,10 @@ Future<void> navigateAfterLogin({
 
     // 5. บัญชีถูกระงับ
     if (statusAccount == 4) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('บัญชีถูกระงับ กรุณาติดต่อผู้ดูแลระบบ')),
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(builder: (_) => HomepageProvider(uid: uid)),
+        (route) => false,
       );
       return;
     }

@@ -124,8 +124,9 @@ class _HistoryJobProviderState extends State<HistoryJobProvider> {
                 itemCount: jobDocs.length,
                 itemBuilder: (context, index) {
                   final jobData = jobDocs[index].data() as Map<String, dynamic>;
+                  final jobId = jobDocs[index].id;
 
-                  // ✅ แก้ไข: แปลงทุกค่าให้อยู่ในรูปแบบ String ด้วย .toString() ป้องกัน type 'int' Error
+                  // แก้ไข: แปลงทุกค่าให้อยู่ในรูปแบบ String ด้วย .toString() ป้องกัน type 'int' Error
                   final hospitalName =
                       jobData['place_name']?.toString() ?? 'ไม่ระบุ';
                   final date = jobData['date']?.toString() ?? '-';
@@ -205,15 +206,53 @@ class _HistoryJobProviderState extends State<HistoryJobProvider> {
                             ),
                             const SizedBox(height: 10),
                             Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
-                                const Icon(Icons.money, size: 20),
-                                const SizedBox(width: 5),
-                                Text(
-                                  '$price บาท',
-                                  style: const TextStyle(fontSize: 15),
+                                Row(
+                                  children: [
+                                    const Icon(Icons.money, size: 20),
+                                    const SizedBox(width: 5),
+                                    Text(
+                                      '$price บาท',
+                                      style: const TextStyle(fontSize: 15),
+                                    ),
+                                  ],
+                                ),
+
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 12,
+                                    vertical: 6,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: Colors.green.withOpacity(0.1),
+                                    borderRadius: BorderRadius.circular(20),
+                                  ),
+                                  child: const Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(
+                                        Icons.check_circle,
+                                        size: 16,
+                                        color: Colors.green,
+                                      ),
+                                      SizedBox(width: 6),
+                                      Text(
+                                        'สำเร็จ',
+                                        style: TextStyle(
+                                          fontSize: 13,
+                                          fontWeight: FontWeight.w600,
+                                          color: Colors.green,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
                                 ),
                               ],
                             ),
+                            const SizedBox(height: 10),
+                            const Divider(),
+                            buildPaymentSlip(jobId),
                           ],
                         ),
                       ),
@@ -225,6 +264,88 @@ class _HistoryJobProviderState extends State<HistoryJobProvider> {
           );
         },
       ),
+    );
+  }
+
+  Widget buildPaymentSlip(String jobId) {
+    return StreamBuilder<QuerySnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection('payments')
+          .where('job_id', isEqualTo: jobId)
+          .snapshots(),
+      builder: (context, snapshot) {
+        // ระหว่างโหลด ยังไม่แสดงอะไร
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const SizedBox.shrink();
+        }
+
+        // หากโหลดผิดพลาด ก็ซ่อนส่วนสลิป
+        if (snapshot.hasError) {
+          return const SizedBox.shrink();
+        }
+
+        // ไม่มีข้อมูลการชำระเงิน ให้ซ่อนสลิป
+        if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+          return const SizedBox.shrink();
+        }
+
+        final paymentData =
+            snapshot.data!.docs.first.data() as Map<String, dynamic>;
+
+        final slipUrl = paymentData['slip_image']?.toString() ?? '';
+
+        // ไม่มี URL รูปสลิป ให้ซ่อนสลิป
+        if (slipUrl.isEmpty) {
+          return const SizedBox.shrink();
+        }
+
+        // มีสลิป จึงแสดงปุ่มดูสลิป
+        return Align(
+          alignment: Alignment.centerLeft,
+          child: OutlinedButton.icon(
+            onPressed: () => showPaymentSlip(slipUrl),
+            icon: const Icon(Icons.receipt_long),
+            label: const Text('ดูสลิปการชำระเงิน'),
+          ),
+        );
+      },
+    );
+  }
+
+  void showPaymentSlip(String slipUrl) {
+    showDialog(
+      context: context,
+      builder: (dialogContext) {
+        return Dialog(
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text(
+                  'สลิปการชำระเงิน',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 16),
+                Flexible(
+                  child: Image.network(
+                    slipUrl,
+                    fit: BoxFit.contain,
+                    errorBuilder: (context, error, stackTrace) {
+                      return const Text('ไม่สามารถโหลดรูปสลิปได้');
+                    },
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextButton(
+                  onPressed: () => Navigator.pop(dialogContext),
+                  child: const Text('ปิด'),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 }

@@ -146,6 +146,24 @@ class NotificationService {
     }
   }
 
+  Future<void> notifyProviderAccountSuspended({required String userId}) async {
+    try {
+      // 3. สร้าง Notification แจ้งผู้ให้บริการ
+      await _firestore.collection('notifications').add({
+        'uid': userId,
+        'title': 'บัญชีของคุณถูกระงับการใช้งานชั่วคราว',
+        'notification_type': 8,
+        'job_id': null,
+        'notification_status': 0,
+        'created_at': FieldValue.serverTimestamp(),
+      });
+
+      print('สร้างการแจ้งเตือนสำเร็จสำหรับ userId: userId');
+    } catch (e) {
+      print('เกิดข้อผิดพลาดในการแจ้งเตือน: $e');
+    }
+  }
+
   ////////////////////////////////////////////////
   //          ผู้รับบริการ
   ////////////////////////////////////////////////
@@ -305,6 +323,27 @@ class NotificationService {
       });
 
       print('สร้างการแจ้งเตือนสำเร็จ');
+    } catch (e) {
+      print('เกิดข้อผิดพลาดในการแจ้งเตือน: $e');
+    }
+  }
+
+  Future<void> notifyReceiverProviderSuspended({
+    required String jobId,
+    required String userId,
+  }) async {
+    try {
+      // 3. สร้าง Notification แจ้งผู้ให้บริการ
+      await _firestore.collection('notifications').add({
+        'uid': userId,
+        'title': 'ผู้ให้บริการถูกระงับ กรุณาเลือกผู้ให้บริการใหม่',
+        'notification_type': 8,
+        'job_id': jobId,
+        'notification_status': 0,
+        'created_at': FieldValue.serverTimestamp(),
+      });
+
+      print('สร้างการแจ้งเตือนสำเร็จสำหรับ userId: userId');
     } catch (e) {
       print('เกิดข้อผิดพลาดในการแจ้งเตือน: $e');
     }
