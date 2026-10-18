@@ -959,7 +959,7 @@ class _DetailsJobServiceState extends State<DetailsJobService> {
       if (job == null) throw Exception('ไม่พบงาน');
 
       final jobStatus = job['job_status'] as int;
-      final startTime = (job['start_time'] as Timestamp).toDate();
+      final startTime = (job['start_at'] as Timestamp).toDate();
 
       final canCancel =
           jobStatus == 1 &&

@@ -152,7 +152,7 @@ class NotificationService {
       await _firestore.collection('notifications').add({
         'uid': userId,
         'title': 'บัญชีของคุณถูกระงับการใช้งานชั่วคราว',
-        'notification_type': 8,
+        'notification_type': 9,
         'job_id': null,
         'notification_status': 0,
         'created_at': FieldValue.serverTimestamp(),
@@ -337,7 +337,7 @@ class NotificationService {
       await _firestore.collection('notifications').add({
         'uid': userId,
         'title': 'ผู้ให้บริการถูกระงับ กรุณาเลือกผู้ให้บริการใหม่',
-        'notification_type': 8,
+        'notification_type': 7,
         'job_id': jobId,
         'notification_status': 0,
         'created_at': FieldValue.serverTimestamp(),

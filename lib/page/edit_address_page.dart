@@ -143,192 +143,202 @@ class _EditAddressPageState extends State<EditAddressPage> {
 
       body: isLoading
           ? const Center(child: CircularProgressIndicator())
-          : Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 25, vertical: 20),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    "แก้ไขที่อยู่",
-                    style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-                  ),
-
-                  const SizedBox(height: 25),
-
-                  TextField(
-                    controller: houseNumberController,
-                    decoration: InputDecoration(
-                      labelText: "บ้านเลขที่, หมู่",
-                      hintText: "เช่น 123/45 หมู่ 5",
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(10),
+          : SingleChildScrollView(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 25,
+                  vertical: 20,
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      "แก้ไขที่อยู่",
+                      style: TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
                       ),
                     ),
-                  ),
 
-                  const SizedBox(height: 15),
+                    const SizedBox(height: 25),
 
-                  TextField(
-                    controller: addressDetailController,
-                    decoration: InputDecoration(
-                      labelText: "ที่อยู่เพิ่มเติม",
-                      hintText: "ซอย, ถนน, แขวง/ตำบล",
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(10),
+                    TextField(
+                      controller: houseNumberController,
+                      decoration: InputDecoration(
+                        labelText: "บ้านเลขที่, หมู่",
+                        hintText: "เช่น 123/45 หมู่ 5",
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
                       ),
                     ),
-                  ),
 
-                  const SizedBox(height: 15),
+                    const SizedBox(height: 15),
 
-                  TextField(
-                    controller: districtController,
-                    decoration: InputDecoration(
-                      labelText: "อำเภอ",
-                      hintText: "เช่น เมืองมหาสารคาม",
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(10),
+                    TextField(
+                      controller: addressDetailController,
+                      decoration: InputDecoration(
+                        labelText: "ที่อยู่เพิ่มเติม",
+                        hintText: "ซอย, ถนน, แขวง/ตำบล",
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
                       ),
                     ),
-                  ),
 
-                  const SizedBox(height: 15),
+                    const SizedBox(height: 15),
 
-                  TextField(
-                    controller: provinceController,
-                    decoration: InputDecoration(
-                      labelText: "จังหวัด",
-                      hintText: "เช่น มหาสารคาม",
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(10),
+                    TextField(
+                      controller: districtController,
+                      decoration: InputDecoration(
+                        labelText: "อำเภอ",
+                        hintText: "เช่น เมืองมหาสารคาม",
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
                       ),
                     ),
-                  ),
 
-                  const SizedBox(height: 10),
+                    const SizedBox(height: 15),
 
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(15),
-                    decoration: BoxDecoration(
-                      color: Colors.grey.shade50,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: Colors.grey.shade300),
+                    TextField(
+                      controller: provinceController,
+                      decoration: InputDecoration(
+                        labelText: "จังหวัด",
+                        hintText: "เช่น มหาสารคาม",
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                      ),
                     ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          "พิกัดที่อยู่",
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
+
+                    const SizedBox(height: 10),
+
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(15),
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade50,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: Colors.grey.shade300),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            "พิกัดที่อยู่",
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
-                        ),
 
-                        const SizedBox(height: 12),
+                          const SizedBox(height: 12),
 
-                        Row(
-                          children: [
-                            const Icon(
-                              Icons.location_on,
-                              color: Colors.red,
-                              size: 28,
-                            ),
-
-                            const SizedBox(width: 10),
-
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    latitude != null
-                                        ? "ละติจูด: $latitude"
-                                        : "ยังไม่ได้เลือกพิกัด",
-                                    style: const TextStyle(fontSize: 15),
-                                  ),
-
-                                  const SizedBox(height: 5),
-
-                                  Text(
-                                    longitude != null
-                                        ? "ลองจิจูด: $longitude"
-                                        : "ยังไม่ได้เลือกพิกัด",
-                                    style: const TextStyle(fontSize: 15),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
-
-                        const SizedBox(height: 12),
-
-                        SizedBox(
-                          width: double.infinity,
-                          child: OutlinedButton.icon(
-                            onPressed: () async {
-                              final result = await Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) => const MapPage(),
-                                ),
-                              );
-
-                              if (result != null) {
-                                setState(() {
-                                  latitude = result['lat'];
-                                  longitude = result['lon'];
-                                });
-
-                                log("LatfromMap: $latitude");
-                                log("LonfromMap: $longitude");
-                              }
-                            },
-                            icon: const Icon(Icons.map, color: Colors.red),
-                            label: const Text(
-                              "แก้ไขพิกัดที่อยู่",
-                              style: TextStyle(
+                          Row(
+                            children: [
+                              const Icon(
+                                Icons.location_on,
                                 color: Colors.red,
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
+                                size: 28,
                               ),
-                            ),
-                            style: OutlinedButton.styleFrom(
-                              side: const BorderSide(color: Colors.red),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(10),
+
+                              const SizedBox(width: 10),
+
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      latitude != null
+                                          ? "ละติจูด: $latitude"
+                                          : "ยังไม่ได้เลือกพิกัด",
+                                      style: const TextStyle(fontSize: 15),
+                                    ),
+
+                                    const SizedBox(height: 5),
+
+                                    Text(
+                                      longitude != null
+                                          ? "ลองจิจูด: $longitude"
+                                          : "ยังไม่ได้เลือกพิกัด",
+                                      style: const TextStyle(fontSize: 15),
+                                    ),
+                                  ],
+                                ),
                               ),
-                              padding: const EdgeInsets.symmetric(vertical: 12),
+                            ],
+                          ),
+
+                          const SizedBox(height: 12),
+
+                          SizedBox(
+                            width: double.infinity,
+                            child: OutlinedButton.icon(
+                              onPressed: () async {
+                                final result = await Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => const MapPage(),
+                                  ),
+                                );
+
+                                if (result != null) {
+                                  setState(() {
+                                    latitude = result['lat'];
+                                    longitude = result['lon'];
+                                  });
+
+                                  log("LatfromMap: $latitude");
+                                  log("LonfromMap: $longitude");
+                                }
+                              },
+                              icon: const Icon(Icons.map, color: Colors.red),
+                              label: const Text(
+                                "แก้ไขพิกัดที่อยู่",
+                                style: TextStyle(
+                                  color: Colors.red,
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              style: OutlinedButton.styleFrom(
+                                side: const BorderSide(color: Colors.red),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 12,
+                                ),
+                              ),
                             ),
                           ),
+                        ],
+                      ),
+                    ),
+
+                    Row(
+                      children: [
+                        Checkbox(
+                          value: addressBegin == 1,
+                          activeColor: Colors.red,
+                          onChanged: (value) {
+                            setState(() {
+                              addressBegin = value == true ? 1 : 0;
+                            });
+
+                            log(addressBegin.toString());
+                          },
+                        ),
+
+                        const Text(
+                          "เลือกเป็นที่อยู่ตั้งต้น",
+                          style: TextStyle(fontSize: 16),
                         ),
                       ],
                     ),
-                  ),
-
-                  Row(
-                    children: [
-                      Checkbox(
-                        value: addressBegin == 1,
-                        activeColor: Colors.red,
-                        onChanged: (value) {
-                          setState(() {
-                            addressBegin = value == true ? 1 : 0;
-                          });
-
-                          log(addressBegin.toString());
-                        },
-                      ),
-
-                      const Text(
-                        "เลือกเป็นที่อยู่ตั้งต้น",
-                        style: TextStyle(fontSize: 16),
-                      ),
-                    ],
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
 

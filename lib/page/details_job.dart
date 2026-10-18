@@ -31,6 +31,7 @@ class _DetailsJobState extends State<DetailsJob> {
 
   bool isProviderDataComplete = false;
   bool isCheckingProvider = true;
+  bool _isCancelling = false;
 
   Timer? _timer;
 
@@ -609,43 +610,70 @@ class _DetailsJobState extends State<DetailsJob> {
                           // ปุ่มยกเลิกงานที่ได้รับแล้ว
                           if (statusDrivers == 1 || statusDrivers == 3) ...[
                             const SizedBox(height: 10),
+
                             if (_canCancel)
                               SizedBox(
                                 width: double.infinity,
                                 height: 48,
                                 child: OutlinedButton.icon(
-                                  onPressed: () async {
-                                    if (!_canCancel) {
-                                      ScaffoldMessenger.of(
-                                        context,
-                                      ).showSnackBar(
-                                        const SnackBar(
-                                          content: Text(
-                                            'ไม่สามารถยกเลิกงานได้ภายใน 2 นาทีก่อนเริ่มงาน',
+                                  onPressed: _isCancelling
+                                      ? null
+                                      : () async {
+                                          if (!_canCancel) {
+                                            ScaffoldMessenger.of(
+                                              context,
+                                            ).showSnackBar(
+                                              const SnackBar(
+                                                content: Text(
+                                                  'ไม่สามารถยกเลิกงานได้ภายใน 2 ชั่วโมงก่อนเริ่มงาน',
+                                                ),
+                                              ),
+                                            );
+                                            return;
+                                          }
+
+                                          await showCancelJobDialog(
+                                            context,
+                                            cancelCount:
+                                                (detailsJob['cancel_job']
+                                                        as num?)
+                                                    ?.toInt() ??
+                                                0,
+                                            onConfirm: () async {
+                                              setState(() {
+                                                _isCancelling = true;
+                                              });
+
+                                              try {
+                                                await cancelJob();
+                                              } finally {
+                                                if (mounted) {
+                                                  setState(() {
+                                                    _isCancelling = false;
+                                                  });
+                                                }
+                                              }
+                                            },
+                                          );
+                                        },
+                                  icon: _isCancelling
+                                      ? const SizedBox(
+                                          width: 20,
+                                          height: 20,
+                                          child: CircularProgressIndicator(
+                                            strokeWidth: 2,
+                                            color: Colors.red,
                                           ),
+                                        )
+                                      : const Icon(
+                                          Icons.cancel_outlined,
+                                          size: 20,
                                         ),
-                                      );
-                                      setState(() {});
-                                      return;
-                                    }
-                                    await showCancelJobDialog(
-                                      context,
-                                      cancelCount:
-                                          (detailsJob['cancel_job'] as num?)
-                                              ?.toInt() ??
-                                          0,
-                                      onConfirm: () async {
-                                        await cancelJob();
-                                      },
-                                    );
-                                  },
-                                  icon: const Icon(
-                                    Icons.cancel_outlined,
-                                    size: 20,
-                                  ),
-                                  label: const Text(
-                                    'ยกเลิกงาน',
-                                    style: TextStyle(
+                                  label: Text(
+                                    _isCancelling
+                                        ? 'กำลังยกเลิกงาน...'
+                                        : 'ยกเลิกงาน',
+                                    style: const TextStyle(
                                       fontSize: 15,
                                       fontWeight: FontWeight.bold,
                                     ),
@@ -830,6 +858,7 @@ class _DetailsJobState extends State<DetailsJob> {
           content: Text('ยกเลิกงานเรียบร้อยแล้ว คนขับคนอื่นสามารถสมัครได้'),
         ),
       );
+      Navigator.pop(context, true);
     } catch (e) {
       debugPrint('เกิดข้อผิดพลาดในการยกเลิกงาน: $e');
 
@@ -1045,7 +1074,7 @@ class _DetailsJobState extends State<DetailsJob> {
     return false;
   }
 
-  // ยกเลิกได้: ได้งานแล้ว (1) และเหลือเวลาเกิน 2 นาที
+  // ยกเลิกได้: ได้งานแล้ว (1) และเหลือเวลาเกิน 2 ชม
   bool get _canCancel {
     final start = _startTime;
     if (start == null) return false;

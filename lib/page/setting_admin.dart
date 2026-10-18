@@ -69,12 +69,6 @@ class _SettingsPageState extends State<SettingAdmin> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        automaticallyImplyLeading: false,
-        backgroundColor: Colors.red,
-        title: const Text('การตั้งค่า', style: TextStyle(color: Colors.white)),
-      ),
-
       body: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
