@@ -73,8 +73,13 @@ class _HomepageServiceState extends State<HomepageService> {
   @override
   void initState() {
     super.initState();
-    NotificationSystem().setupNotification(widget.uid);
+    _initNotifications();
     loadServiceData();
+  }
+
+  Future<void> _initNotifications() async {
+    await NotificationSystem().setupNotification(widget.uid);
+    await NotificationSystem().listenFirestoreNotifications(widget.uid);
   }
 
   @override

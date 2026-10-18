@@ -5,6 +5,7 @@ import 'package:caremate_application/page/address_service_page.dart';
 import 'package:caremate_application/page/app_session.dart';
 import 'package:caremate_application/page/history_job_service.dart';
 import 'package:caremate_application/page/login.dart';
+import 'package:caremate_application/page/notification_system.dart';
 import 'package:caremate_application/page/profile_service.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
@@ -226,18 +227,7 @@ class _SettingsPageState extends State<SettingsService> {
               },
             ),
             const Divider(color: Colors.grey, thickness: 1, height: 30),
-            buildMenu(
-              'สมัครเป็นผู้ให้บริการ',
-              onTap: () {
-                // Navigator.push(
-                //   context,
-                //   MaterialPageRoute(
-                //     builder: (context) => const RegisterProvider(),
-                //   ),
-                // );
-              },
-            ),
-            const Divider(color: Colors.grey, thickness: 1, height: 30),
+
             const Spacer(),
             SizedBox(
               width: double.infinity,
@@ -247,6 +237,7 @@ class _SettingsPageState extends State<SettingsService> {
                   padding: const EdgeInsets.symmetric(vertical: 16),
                 ),
                 onPressed: () async {
+                  await NotificationSystem().removeToken(uid);
                   await GoogleSignIn().signOut();
                   await FirebaseAuth.instance.signOut();
                   await AppSession.clear();

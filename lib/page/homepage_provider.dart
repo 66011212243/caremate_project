@@ -41,8 +41,13 @@ class _HomepageProviderState extends State<HomepageProvider> {
     // TODO: implement initState
     super.initState();
     // ตั้งค่า Firebase Messaging
-    NotificationSystem().setupNotification(widget.uid);
+    _initNotifications();
     loadData();
+  }
+
+  Future<void> _initNotifications() async {
+    await NotificationSystem().setupNotification(widget.uid);
+    await NotificationSystem().listenFirestoreNotifications(widget.uid);
   }
 
   Future<void> loadData() async {
@@ -583,6 +588,12 @@ class _HomepageProviderState extends State<HomepageProvider> {
                     ],
                   )
           : pages[_selectedIndex],
+      floatingActionButton: FloatingActionButton(
+        onPressed: () async {
+          await NotificationSystem().testShow();
+        },
+        child: const Icon(Icons.notifications),
+      ),
 
       bottomNavigationBar: BottomNavigationBar(
         type: BottomNavigationBarType.fixed,

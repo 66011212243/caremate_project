@@ -27,7 +27,12 @@ class _HomepageAdminState extends State<HomepageAdmin> {
     // TODO: implement initState
     super.initState();
     // ตั้งค่า Firebase Messaging
-    NotificationSystem().setupNotification(widget.uid);
+    _initNotifications();
+  }
+
+  Future<void> _initNotifications() async {
+    await NotificationSystem().setupNotification(widget.uid);
+    await NotificationSystem().listenFirestoreNotifications(widget.uid);
   }
 
   @override
