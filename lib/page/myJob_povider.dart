@@ -27,6 +27,7 @@ class _MyjobPoviderState extends State<MyjobPovider> {
   var db = FirebaseFirestore.instance;
   List<Map<String, dynamic>> allJobs = [];
   bool isLoading = true;
+  bool isStartingJob = false;
   @override
   void initState() {
     // TODO: implement initState
@@ -313,33 +314,203 @@ class _MyjobPoviderState extends State<MyjobPovider> {
                                                     ),
                                                   ),
                                                   onPressed: () async {
-                                                    // เริ่มทำงาน
                                                     if (job['status_drivers'] ==
-                                                        3) {
-                                                      await updateStatusJobs(
-                                                        job['job_id'],
-                                                        job['all_driver_id'],
+                                                        1) {
+                                                      if (isStartingJob) return;
+
+                                                      await showDialog<void>(
+                                                        context: context,
+                                                        barrierDismissible:
+                                                            false,
+                                                        builder: (dialogContext) {
+                                                          bool isLoadingDialog =
+                                                              false;
+
+                                                          return StatefulBuilder(
+                                                            builder:
+                                                                (
+                                                                  context,
+                                                                  setDialogState,
+                                                                ) {
+                                                                  return AlertDialog(
+                                                                    shape: RoundedRectangleBorder(
+                                                                      borderRadius:
+                                                                          BorderRadius.circular(
+                                                                            16,
+                                                                          ),
+                                                                    ),
+                                                                    title: const Row(
+                                                                      children: [
+                                                                        Icon(
+                                                                          Icons
+                                                                              .info_outline,
+                                                                          color:
+                                                                              Colors.orange,
+                                                                          size:
+                                                                              28,
+                                                                        ),
+                                                                        SizedBox(
+                                                                          width:
+                                                                              10,
+                                                                        ),
+                                                                        Expanded(
+                                                                          child: Text(
+                                                                            'ยืนยันการเริ่มงาน',
+                                                                            style: TextStyle(
+                                                                              fontSize: 19,
+                                                                              fontWeight: FontWeight.bold,
+                                                                            ),
+                                                                          ),
+                                                                        ),
+                                                                      ],
+                                                                    ),
+                                                                    content: const Text(
+                                                                      'ปุ่มนี้ใช้สำหรับเริ่มให้บริการจริงเท่านั้น\n\n'
+                                                                      'กรุณากดเมื่อคุณพร้อมเริ่มปฏิบัติงานแล้ว '
+                                                                      'เมื่อยืนยัน ระบบจะเปลี่ยนสถานะงานเป็นกำลังดำเนินการ',
+                                                                      style: TextStyle(
+                                                                        fontSize:
+                                                                            15,
+                                                                        height:
+                                                                            1.6,
+                                                                      ),
+                                                                    ),
+                                                                    actions: [
+                                                                      TextButton(
+                                                                        onPressed:
+                                                                            isLoadingDialog
+                                                                            ? null
+                                                                            : () => Navigator.pop(
+                                                                                dialogContext,
+                                                                              ),
+                                                                        child: const Text(
+                                                                          'ยังไม่เริ่มงาน',
+                                                                          style: TextStyle(
+                                                                            color:
+                                                                                Colors.grey,
+                                                                          ),
+                                                                        ),
+                                                                      ),
+                                                                      ElevatedButton(
+                                                                        style: ElevatedButton.styleFrom(
+                                                                          backgroundColor: const Color(
+                                                                            0xFFD32F2F,
+                                                                          ),
+                                                                          foregroundColor:
+                                                                              Colors.white,
+                                                                          shape: RoundedRectangleBorder(
+                                                                            borderRadius: BorderRadius.circular(
+                                                                              8,
+                                                                            ),
+                                                                          ),
+                                                                        ),
+                                                                        onPressed:
+                                                                            isLoadingDialog
+                                                                            ? null
+                                                                            : () async {
+                                                                                setDialogState(
+                                                                                  () {
+                                                                                    isLoadingDialog = true;
+                                                                                  },
+                                                                                );
+
+                                                                                if (mounted) {
+                                                                                  setState(
+                                                                                    () {
+                                                                                      isStartingJob = true;
+                                                                                    },
+                                                                                  );
+                                                                                }
+
+                                                                                try {
+                                                                                  await updateStatusJobs(
+                                                                                    job['job_id'],
+                                                                                    job['all_driver_id'],
+                                                                                  );
+
+                                                                                  debugPrint(
+                                                                                    'เริ่มทำงาน: ${job['job_id']}',
+                                                                                  );
+
+                                                                                  if (!mounted) return;
+
+                                                                                  // ปิดไดอะล็อกหลังบันทึกสำเร็จ
+                                                                                  Navigator.pop(
+                                                                                    dialogContext,
+                                                                                  );
+
+                                                                                  await Navigator.push(
+                                                                                    context,
+                                                                                    MaterialPageRoute(
+                                                                                      builder:
+                                                                                          (
+                                                                                            context,
+                                                                                          ) => StatusJob(
+                                                                                            jobId: job['job_id'],
+                                                                                            pid: widget.pid,
+                                                                                          ),
+                                                                                    ),
+                                                                                  );
+
+                                                                                  if (!mounted) return;
+
+                                                                                  await queryMyJobs();
+                                                                                } catch (
+                                                                                  e
+                                                                                ) {
+                                                                                  debugPrint(
+                                                                                    'เกิดข้อผิดพลาดในการเริ่มงาน: $e',
+                                                                                  );
+
+                                                                                  if (dialogContext.mounted) {
+                                                                                    setDialogState(
+                                                                                      () {
+                                                                                        isLoadingDialog = false;
+                                                                                      },
+                                                                                    );
+                                                                                  }
+
+                                                                                  if (mounted) {
+                                                                                    ScaffoldMessenger.of(
+                                                                                      context,
+                                                                                    ).showSnackBar(
+                                                                                      const SnackBar(
+                                                                                        content: Text(
+                                                                                          'เริ่มงานไม่สำเร็จ กรุณาลองอีกครั้ง',
+                                                                                        ),
+                                                                                      ),
+                                                                                    );
+                                                                                  }
+                                                                                } finally {
+                                                                                  if (mounted) {
+                                                                                    setState(
+                                                                                      () {
+                                                                                        isStartingJob = false;
+                                                                                      },
+                                                                                    );
+                                                                                  }
+                                                                                }
+                                                                              },
+                                                                        child:
+                                                                            isLoadingDialog
+                                                                            ? const SizedBox(
+                                                                                width: 18,
+                                                                                height: 18,
+                                                                                child: CircularProgressIndicator(
+                                                                                  strokeWidth: 2,
+                                                                                  color: Colors.white,
+                                                                                ),
+                                                                              )
+                                                                            : const Text(
+                                                                                'ยืนยันเริ่มงาน',
+                                                                              ),
+                                                                      ),
+                                                                    ],
+                                                                  );
+                                                                },
+                                                          );
+                                                        },
                                                       );
-
-                                                      print(
-                                                        'เริ่มทำงาน: ${job['job_id']}',
-                                                      );
-
-                                                      await Navigator.push(
-                                                        context,
-                                                        MaterialPageRoute(
-                                                          builder: (context) =>
-                                                              StatusJob(
-                                                                jobId:
-                                                                    job['job_id'],
-                                                                pid: widget.pid,
-                                                              ),
-                                                        ),
-                                                      );
-
-                                                      if (!mounted) return;
-
-                                                      await queryMyJobs();
                                                     }
 
                                                     // ทำงานต่อ
@@ -417,13 +588,10 @@ class _MyjobPoviderState extends State<MyjobPovider> {
                                                         ? 'รอคัดเลือก'
                                                         : job['status_drivers'] ==
                                                               1
-                                                        ? 'ได้รับงานแล้ว'
+                                                        ? 'เริ่มทำงาน'
                                                         : job['status_drivers'] ==
                                                               2
                                                         ? 'ตำแหน่งเต็ม'
-                                                        : job['status_drivers'] ==
-                                                              3
-                                                        ? 'เริ่มทำงาน'
                                                         : 'ทำงานต่อ',
                                                     style: const TextStyle(
                                                       fontSize: 15,
@@ -505,6 +673,17 @@ class _MyjobPoviderState extends State<MyjobPovider> {
           }
         }
       }
+
+      // 4. เรียง status_drivers จากมากไปน้อย
+      tempList.sort((a, b) {
+        final statusA = a['status_drivers'] as int;
+        final statusB = b['status_drivers'] as int;
+
+        return statusB.compareTo(statusA);
+      });
+
+      // 5. อัปเดตหน้าจอ
+      if (!mounted) return;
 
       setState(() {
         allJobs = tempList;

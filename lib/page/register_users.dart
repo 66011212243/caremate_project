@@ -264,6 +264,26 @@ class _RegisterUsersState extends State<RegisterUsers> {
         return;
       }
 
+      final emailSnapshot = await db
+          .collection('users')
+          .where('email', isEqualTo: email)
+          .limit(1)
+          .get();
+
+      if (emailSnapshot.docs.isNotEmpty) {
+        if (!mounted) return;
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('อีเมลนี้ถูกใช้สมัครสมาชิกแล้ว')),
+        );
+
+        setState(() {
+          isLoading = false;
+        });
+
+        return;
+      }
+
       if (password != confirmPassword) {
         ScaffoldMessenger.of(
           context,

@@ -196,7 +196,11 @@ class _ApproveProviderState extends State<ApproveProvider> {
         batch.update(userRef, {'status_account': 1});
       }
 
-      batch.update(docRef, {'status_doc': 1, 'reject_reason': null});
+      batch.update(docRef, {
+        'status_doc': 1,
+        'reject_reason': null,
+        'approve_at': FieldValue.serverTimestamp(),
+      });
 
       await batch.commit();
 

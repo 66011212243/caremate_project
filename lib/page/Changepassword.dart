@@ -97,8 +97,19 @@ class _ChangepasswordPageState extends State<ChangepasswordPage> {
       _showMessage('รหัสผ่านใหม่ไม่ตรงกัน');
       return;
     }
-    if (!RegExp(r'^[A-Z]').hasMatch(newPassword)) {
-      _showMessage('ตัวอักษรแรกของรหัสผ่านต้องเป็นตัวพิมพ์ใหญ่ (A-Z)');
+    bool isStrongPassword(String password) {
+      final regex = RegExp(
+        r'^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)[A-Za-z\d@$!%*?&]{8,}$',
+      );
+
+      return regex.hasMatch(password);
+    }
+
+    if (!isStrongPassword(newPassword)) {
+      _showMessage(
+        'รหัสผ่านต้องมีอย่างน้อย 8 ตัว ประกอบด้วยตัวพิมพ์เล็ก '
+        'ตัวพิมพ์ใหญ่ และตัวเลข และใช้สัญลักษณ์ที่อนุญาตเท่านั้น',
+      );
       return;
     }
 
@@ -306,7 +317,7 @@ class _ChangepasswordPageState extends State<ChangepasswordPage> {
               const Align(
                 alignment: Alignment.centerLeft,
                 child: Text(
-                  '* รหัสผ่านต้องขึ้นต้นด้วยตัวพิมพ์ใหญ่',
+                  '* รหัสผ่านต้องประกอบด้วยตัวพิมพ์เล็ก ตัวพิมพ์ใหญ่ และตัวเลข และใช้สัญลักษณ์ที่อนุญาตเท่านั้น',
                   style: TextStyle(color: Colors.grey, fontSize: 12),
                 ),
               ),

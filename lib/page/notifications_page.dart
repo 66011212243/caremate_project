@@ -117,6 +117,42 @@ class _NotificationsPageState extends State<NotificationsPage> {
     }
   }
 
+  Future<void> deleteAllNotifications(String uid) async {
+    final db = FirebaseFirestore.instance;
+
+    try {
+      // ดึงการแจ้งเตือนทั้งหมดของผู้ใช้คนนี้
+      final snapshot = await db
+          .collection('notifications')
+          .where('uid', isEqualTo: uid)
+          .get();
+
+      if (snapshot.docs.isEmpty) {
+        print('ไม่มีการแจ้งเตือนให้ลบ');
+        return;
+      }
+
+      // Firestore Batch ลบได้สูงสุด 500 รายการต่อครั้ง
+      for (var i = 0; i < snapshot.docs.length; i += 500) {
+        final batch = db.batch();
+        final end = (i + 500 < snapshot.docs.length)
+            ? i + 500
+            : snapshot.docs.length;
+
+        for (var j = i; j < end; j++) {
+          batch.delete(snapshot.docs[j].reference);
+        }
+
+        await batch.commit();
+      }
+
+      print('ลบการแจ้งเตือนทั้งหมดสำเร็จ');
+    } catch (e) {
+      print('เกิดข้อผิดพลาดในการลบการแจ้งเตือน: $e');
+      rethrow;
+    }
+  }
+
   IconData getNotificationIcon(int type) {
     switch (type) {
       case 0:
@@ -133,6 +169,14 @@ class _NotificationsPageState extends State<NotificationsPage> {
         return Icons.report_problem_outlined;
       case 6:
         return Icons.event_busy_outlined;
+      case 7:
+        return Icons.person_off_outlined; // ผู้ให้บริการถูกระงับ
+
+      case 8:
+        return Icons.notifications_active_outlined; // ได้รับคำเตือนจากแอดมิน
+
+      case 9:
+        return Icons.gpp_bad_outlined; // บัญชีถูกระงับการใช้งาน
       default:
         return Icons.notifications_outlined;
     }
@@ -143,19 +187,116 @@ class _NotificationsPageState extends State<NotificationsPage> {
     return Scaffold(
       backgroundColor: Colors.grey.shade50,
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: Colors.grey.shade50,
         elevation: 0,
         automaticallyImplyLeading: false,
-        title: const Row(
+        title: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Icon(Icons.notifications_outlined, color: Colors.black, size: 28),
-            SizedBox(width: 10),
-            Text(
-              'การแจ้งเตือน',
-              style: TextStyle(
-                color: Colors.black,
-                fontSize: 22,
-                fontWeight: FontWeight.bold,
+            const Row(
+              children: [
+                Icon(
+                  Icons.notifications_outlined,
+                  color: Colors.black,
+                  size: 28,
+                ),
+                SizedBox(width: 10),
+                Text(
+                  'การแจ้งเตือน',
+                  style: TextStyle(
+                    color: Colors.black,
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+
+            InkWell(
+              onTap: () async {
+                final confirm = await showDialog<bool>(
+                  context: context,
+                  builder: (dialogContext) {
+                    return AlertDialog(
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      title: const Text(
+                        'ยืนยันการลบ',
+                        style: TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                      content: const Text(
+                        'คุณต้องการลบการแจ้งเตือนทั้งหมดใช่หรือไม่?',
+                      ),
+                      actions: [
+                        TextButton(
+                          onPressed: () {
+                            Navigator.pop(dialogContext, false);
+                          },
+                          child: const Text(
+                            'ยกเลิก',
+                            style: TextStyle(color: Colors.grey),
+                          ),
+                        ),
+                        ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.red,
+                            foregroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                          ),
+                          onPressed: () {
+                            Navigator.pop(dialogContext, true);
+                          },
+                          child: const Text('ลบทั้งหมด'),
+                        ),
+                      ],
+                    );
+                  },
+                );
+
+                if (confirm == true) {
+                  try {
+                    await deleteAllNotifications(widget.uid);
+
+                    if (!context.mounted) return;
+
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('ลบการแจ้งเตือนทั้งหมดเรียบร้อยแล้ว'),
+                        backgroundColor: Colors.green,
+                      ),
+                    );
+                  } catch (e) {
+                    if (!context.mounted) return;
+
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('ลบการแจ้งเตือนไม่สำเร็จ กรุณาลองใหม่'),
+                        backgroundColor: Colors.red,
+                      ),
+                    );
+                  }
+                }
+              },
+              child: const Row(
+                children: [
+                  Icon(
+                    Icons.delete_outline,
+                    color: Color.fromARGB(255, 97, 96, 96),
+                    size: 20,
+                  ),
+                  SizedBox(width: 5),
+                  Text(
+                    'ลบทั้งหมด',
+                    style: TextStyle(
+                      color: Color.fromARGB(255, 97, 96, 96),
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
               ),
             ),
           ],
@@ -480,8 +621,104 @@ class _NotificationsPageState extends State<NotificationsPage> {
         break;
 
       case 7:
-        // แจ้งเตือนงานล่วงหน้า
-        // เปิดรายละเอียดงานตามบทบาทผู้ใช้
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => DetailsJobService(jobId: jobId),
+          ),
+        );
+        break;
+
+      case 8:
+        await showDialog<void>(
+          context: context,
+          barrierDismissible: false,
+          builder: (dialogContext) => AlertDialog(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
+            icon: const Icon(
+              Icons.notifications_active_outlined,
+              color: Colors.orange,
+              size: 42,
+            ),
+            title: const Text(
+              'ได้รับคำเตือนจากแอดมิน',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 19, fontWeight: FontWeight.bold),
+            ),
+            content: const Text(
+              'คุณได้รับคำเตือนจากแอดมิน เนื่องจากมีรายงานเกี่ยวกับ'
+              'พฤติกรรมการให้บริการที่อาจไม่เหมาะสม\n\n'
+              'กรุณาปรับปรุงพฤติกรรมการให้บริการให้เป็นไปตามข้อกำหนด '
+              'หากพบการกระทำผิดซ้ำ บัญชีของคุณอาจถูกระงับการใช้งานได้',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 14, height: 1.6),
+            ),
+            actions: [
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: () => Navigator.pop(dialogContext),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.orange,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
+                  child: const Text('รับทราบ'),
+                ),
+              ),
+            ],
+          ),
+        );
+        break;
+
+      case 9:
+        await showDialog<void>(
+          context: context,
+          barrierDismissible: false,
+          builder: (dialogContext) => AlertDialog(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
+            icon: const Icon(
+              Icons.gpp_bad_outlined,
+              color: Colors.red,
+              size: 42,
+            ),
+            title: const Text(
+              'บัญชีถูกระงับการใช้งาน',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 19, fontWeight: FontWeight.bold),
+            ),
+            content: const Text(
+              'บัญชีผู้ให้บริการของคุณถูกระงับการใช้งานชั่วคราว '
+              'เนื่องจากมีรายงานเกี่ยวกับพฤติกรรมการให้บริการที่ไม่เหมาะสม\n\n'
+              'ในระหว่างที่บัญชีถูกระงับ คุณจะไม่สามารถสมัครรับงานหรือ'
+              'ให้บริการผ่าน CareMate ได้ จนกว่าแอดมินจะพิจารณาและปลดระงับบัญชี\n\n',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 14, height: 1.6),
+            ),
+            actions: [
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: () => Navigator.pop(dialogContext),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFFD32F2F),
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
+                  child: const Text('รับทราบ'),
+                ),
+              ),
+            ],
+          ),
+        );
         break;
 
       default:
@@ -523,7 +760,11 @@ class _NotificationsPageState extends State<NotificationsPage> {
       case 6:
         return 'ผู้ให้บริการยกเลิกงาน';
       case 7:
-        return 'แจ้งเตือนงานล่วงหน้า 1 วัน';
+        return 'ผู้ให้บริการถูกระงับ';
+      case 8:
+        return 'ได้รับคำเตือนจากแอดมิน';
+      case 9:
+        return 'บัญชีถูกระงับการใช้งาน';
       default:
         return 'คุณมีการแจ้งเตือนใหม่';
     }

@@ -1,5 +1,7 @@
+import 'dart:async';
 import 'dart:developer';
 
+import 'package:caremate_application/functions/job_time.dart';
 import 'package:caremate_application/page/map_details_page.dart';
 import 'package:caremate_application/page/myJob_povider.dart';
 import 'package:caremate_application/page/notification_service.dart';
@@ -30,12 +32,23 @@ class _DetailsJobState extends State<DetailsJob> {
   bool isProviderDataComplete = false;
   bool isCheckingProvider = true;
 
+  Timer? _timer;
+
   @override
   void initState() {
     // TODO: implement initState
     super.initState();
     queryJobData();
     checkApplied();
+    _timer = Timer.periodic(const Duration(minutes: 1), (_) {
+      if (mounted) setState(() {});
+    });
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
   }
 
   @override
@@ -594,45 +607,67 @@ class _DetailsJobState extends State<DetailsJob> {
                           ],
 
                           // ปุ่มยกเลิกงานที่ได้รับแล้ว
-                          if (statusDrivers == 1 &&
-                              detailsJob['job_status'] == 1) ...[
+                          if (statusDrivers == 1 || statusDrivers == 3) ...[
                             const SizedBox(height: 10),
-                            SizedBox(
-                              width: double.infinity,
-                              height: 48,
-                              child: OutlinedButton.icon(
-                                onPressed: () async {
-                                  await showCancelJobDialog(
-                                    context,
-                                    cancelCount:
-                                        (detailsJob['cancel_job'] as num?)
-                                            ?.toInt() ??
-                                        0,
-                                    onConfirm: () async {
-                                      await cancelJob();
-                                    },
-                                  );
-                                },
-                                icon: const Icon(
-                                  Icons.cancel_outlined,
-                                  size: 20,
-                                ),
-                                label: const Text(
-                                  'ยกเลิกงาน',
-                                  style: TextStyle(
-                                    fontSize: 15,
-                                    fontWeight: FontWeight.bold,
+                            if (_canCancel)
+                              SizedBox(
+                                width: double.infinity,
+                                height: 48,
+                                child: OutlinedButton.icon(
+                                  onPressed: () async {
+                                    if (!_canCancel) {
+                                      ScaffoldMessenger.of(
+                                        context,
+                                      ).showSnackBar(
+                                        const SnackBar(
+                                          content: Text(
+                                            'ไม่สามารถยกเลิกงานได้ภายใน 2 นาทีก่อนเริ่มงาน',
+                                          ),
+                                        ),
+                                      );
+                                      setState(() {});
+                                      return;
+                                    }
+                                    await showCancelJobDialog(
+                                      context,
+                                      cancelCount:
+                                          (detailsJob['cancel_job'] as num?)
+                                              ?.toInt() ??
+                                          0,
+                                      onConfirm: () async {
+                                        await cancelJob();
+                                      },
+                                    );
+                                  },
+                                  icon: const Icon(
+                                    Icons.cancel_outlined,
+                                    size: 20,
+                                  ),
+                                  label: const Text(
+                                    'ยกเลิกงาน',
+                                    style: TextStyle(
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                  style: OutlinedButton.styleFrom(
+                                    foregroundColor: Colors.red,
+                                    side: const BorderSide(color: Colors.red),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
                                   ),
                                 ),
-                                style: OutlinedButton.styleFrom(
-                                  foregroundColor: Colors.red,
-                                  side: const BorderSide(color: Colors.red),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(10),
-                                  ),
+                              )
+                            else if (_isLocked)
+                              const Padding(
+                                padding: EdgeInsets.symmetric(vertical: 8),
+                                child: Text(
+                                  "ไม่สามารถยกเลิกงานได้ภายใน 2 ชั่วโมงก่อนเริ่มงาน",
+                                  style: TextStyle(color: Colors.grey),
+                                  textAlign: TextAlign.center,
                                 ),
                               ),
-                            ),
                           ],
                         ],
                       ),
@@ -993,6 +1028,30 @@ class _DetailsJobState extends State<DetailsJob> {
     final minute = int.parse(parts[1]);
 
     return (hour * 60) + minute;
+  }
+
+  DateTime? get _startTime => jobStartTime(detailsJob);
+
+  bool get _isLocked {
+    final start = _startTime;
+    if (start == null) return false;
+
+    if (statusDrivers == 3) return true; // ล็อกอยู่แล้ว
+
+    if (statusDrivers == 1) {
+      return start.difference(DateTime.now()) <= const Duration(hours: 2);
+    }
+
+    return false;
+  }
+
+  // ยกเลิกได้: ได้งานแล้ว (1) และเหลือเวลาเกิน 2 นาที
+  bool get _canCancel {
+    final start = _startTime;
+    if (start == null) return false;
+
+    return statusDrivers == 1 &&
+        start.difference(DateTime.now()) > const Duration(hours: 2);
   }
 }
 

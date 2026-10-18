@@ -2,6 +2,7 @@ import 'package:caremate_application/page/Bank.dart';
 import 'package:caremate_application/page/Changepassword.dart';
 import 'package:caremate_application/page/admin_all_report.dart';
 import 'package:caremate_application/page/admin_price_page.dart';
+import 'package:caremate_application/page/admin_verify.dart';
 import 'package:caremate_application/page/app_session.dart';
 import 'package:caremate_application/page/document.dart';
 import 'package:caremate_application/page/driver_pending_approval_page.dart';
@@ -135,6 +136,16 @@ class _SettingsPageState extends State<SettingAdmin> {
                 Navigator.push(
                   context,
                   MaterialPageRoute(builder: (context) => AdminAllReport()),
+                );
+              },
+            ),
+            const Divider(color: Colors.grey, thickness: 1, height: 30),
+            buildMenu(
+              'ตรวจสอบ',
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => AdminVerify()),
                 );
               },
             ),

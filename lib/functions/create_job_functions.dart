@@ -1,70 +1,64 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
-
 Future<bool> checkJobTimeConflict({
   required FirebaseFirestore db,
   required String serviceId,
   required String date,
   required String startTime,
   required String endTime,
+  String? excludeJobId,
 }) async {
   try {
-    // ดึงงานของ service คนนี้ในวันเดียวกัน
     final result = await db
         .collection('jobs')
         .where('service_id', isEqualTo: serviceId)
         .where('date', isEqualTo: date)
         .get();
 
-    // ถ้าวันนี้ยังไม่มีงาน → สร้างได้
-    if (result.docs.isEmpty) {
-      return true;
-    }
-
-    // แปลงเวลาใหม่เป็นนาที
     final newStart = timeToMinutes(startTime);
     final newEnd = timeToMinutes(endTime);
 
-    // ตรวจทุกงานในวันนั้น
     for (final doc in result.docs) {
+      // 1. ข้ามงานที่กำลังแก้ไข
+      if (excludeJobId != null && doc.id == excludeJobId) {
+        continue;
+      }
+
       final data = doc.data();
 
-      final oldStart = timeToMinutes(data['start_time'].toString());
+      // 2. ข้ามงานที่เสร็จแล้วหรือยกเลิกแล้ว
+      final status = data['job_status'];
+      if (status == 9 || status == 10) {
+        continue;
+      }
 
+      final oldStart = timeToMinutes(data['start_time'].toString());
       final oldEnd = timeToMinutes(data['end_time'].toString());
 
-      // ต้องห่างอย่างน้อย 2 ชั่วโมง = 120 นาที
       const gap = 120;
 
-      // กรณีงานใหม่อยู่หลังงานเดิม
+      // งานใหม่อยู่หลังงานเดิม
       if (newStart >= oldEnd) {
-        final difference = newStart - oldEnd;
-
-        if (difference < gap) {
+        if (newStart - oldEnd < gap) {
           return false;
         }
       }
-
-      // กรณีงานใหม่อยู่ก่อนงานเดิม
-      if (newEnd <= oldStart) {
-        final difference = oldStart - newEnd;
-
-        if (difference < gap) {
+      // งานใหม่อยู่ก่อนงานเดิม
+      else if (newEnd <= oldStart) {
+        if (oldStart - newEnd < gap) {
           return false;
         }
       }
-
-      // กรณีเวลาทับกัน
-      if (newStart < oldEnd && newEnd > oldStart) {
+      // เวลาทับซ้อนกัน
+      else {
         return false;
       }
     }
 
     return true;
-  } catch (e) {
-    print("checkJobTimeConflict error: $e");
-
-    // ถ้าเช็คไม่ได้ ไม่ควรให้สร้างงาน
+  } catch (e, stackTrace) {
+    print('checkJobTimeConflict error: $e');
+    print(stackTrace);
     return false;
   }
 }

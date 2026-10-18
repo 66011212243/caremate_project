@@ -1,3 +1,6 @@
+import 'dart:async';
+
+import 'package:caremate_application/functions/job_time.dart';
 import 'package:caremate_application/page/details_provider.dart';
 import 'package:caremate_application/page/drivers_page.dart';
 import 'package:caremate_application/page/edit_job.dart';
@@ -28,11 +31,22 @@ class _DetailsJobServiceState extends State<DetailsJobService> {
 
   final _map = GlobalKey<LongdoMapState>();
   bool _ready = false;
+  Timer? _timer;
+
   @override
   void initState() {
     // TODO: implement initState
     super.initState();
     queryJobDetails();
+    _timer = Timer.periodic(const Duration(minutes: 1), (_) {
+      if (mounted) setState(() {});
+    });
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
   }
 
   @override
@@ -486,119 +500,137 @@ class _DetailsJobServiceState extends State<DetailsJobService> {
                                     ),
                                   ),
 
-                                if (detailsJob['job_status'] == 1)
+                                if (detailsJob['job_status'] == 1) ...[
                                   // ปุ่มยกเลิกงาน
-                                  SizedBox(
-                                    width: double.infinity,
-                                    height: 48,
-                                    child: OutlinedButton.icon(
-                                      onPressed: isDeleting
-                                          ? null
-                                          : () {
-                                              print(
-                                                "ยกเลิกงาน ${widget.jobId}",
-                                              );
-
-                                              if (detailsJob['job_status'] !=
-                                                  1) {
-                                                ScaffoldMessenger.of(
-                                                  context,
-                                                ).showSnackBar(
-                                                  const SnackBar(
-                                                    content: Text(
-                                                      "ไม่สามารถยกเลิกงานได้ เนื่องจากงานอยู่ระหว่างดำเนินการ",
-                                                    ),
-                                                  ),
+                                  if (_canCancel)
+                                    SizedBox(
+                                      width: double.infinity,
+                                      height: 48,
+                                      child: OutlinedButton.icon(
+                                        onPressed: isDeleting
+                                            ? null
+                                            : () {
+                                                print(
+                                                  "ยกเลิกงาน ${widget.jobId}",
                                                 );
-                                                return;
-                                              }
 
-                                              showDialog(
-                                                context: context,
-                                                builder: (dialogContext) {
-                                                  return AlertDialog(
-                                                    title: const Text(
-                                                      "ยืนยันการยกเลิกงาน",
-                                                    ),
-                                                    content: const Text(
-                                                      "คุณต้องการยกเลิกประกาศงานนี้ใช่หรือไม่?",
-                                                    ),
-                                                    actions: [
-                                                      TextButton(
-                                                        onPressed: () {
-                                                          Navigator.pop(
-                                                            dialogContext,
-                                                          );
-                                                        },
-                                                        child: const Text(
-                                                          "กลับ",
-                                                          style: TextStyle(
-                                                            color: Colors.grey,
-                                                          ),
-                                                        ),
+                                                if (!_canCancel) {
+                                                  ScaffoldMessenger.of(
+                                                    context,
+                                                  ).showSnackBar(
+                                                    const SnackBar(
+                                                      content: Text(
+                                                        "ไม่สามารถยกเลิกงานได้ภายใน 2 ชั่วโมงก่อนเริ่มงาน",
                                                       ),
-                                                      TextButton(
-                                                        onPressed: () {
-                                                          Navigator.pop(
-                                                            dialogContext,
-                                                          );
-                                                          cancelJob(
-                                                            widget.jobId,
-                                                          );
-                                                        },
-                                                        child: const Text(
-                                                          "ยืนยันการยกเลิก",
-                                                          style: TextStyle(
-                                                            color: Colors.red,
-                                                            fontWeight:
-                                                                FontWeight.bold,
-                                                          ),
-                                                        ),
-                                                      ),
-                                                    ],
+                                                    ),
                                                   );
-                                                },
-                                              );
-                                            },
-                                      icon: isDeleting
-                                          ? const SizedBox(
-                                              width: 18,
-                                              height: 18,
-                                              child: CircularProgressIndicator(
-                                                strokeWidth: 2,
-                                                color: Colors.red,
+                                                  setState(
+                                                    () {},
+                                                  ); // รีเฟรชให้ปุ่มหาย
+                                                  return;
+                                                }
+
+                                                showDialog(
+                                                  context: context,
+                                                  builder: (dialogContext) {
+                                                    return AlertDialog(
+                                                      title: const Text(
+                                                        "ยืนยันการยกเลิกงาน",
+                                                      ),
+                                                      content: const Text(
+                                                        "คุณต้องการยกเลิกประกาศงานนี้ใช่หรือไม่?",
+                                                      ),
+                                                      actions: [
+                                                        TextButton(
+                                                          onPressed: () {
+                                                            Navigator.pop(
+                                                              dialogContext,
+                                                            );
+                                                          },
+                                                          child: const Text(
+                                                            "กลับ",
+                                                            style: TextStyle(
+                                                              color:
+                                                                  Colors.grey,
+                                                            ),
+                                                          ),
+                                                        ),
+                                                        TextButton(
+                                                          onPressed: () {
+                                                            Navigator.pop(
+                                                              dialogContext,
+                                                            );
+                                                            cancelJob(
+                                                              widget.jobId,
+                                                            );
+                                                          },
+                                                          child: const Text(
+                                                            "ยืนยันการยกเลิก",
+                                                            style: TextStyle(
+                                                              color: Colors.red,
+                                                              fontWeight:
+                                                                  FontWeight
+                                                                      .bold,
+                                                            ),
+                                                          ),
+                                                        ),
+                                                      ],
+                                                    );
+                                                  },
+                                                );
+                                              },
+                                        icon: isDeleting
+                                            ? const SizedBox(
+                                                width: 18,
+                                                height: 18,
+                                                child:
+                                                    CircularProgressIndicator(
+                                                      strokeWidth: 2,
+                                                      color: Colors.red,
+                                                    ),
+                                              )
+                                            : const Icon(
+                                                Icons.cancel_outlined,
+                                                size: 20,
                                               ),
-                                            )
-                                          : const Icon(
-                                              Icons.cancel_outlined,
-                                              size: 20,
+                                        label: Text(
+                                          isDeleting
+                                              ? "กำลังยกเลิกงาน..."
+                                              : "ยกเลิกงาน",
+                                          style: const TextStyle(
+                                            fontSize: 15,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                        style: OutlinedButton.styleFrom(
+                                          foregroundColor: Colors.red,
+                                          disabledForegroundColor: Colors.red,
+                                          side: const BorderSide(
+                                            color: Colors.red,
+                                          ),
+                                          padding: const EdgeInsets.symmetric(
+                                            vertical: 12,
+                                          ),
+                                          shape: RoundedRectangleBorder(
+                                            borderRadius: BorderRadius.circular(
+                                              10,
                                             ),
-                                      label: Text(
-                                        isDeleting
-                                            ? "กำลังยกเลิกงาน..."
-                                            : "ยกเลิกงาน",
-                                        style: const TextStyle(
-                                          fontSize: 15,
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                      ),
-                                      style: OutlinedButton.styleFrom(
-                                        foregroundColor: Colors.red,
-                                        disabledForegroundColor: Colors.red,
-                                        side: const BorderSide(
-                                          color: Colors.red,
-                                        ),
-                                        padding: const EdgeInsets.symmetric(
-                                          vertical: 12,
-                                        ),
-                                        shape: RoundedRectangleBorder(
-                                          borderRadius: BorderRadius.circular(
-                                            10,
                                           ),
                                         ),
                                       ),
+                                    )
+                                  else if (_isLocked)
+                                    const Padding(
+                                      padding: EdgeInsets.symmetric(
+                                        vertical: 8,
+                                      ),
+                                      child: Text(
+                                        "ไม่สามารถยกเลิกงานได้ภายใน 2 ชั่วโมงก่อนเริ่มงาน",
+                                        style: TextStyle(color: Colors.grey),
+                                        textAlign: TextAlign.center,
+                                      ),
                                     ),
-                                  ),
+                                ],
 
                                 // แก้ไข / ลบ
                                 if (detailsJob['job_status'] == 0)
@@ -917,11 +949,32 @@ class _DetailsJobServiceState extends State<DetailsJobService> {
   Future<void> cancelJob(String jobId) async {
     if (isDeleting) return;
 
-    setState(() {
-      isDeleting = true;
-    });
+    setState(() => isDeleting = true);
 
     try {
+      // 0. อ่านงานล่าสุดจาก Firestore แล้วเช็กเงื่อนไขซ้ำ
+      final jobSnap = await db.collection('jobs').doc(jobId).get();
+      final job = jobSnap.data();
+
+      if (job == null) throw Exception('ไม่พบงาน');
+
+      final jobStatus = job['job_status'] as int;
+      final startTime = (job['start_time'] as Timestamp).toDate();
+
+      final canCancel =
+          jobStatus == 1 &&
+          startTime.difference(DateTime.now()) > const Duration(hours: 2);
+
+      if (!canCancel) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('ไม่สามารถยกเลิกงานได้ภายใน 2 ชั่วโมงก่อนเริ่มงาน'),
+          ),
+        );
+        return; // finally จะ reset isDeleting ให้
+      }
+
       // 1. ค้นหาผู้สมัครทั้งหมดของงานนี้
       final applications = await db
           .collection('all_drivers')
@@ -930,41 +983,40 @@ class _DetailsJobServiceState extends State<DetailsJobService> {
 
       String? providerId;
 
+      // 2. batch: เปลี่ยนเฉพาะผู้สมัครที่ยัง active (0 หรือ 1)
+      final batch = db.batch();
+
       for (final doc in applications.docs) {
         final data = doc.data();
+        final s = data['status_drivers'];
 
-        if (data['status_drivers'] == 1) {
+        if (s == 0 || s == 1) {
+          batch.update(doc.reference, {'status_drivers': 7});
+        }
+
+        if (s == 1 && providerId == null) {
           final id = data['provider_id'];
-
           if (id != null && id.toString().isNotEmpty) {
             providerId = id.toString();
-            break; // พบแล้ว หยุดค้นหา
           }
         }
       }
 
-      if (providerId != null) {
-        await NotificationService().notifyProviderJobCancelledByService(
-          jobId: jobId,
-          providerId: providerId,
-        );
-      } else {
-        debugPrint('ไม่พบผู้ให้บริการที่มี status_drivers == 1');
-      }
-
-      // 2. สร้าง Batch เพื่ออัปเดตสถานะ
-      final batch = db.batch();
-
-      // 3. เปลี่ยนสถานะผู้สมัครเป็น 7 โดยไม่ลบข้อมูล
-      for (final doc in applications.docs) {
-        batch.update(doc.reference, {'status_drivers': 7});
-      }
-
-      // 4. เปลี่ยนสถานะงานเป็น 10 (ยกเลิกงาน)
       batch.update(db.collection('jobs').doc(jobId), {'job_status': 10});
 
-      // 5. บันทึกการเปลี่ยนแปลงทั้งหมด
       await batch.commit();
+
+      // 3. แจ้งเตือนหลัง commit สำเร็จ และไม่ให้ล้มทั้งฟังก์ชัน
+      if (providerId != null) {
+        try {
+          await NotificationService().notifyProviderJobCancelledByService(
+            jobId: jobId,
+            providerId: providerId,
+          );
+        } catch (e) {
+          debugPrint('แจ้งเตือนผู้ให้บริการไม่สำเร็จ: $e');
+        }
+      }
 
       if (!mounted) return;
 
@@ -972,7 +1024,6 @@ class _DetailsJobServiceState extends State<DetailsJobService> {
         context,
       ).showSnackBar(const SnackBar(content: Text('ยกเลิกงานเรียบร้อยแล้ว')));
 
-      // กลับหน้าก่อนหน้าและส่งผลว่ามีการเปลี่ยนแปลง
       Navigator.pop(context, true);
     } catch (e) {
       debugPrint('Error cancelling job: $e');
@@ -983,11 +1034,7 @@ class _DetailsJobServiceState extends State<DetailsJobService> {
         const SnackBar(content: Text('ยกเลิกงานไม่สำเร็จ กรุณาลองใหม่')),
       );
     } finally {
-      if (mounted) {
-        setState(() {
-          isDeleting = false;
-        });
-      }
+      if (mounted) setState(() => isDeleting = false);
     }
   }
 
@@ -996,6 +1043,7 @@ class _DetailsJobServiceState extends State<DetailsJobService> {
       final snapshot = await FirebaseFirestore.instance
           .collection('all_drivers')
           .where('job_id', isEqualTo: jobId)
+          .where('status_drivers', isEqualTo: 1)
           .limit(1)
           .get();
 
@@ -1005,6 +1053,18 @@ class _DetailsJobServiceState extends State<DetailsJobService> {
       rethrow;
     }
   }
+
+  // ชื่อฟิลด์ start_time ปรับตามของจริง (ต้องเป็น Timestamp)
+  DateTime? get _startTime => jobStartTime(detailsJob);
+
+  bool get _canCancel {
+    final start = _startTime;
+    if (start == null) return false; // อ่านเวลาไม่ได้ ให้ปลอดภัยไว้ก่อน
+    return detailsJob['job_status'] == 1 &&
+        start.difference(DateTime.now()) > const Duration(hours: 2);
+  }
+
+  bool get _isLocked => detailsJob['job_status'] == 1 && !_canCancel;
 }
 
 class MapPreview extends StatefulWidget {

@@ -109,8 +109,11 @@ class _HomepageProviderState extends State<HomepageProvider> {
                 : statusAccount == 4
                 ? const Center(
                     child: Text(
-                      'บัญชีของคุณถูกระงับการใช้งานชั่วคราว\n'
-                      'ไม่สามารถสมัครงานได้ในขณะนี้',
+                      'ขออภัย บัญชีของคุณถูกระงับการใช้งานชั่วคราว\n'
+                      'คุณจะยังไม่สามารถสมัครงานได้ในขณะนี้\n'
+                      'กรุณารอผู้ดูแลระบบปลดระงับบัญชี\n'
+                      'แล้วจึงกลับมาใช้งานได้อีกครั้ง',
+                      textAlign: TextAlign.center,
                     ),
                   )
                 : Column(
@@ -911,7 +914,7 @@ class _HomepageProviderState extends State<HomepageProvider> {
       height: 42,
       child: ElevatedButton.icon(
         onPressed: () => filterByVehicle(vehicleType),
-        icon: Icon(icon, size: 18),
+        icon: Icon(icon, size: 16),
         label: Text(
           label,
           style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),

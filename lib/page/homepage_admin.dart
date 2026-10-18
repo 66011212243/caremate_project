@@ -1,5 +1,6 @@
 import 'package:caremate_application/page/Review_history_provider.dart';
 import 'package:caremate_application/page/approve_provider.dart';
+import 'package:caremate_application/page/notification_system.dart';
 import 'package:caremate_application/page/notifications_page.dart';
 import 'package:caremate_application/page/provider_detail_page.dart';
 import 'package:caremate_application/page/service_detail_page.dart';
@@ -21,6 +22,13 @@ class HomepageAdmin extends StatefulWidget {
 // 1. เพิ่มการประกาศ Class _HomepageAdminState ให้ถูกต้อง
 class _HomepageAdminState extends State<HomepageAdmin> {
   int _selectedIndex = 0;
+  @override
+  void initState() {
+    // TODO: implement initState
+    super.initState();
+    // ตั้งค่า Firebase Messaging
+    NotificationSystem().setupNotification(widget.uid);
+  }
 
   @override
   Widget build(BuildContext context) {
