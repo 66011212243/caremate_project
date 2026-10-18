@@ -593,7 +593,7 @@ class _CreateJobState extends State<CreateJob> {
                         ),
                       ),
                     ),
-                    SizedBox(width: 10),
+
                     Column(
                       children: [
                         Row(
@@ -697,7 +697,7 @@ class _CreateJobState extends State<CreateJob> {
                         ),
                       ],
                     ),
-                    SizedBox(width: 10),
+
                     Column(
                       children: [
                         Row(

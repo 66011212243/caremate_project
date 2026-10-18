@@ -66,15 +66,21 @@ class _AddressServicePageState extends State<AddressServicePage> {
 
                 // ปุ่มเพิ่มที่อยู่
                 InkWell(
-                  onTap: () {
+                  onTap: () async {
                     print("เพิ่มที่อยู่");
 
-                    Navigator.push(
+                    // หน้าที่อยู่
+                    final result = await Navigator.push<bool>(
                       context,
                       MaterialPageRoute(
                         builder: (context) => AddAddressPage(sid: widget.sid),
                       ),
                     );
+
+                    if (!mounted) return;
+                    if (result == true) {
+                      await queryAddress();
+                    }
                   },
                   child: Container(
                     width: double.infinity,
@@ -116,212 +122,222 @@ class _AddressServicePageState extends State<AddressServicePage> {
           : Column(
               children: [
                 Expanded(
-                  child: ListView.builder(
-                    padding: const EdgeInsets.all(16),
-                    itemCount: allAddress.length,
-                    itemBuilder: (context, index) {
-                      final fullData = allAddress[index];
+                  child: RefreshIndicator(
+                    onRefresh: queryAddress,
+                    child: ListView.builder(
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      padding: const EdgeInsets.all(16),
+                      itemCount: allAddress.length,
+                      itemBuilder: (context, index) {
+                        final fullData = allAddress[index];
 
-                      return Padding(
-                        padding: const EdgeInsets.only(bottom: 10),
-                        child: Container(
-                          width: double.infinity,
-                          padding: const EdgeInsets.all(16),
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: Colors.grey.shade300),
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                children: [
-                                  if (fullData['main_ad_status'] == 1)
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 10,
-                                        vertical: 5,
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: 10),
+                          child: Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: Colors.grey.shade300),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    if (fullData['main_ad_status'] == 1)
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 10,
+                                          vertical: 5,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: Colors.red.shade50,
+                                          borderRadius: BorderRadius.circular(
+                                            20,
+                                          ),
+                                        ),
+                                        child: const Text(
+                                          "ที่อยู่หลัก",
+                                          style: TextStyle(
+                                            color: Colors.red,
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
                                       ),
-                                      decoration: BoxDecoration(
-                                        color: Colors.red.shade50,
-                                        borderRadius: BorderRadius.circular(20),
+
+                                    const Spacer(),
+
+                                    TextButton(
+                                      onPressed: () async {
+                                        print(
+                                          "แก้ไข ${fullData['address_id']}",
+                                        );
+
+                                        final result = await Navigator.push(
+                                          context,
+                                          MaterialPageRoute(
+                                            builder: (context) =>
+                                                EditAddressPage(
+                                                  sid: widget.sid,
+                                                  addressId:
+                                                      fullData['address_id'],
+                                                ),
+                                          ),
+                                        );
+
+                                        // ถ้าแก้ไขสำเร็จ ให้โหลดข้อมูลใหม่
+                                        if (result == true) {
+                                          queryAddress();
+                                        }
+                                      },
+                                      style: TextButton.styleFrom(
+                                        padding: EdgeInsets.zero,
+                                        minimumSize: Size.zero,
+                                        tapTargetSize:
+                                            MaterialTapTargetSize.shrinkWrap,
                                       ),
                                       child: const Text(
-                                        "ที่อยู่หลัก",
+                                        "แก้ไข",
                                         style: TextStyle(
-                                          color: Colors.red,
-                                          fontSize: 12,
+                                          color: Colors.blue,
+                                          fontSize: 14,
                                           fontWeight: FontWeight.bold,
                                         ),
                                       ),
                                     ),
 
-                                  const Spacer(),
-
-                                  TextButton(
-                                    onPressed: () async {
-                                      print("แก้ไข ${fullData['address_id']}");
-
-                                      final result = await Navigator.push(
-                                        context,
-                                        MaterialPageRoute(
-                                          builder: (context) => EditAddressPage(
-                                            sid: widget.sid,
-                                            addressId: fullData['address_id'],
-                                          ),
-                                        ),
-                                      );
-
-                                      // ถ้าแก้ไขสำเร็จ ให้โหลดข้อมูลใหม่
-                                      if (result == true) {
-                                        queryAddress();
-                                      }
-                                    },
-                                    style: TextButton.styleFrom(
-                                      padding: EdgeInsets.zero,
-                                      minimumSize: Size.zero,
-                                      tapTargetSize:
-                                          MaterialTapTargetSize.shrinkWrap,
-                                    ),
-                                    child: const Text(
-                                      "แก้ไข",
-                                      style: TextStyle(
-                                        color: Colors.blue,
-                                        fontSize: 14,
-                                        fontWeight: FontWeight.bold,
+                                    const Padding(
+                                      padding: EdgeInsets.symmetric(
+                                        horizontal: 8,
+                                      ),
+                                      child: Text(
+                                        "|",
+                                        style: TextStyle(color: Colors.grey),
                                       ),
                                     ),
-                                  ),
 
-                                  const Padding(
-                                    padding: EdgeInsets.symmetric(
-                                      horizontal: 8,
-                                    ),
-                                    child: Text(
-                                      "|",
-                                      style: TextStyle(color: Colors.grey),
-                                    ),
-                                  ),
-
-                                  TextButton(
-                                    onPressed: () {
-                                      print("ลบ ${fullData['address_id']}");
-                                      showDialog(
-                                        context: context,
-                                        builder: (BuildContext context) {
-                                          return AlertDialog(
-                                            title: Text("ยืนยันการลบที่อยู่"),
-                                            content: Text(
-                                              "คุณต้องการลบที่อยู่นี้ใช่หรือไม่?",
-                                            ),
-                                            actions: [
-                                              TextButton(
-                                                onPressed: () {
-                                                  Navigator.pop(context);
-                                                },
-                                                child: Text(
-                                                  "ยกเลิก",
-                                                  style: TextStyle(
-                                                    color: Colors.grey,
+                                    TextButton(
+                                      onPressed: () {
+                                        print("ลบ ${fullData['address_id']}");
+                                        showDialog(
+                                          context: context,
+                                          builder: (BuildContext context) {
+                                            return AlertDialog(
+                                              title: Text("ยืนยันการลบที่อยู่"),
+                                              content: Text(
+                                                "คุณต้องการลบที่อยู่นี้ใช่หรือไม่?",
+                                              ),
+                                              actions: [
+                                                TextButton(
+                                                  onPressed: () {
+                                                    Navigator.pop(context);
+                                                  },
+                                                  child: Text(
+                                                    "ยกเลิก",
+                                                    style: TextStyle(
+                                                      color: Colors.grey,
+                                                    ),
                                                   ),
                                                 ),
-                                              ),
 
-                                              TextButton(
-                                                onPressed: () async {
-                                                  await deleteAddress(
-                                                    fullData['address_id'],
-                                                  );
-
-                                                  setState(() {
-                                                    allAddress.removeWhere(
-                                                      (address) =>
-                                                          address['address_id'] ==
-                                                          fullData['address_id'],
+                                                TextButton(
+                                                  onPressed: () async {
+                                                    await deleteAddress(
+                                                      fullData['address_id'],
                                                     );
-                                                  });
-                                                  Navigator.of(context).pop();
-                                                },
-                                                child: Text(
-                                                  "ยืนยัน",
-                                                  style: TextStyle(
-                                                    color: Colors.red,
+
+                                                    setState(() {
+                                                      allAddress.removeWhere(
+                                                        (address) =>
+                                                            address['address_id'] ==
+                                                            fullData['address_id'],
+                                                      );
+                                                    });
+                                                    Navigator.of(context).pop();
+                                                  },
+                                                  child: Text(
+                                                    "ยืนยัน",
+                                                    style: TextStyle(
+                                                      color: Colors.red,
+                                                    ),
                                                   ),
                                                 ),
-                                              ),
-                                            ],
-                                          );
-                                        },
-                                      );
-                                    },
-                                    style: TextButton.styleFrom(
-                                      padding: EdgeInsets.zero,
-                                      minimumSize: Size.zero,
-                                      tapTargetSize:
-                                          MaterialTapTargetSize.shrinkWrap,
-                                    ),
-                                    child: const Text(
-                                      "ลบ",
-                                      style: TextStyle(
-                                        color: Colors.red,
-                                        fontSize: 14,
-                                        fontWeight: FontWeight.bold,
+                                              ],
+                                            );
+                                          },
+                                        );
+                                      },
+                                      style: TextButton.styleFrom(
+                                        padding: EdgeInsets.zero,
+                                        minimumSize: Size.zero,
+                                        tapTargetSize:
+                                            MaterialTapTargetSize.shrinkWrap,
+                                      ),
+                                      child: const Text(
+                                        "ลบ",
+                                        style: TextStyle(
+                                          color: Colors.red,
+                                          fontSize: 14,
+                                          fontWeight: FontWeight.bold,
+                                        ),
                                       ),
                                     ),
-                                  ),
-                                ],
-                              ),
+                                  ],
+                                ),
 
-                              const SizedBox(height: 8),
+                                const SizedBox(height: 8),
 
-                              // =========================
-                              // ข้อมูลที่อยู่
-                              // =========================
-                              Row(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  const Icon(
-                                    Icons.location_on,
-                                    color: Colors.red,
-                                    size: 28,
-                                  ),
-
-                                  const SizedBox(width: 10),
-
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          fullData['address_details'] ?? '-',
-                                          style: const TextStyle(
-                                            fontSize: 16,
-                                            fontWeight: FontWeight.bold,
-                                          ),
-                                        ),
-
-                                        const SizedBox(height: 5),
-
-                                        Text(
-                                          "อ.${fullData['district'] ?? '-'} "
-                                          "จ.${fullData['province'] ?? '-'}",
-                                          style: TextStyle(
-                                            fontSize: 15,
-                                            color: Colors.grey.shade700,
-                                          ),
-                                        ),
-                                      ],
+                                // =========================
+                                // ข้อมูลที่อยู่
+                                // =========================
+                                Row(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const Icon(
+                                      Icons.location_on,
+                                      color: Colors.red,
+                                      size: 28,
                                     ),
-                                  ),
-                                ],
-                              ),
-                            ],
+
+                                    const SizedBox(width: 10),
+
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            fullData['address_details'] ?? '-',
+                                            style: const TextStyle(
+                                              fontSize: 16,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+
+                                          const SizedBox(height: 5),
+
+                                          Text(
+                                            "อ.${fullData['district'] ?? '-'} "
+                                            "จ.${fullData['province'] ?? '-'}",
+                                            style: TextStyle(
+                                              fontSize: 15,
+                                              color: Colors.grey.shade700,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
                           ),
-                        ),
-                      );
-                    },
+                        );
+                      },
+                    ),
                   ),
                 ),
 
@@ -329,15 +345,21 @@ class _AddressServicePageState extends State<AddressServicePage> {
                 // ปุ่มเพิ่มที่อยู่
                 // =========================
                 InkWell(
-                  onTap: () {
+                  onTap: () async {
                     print("เพิ่มที่อยู่");
 
-                    Navigator.push(
+                    // หน้าที่อยู่
+                    final result = await Navigator.push<bool>(
                       context,
                       MaterialPageRoute(
                         builder: (context) => AddAddressPage(sid: widget.sid),
                       ),
                     );
+
+                    if (!mounted) return;
+                    if (result == true) {
+                      await queryAddress();
+                    }
                   },
                   child: Container(
                     width: double.infinity,
